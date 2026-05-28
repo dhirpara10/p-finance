@@ -35,6 +35,7 @@ type MoneyRecord = {
 
 export default function Home() {
   const SHEETS_API_URL = process.env.NEXT_PUBLIC_SHEETS_API_URL;
+
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
@@ -44,9 +45,7 @@ export default function Home() {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showLentForm, setShowLentForm] = useState(false);
   const [showBorrowedForm, setShowBorrowedForm] = useState(false);
-  const [detailsView, setDetailsView] = useState<"lent" | "borrowed" | null>(
-    null
-  );
+  const [detailsView, setDetailsView] = useState<"lent" | "borrowed" | null>(null);
 
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeSource, setIncomeSource] = useState("Job 1");
@@ -151,132 +150,100 @@ export default function Home() {
     setMoneyNotes("");
     setMoneyStatus("Pending");
   }
-  
+
   async function saveToSheet(sheet: string, values: (string | number)[]) {
-  if (!SHEETS_API_URL) {
-    alert("Sheets API URL missing");
-    return false;
-  }
-
-  try {
-    const response = await fetch(SHEETS_API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        sheet,
-        values,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!result.success) {
-      alert("Failed to save to Google Sheets");
+    if (!SHEETS_API_URL) {
+      alert("Sheets API URL missing. Check Vercel env or .env.local.");
       return false;
     }
 
-    return true;
-  } catch (error) {
-    console.error(error);
-    alert("Error connecting to Google Sheets");
-    return false;
+    try {
+      const res = await fetch(SHEETS_API_URL, {
+        method: "POST",
+        body: JSON.stringify({ sheet, values }),
+      });
+
+      const text = await res.text();
+      const payload = JSON.parse(text);
+
+      if (!payload.success) {
+        alert(payload.error || "Failed to save to Google Sheets");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Sheets save error:", error);
+      alert("Google Sheets save failed. Check Apps Script deployment URL.");
+      return false;
+    }
   }
-}
 
   async function addIncome() {
-  if (!incomeAmount || Number(incomeAmount) <= 0) return;
+    if (!incomeAmount || Number(incomeAmount) <= 0) return;
 
-  const newIncome: Income = {
-    id: Date.now(),
-    amount: Number(incomeAmount),
-    source: incomeSource,
-    account: incomeAccount,
-    date: incomeDate || getToday(),
-    notes: incomeNotes,
-  };
+    const newIncome: Income = {
+      id: Date.now(),
+      amount: Number(incomeAmount),
+      source: incomeSource,
+      account: incomeAccount,
+      date: incomeDate || getToday(),
+      notes: incomeNotes,
+    };
 
-  const saved = await saveToSheet("income", [
-    newIncome.id,
-    newIncome.amount,
-    newIncome.source,
-    newIncome.account,
-    newIncome.date,
-    newIncome.notes,
-  ]);
+    const saved = await saveToSheet("income", [
+      newIncome.id,
+      newIncome.amount,
+      newIncome.source,
+      newIncome.account,
+      newIncome.date,
+      newIncome.notes,
+    ]);
 
-  if (!saved) return;
+    if (!saved) return;
 
-  setIncomes([newIncome, ...incomes]);
-  setIncomeAmount("");
-  setIncomeSource("Job 1");
-  setIncomeAccount("bank");
-  setIncomeDate("");
-  setIncomeNotes("");
-  setShowIncomeForm(false);
-}
+    setIncomes([newIncome, ...incomes]);
+    setIncomeAmount("");
+    setIncomeSource("Job 1");
+    setIncomeAccount("bank");
+    setIncomeDate("");
+    setIncomeNotes("");
+    setShowIncomeForm(false);
+  }
 
- async function addExpense() {
-  if (!expenseAmount || Number(expenseAmount) <= 0) return;
+  async function addExpense() {
+    if (!expenseAmount || Number(expenseAmount) <= 0) return;
 
-  const newExpense: Expense = {
-    id: Date.now(),
-    amount: Number(expenseAmount),
-    category: expenseCategory,
-    account: expenseAccount,
-    date: expenseDate || getToday(),
-    notes: expenseNotes,
-  };
+    const newExpense: Expense = {
+      id: Date.now(),
+      amount: Number(expenseAmount),
+      category: expenseCategory,
+      account: expenseAccount,
+      date: expenseDate || getToday(),
+      notes: expenseNotes,
+    };
 
-  const saved = await saveToSheet("expenses", [
-    newExpense.id,
-    newExpense.amount,
-    newExpense.category,
-    newExpense.account,
-    newExpense.date,
-    newExpense.notes,
-  ]);
+    const saved = await saveToSheet("expenses", [
+      newExpense.id,
+      newExpense.amount,
+      newExpense.category,
+      newExpense.account,
+      newExpense.date,
+      newExpense.notes,
+    ]);
 
-  if (!saved) return;
+    if (!saved) return;
 
-  setExpenses([newExpense, ...expenses]);
-  setExpenseAmount("");
-  setExpenseCategory("Spending Transfer");
-  setExpenseAccount("bank");
-  setExpenseDate("");
-  setExpenseNotes("");
-  setShowExpenseForm(false);
-}
+    setExpenses([newExpense, ...expenses]);
+    setExpenseAmount("");
+    setExpenseCategory("Spending Transfer");
+    setExpenseAccount("bank");
+    setExpenseDate("");
+    setExpenseNotes("");
+    setShowExpenseForm(false);
+  }
 
   async function addLent() {
-  if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
-
-  const newRecord: MoneyRecord = {
-    id: Date.now(),
-    name: moneyName,
-    amount: Number(moneyAmount),
-    date: moneyDate || getToday(),
-    phone: moneyPhone,
-    notes: moneyNotes,
-    status: moneyStatus,
-  };
-
-  const saved = await saveToSheet("lent", [
-    newRecord.id,
-    newRecord.name,
-    newRecord.amount,
-    newRecord.date,
-    newRecord.phone,
-    newRecord.notes,
-    newRecord.status,
-  ]);
-
-  if (!saved) return;
-
-  setLentRecords([newRecord, ...lentRecords]);
-  resetMoneyForm();
-  setShowLentForm(false);
-}
-
-  function addBorrowed() {
     if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
 
     const newRecord: MoneyRecord = {
@@ -288,6 +255,48 @@ export default function Home() {
       notes: moneyNotes,
       status: moneyStatus,
     };
+
+    const saved = await saveToSheet("lent", [
+      newRecord.id,
+      newRecord.name,
+      newRecord.amount,
+      newRecord.date,
+      newRecord.phone,
+      newRecord.notes,
+      newRecord.status,
+    ]);
+
+    if (!saved) return;
+
+    setLentRecords([newRecord, ...lentRecords]);
+    resetMoneyForm();
+    setShowLentForm(false);
+  }
+
+  async function addBorrowed() {
+    if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
+
+    const newRecord: MoneyRecord = {
+      id: Date.now(),
+      name: moneyName,
+      amount: Number(moneyAmount),
+      date: moneyDate || getToday(),
+      phone: moneyPhone,
+      notes: moneyNotes,
+      status: moneyStatus,
+    };
+
+    const saved = await saveToSheet("borrowed", [
+      newRecord.id,
+      newRecord.name,
+      newRecord.amount,
+      newRecord.date,
+      newRecord.phone,
+      newRecord.notes,
+      newRecord.status,
+    ]);
+
+    if (!saved) return;
 
     setBorrowedRecords([newRecord, ...borrowedRecords]);
     resetMoneyForm();
@@ -301,20 +310,20 @@ export default function Home() {
   }
 
   function deleteIncome(id: number) {
-  setIncomes(incomes.filter((item) => item.id !== id));
-}
+    setIncomes(incomes.filter((item) => item.id !== id));
+  }
 
-function deleteExpense(id: number) {
-  setExpenses(expenses.filter((item) => item.id !== id));
-}
+  function deleteExpense(id: number) {
+    setExpenses(expenses.filter((item) => item.id !== id));
+  }
 
-function deleteLent(id: number) {
-  setLentRecords(lentRecords.filter((item) => item.id !== id));
-}
+  function deleteLent(id: number) {
+    setLentRecords(lentRecords.filter((item) => item.id !== id));
+  }
 
-function deleteBorrowed(id: number) {
-  setBorrowedRecords(borrowedRecords.filter((item) => item.id !== id));
-}
+  function deleteBorrowed(id: number) {
+    setBorrowedRecords(borrowedRecords.filter((item) => item.id !== id));
+  }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
@@ -332,36 +341,29 @@ function deleteBorrowed(id: number) {
 
         <section className="mb-5 rounded-3xl bg-neutral-900 p-5 shadow-lg">
           <p className="text-sm text-neutral-400">Total Money</p>
-          <h2 className="mt-2 text-4xl font-bold">
-            ${totalMoney.toLocaleString()}
-          </h2>
+          <h2 className="mt-2 text-4xl font-bold">${totalMoney.toLocaleString()}</h2>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-neutral-800 p-4">
               <p className="text-xs text-neutral-400">Cash</p>
-              <p className="mt-1 text-xl font-semibold">
-                ${cash.toLocaleString()}
-              </p>
+              <p className="mt-1 text-xl font-semibold">${cash.toLocaleString()}</p>
             </div>
 
             <div className="rounded-2xl bg-neutral-800 p-4">
               <p className="text-xs text-neutral-400">Bank</p>
-              <p className="mt-1 text-xl font-semibold">
-                ${bank.toLocaleString()}
-              </p>
+              <p className="mt-1 text-xl font-semibold">${bank.toLocaleString()}</p>
             </div>
           </div>
 
           <div className="mt-4 rounded-2xl bg-neutral-800 p-4">
             <p className="text-xs text-neutral-400">Net Worth</p>
-            <p className="mt-1 text-2xl font-semibold">
-              ${netWorth.toLocaleString()}
-            </p>
+            <p className="mt-1 text-2xl font-semibold">${netWorth.toLocaleString()}</p>
           </div>
         </section>
 
         <section className="mb-5 grid grid-cols-2 gap-3">
           <button
+            type="button"
             onClick={() => setShowIncomeForm(true)}
             className="rounded-2xl bg-green-500 p-4 text-left font-semibold text-black"
           >
@@ -369,6 +371,7 @@ function deleteBorrowed(id: number) {
           </button>
 
           <button
+            type="button"
             onClick={() => setShowExpenseForm(true)}
             className="rounded-2xl bg-red-500 p-4 text-left font-semibold text-black"
           >
@@ -376,6 +379,7 @@ function deleteBorrowed(id: number) {
           </button>
 
           <button
+            type="button"
             onClick={() => setShowLentForm(true)}
             className="rounded-2xl border border-green-500 p-4 text-left font-semibold text-green-400"
           >
@@ -383,6 +387,7 @@ function deleteBorrowed(id: number) {
           </button>
 
           <button
+            type="button"
             onClick={() => setShowBorrowedForm(true)}
             className="rounded-2xl border border-red-500 p-4 text-left font-semibold text-red-400"
           >
@@ -396,23 +401,17 @@ function deleteBorrowed(id: number) {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-neutral-400">Income</span>
-              <span className="text-green-400">
-                +${monthlyIncome.toLocaleString()}
-              </span>
+              <span className="text-green-400">+${monthlyIncome.toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between">
               <span className="text-neutral-400">Expenses</span>
-              <span className="text-red-400">
-                -${monthlyExpenses.toLocaleString()}
-              </span>
+              <span className="text-red-400">-${monthlyExpenses.toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between border-t border-neutral-800 pt-3">
               <span className="font-medium">Remaining</span>
-              <span className="font-semibold">
-                ${remaining.toLocaleString()}
-              </span>
+              <span className="font-semibold">${remaining.toLocaleString()}</span>
             </div>
           </div>
         </section>
@@ -424,6 +423,7 @@ function deleteBorrowed(id: number) {
               ${activeLent.toLocaleString()}
             </p>
             <button
+              type="button"
               onClick={() => setDetailsView("lent")}
               className="mt-3 text-sm text-green-400"
             >
@@ -437,6 +437,7 @@ function deleteBorrowed(id: number) {
               ${activeBorrowed.toLocaleString()}
             </p>
             <button
+              type="button"
               onClick={() => setDetailsView("borrowed")}
               className="mt-3 text-sm text-red-400"
             >
@@ -453,8 +454,7 @@ function deleteBorrowed(id: number) {
               <p className="text-sm text-neutral-500">No activity yet.</p>
             ) : (
               recentActivity.map((item) => {
-                const isPositive =
-                  item.type === "income" || item.type === "lent";
+                const isPositive = item.type === "income" || item.type === "lent";
 
                 return (
                   <div
@@ -468,23 +468,24 @@ function deleteBorrowed(id: number) {
                       </p>
                     </div>
 
-                   <div className="text-right">
-  <p className={isPositive ? "text-green-400" : "text-red-400"}>
-    {isPositive ? "+" : "-"}${item.amount.toLocaleString()}
-  </p>
+                    <div className="text-right">
+                      <p className={isPositive ? "text-green-400" : "text-red-400"}>
+                        {isPositive ? "+" : "-"}${item.amount.toLocaleString()}
+                      </p>
 
-  <button
-    onClick={() => {
-      if (item.type === "income") deleteIncome(item.id);
-      if (item.type === "expense") deleteExpense(item.id);
-      if (item.type === "lent") deleteLent(item.id);
-      if (item.type === "borrowed") deleteBorrowed(item.id);
-    }}
-    className="mt-1 text-xs text-neutral-500"
-  >
-    Delete
-  </button>
-</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.type === "income") deleteIncome(item.id);
+                          if (item.type === "expense") deleteExpense(item.id);
+                          if (item.type === "lent") deleteLent(item.id);
+                          if (item.type === "borrowed") deleteBorrowed(item.id);
+                        }}
+                        className="mt-1 text-xs text-neutral-500"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -494,8 +495,8 @@ function deleteBorrowed(id: number) {
       </div>
 
       {showIncomeForm && (
-        <div className="fixed inset-0 flex items-end bg-black/70 px-4 pb-4">
-          <div className="w-full rounded-3xl bg-neutral-900 p-5">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
+          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
             <h2 className="mb-4 text-xl font-bold">Add Income</h2>
 
             <div className="space-y-3">
@@ -546,6 +547,7 @@ function deleteBorrowed(id: number) {
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={() => setShowIncomeForm(false)}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
@@ -553,6 +555,7 @@ function deleteBorrowed(id: number) {
               </button>
 
               <button
+                type="button"
                 onClick={addIncome}
                 className="rounded-2xl bg-green-500 p-4 font-semibold text-black"
               >
@@ -564,8 +567,8 @@ function deleteBorrowed(id: number) {
       )}
 
       {showExpenseForm && (
-        <div className="fixed inset-0 flex items-end bg-black/70 px-4 pb-4">
-          <div className="w-full rounded-3xl bg-neutral-900 p-5">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
+          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
             <h2 className="mb-4 text-xl font-bold">Add Expense</h2>
 
             <div className="space-y-3">
@@ -625,6 +628,7 @@ function deleteBorrowed(id: number) {
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={() => setShowExpenseForm(false)}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
@@ -632,6 +636,7 @@ function deleteBorrowed(id: number) {
               </button>
 
               <button
+                type="button"
                 onClick={addExpense}
                 className="rounded-2xl bg-red-500 p-4 font-semibold text-black"
               >
@@ -643,8 +648,8 @@ function deleteBorrowed(id: number) {
       )}
 
       {(showLentForm || showBorrowedForm) && (
-        <div className="fixed inset-0 flex items-end bg-black/70 px-4 pb-4">
-          <div className="w-full rounded-3xl bg-neutral-900 p-5">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
+          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
             <h2 className="mb-4 text-xl font-bold">
               {showLentForm ? "Add Lent Money" : "Add Borrowed Money"}
             </h2>
@@ -701,6 +706,7 @@ function deleteBorrowed(id: number) {
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={closeMoneyForms}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
@@ -708,6 +714,7 @@ function deleteBorrowed(id: number) {
               </button>
 
               <button
+                type="button"
                 onClick={showLentForm ? addLent : addBorrowed}
                 className={`rounded-2xl p-4 font-semibold text-black ${
                   showLentForm ? "bg-green-500" : "bg-red-500"
@@ -726,9 +733,7 @@ function deleteBorrowed(id: number) {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold">
-                  {detailsView === "lent"
-                    ? "Money I Lent"
-                    : "Money I Borrowed"}
+                  {detailsView === "lent" ? "Money I Lent" : "Money I Borrowed"}
                 </h2>
                 <p className="text-sm text-neutral-400">
                   {detailsView === "lent"
@@ -738,6 +743,7 @@ function deleteBorrowed(id: number) {
               </div>
 
               <button
+                type="button"
                 onClick={() => setDetailsView(null)}
                 className="rounded-full bg-neutral-900 px-4 py-2 text-sm"
               >
@@ -746,49 +752,48 @@ function deleteBorrowed(id: number) {
             </div>
 
             <div className="space-y-3">
-              {(detailsView === "lent" ? lentRecords : borrowedRecords)
-                .length === 0 ? (
+              {(detailsView === "lent" ? lentRecords : borrowedRecords).length === 0 ? (
                 <p className="rounded-2xl bg-neutral-900 p-4 text-sm text-neutral-500">
                   No records yet.
                 </p>
               ) : (
-                (detailsView === "lent" ? lentRecords : borrowedRecords).map(
-                  (item) => (
-                    <div key={item.id} className="rounded-3xl bg-neutral-900 p-5">
-                      <div className="mb-3 flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-lg font-semibold">{item.name}</p>
-                          <p className="text-sm text-neutral-400">{item.date}</p>
-                        </div>
-
-                        <p
-                          className={
-                            detailsView === "lent"
-                              ? "text-xl font-bold text-green-400"
-                              : "text-xl font-bold text-red-400"
-                          }
-                        >
-                          ${item.amount.toLocaleString()}
-                        </p>
+                (detailsView === "lent" ? lentRecords : borrowedRecords).map((item) => (
+                  <div key={item.id} className="rounded-3xl bg-neutral-900 p-5">
+                    <div className="mb-3 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-lg font-semibold">{item.name}</p>
+                        <p className="text-sm text-neutral-400">{item.date}</p>
                       </div>
 
-                      <div className="space-y-2 text-sm text-neutral-300">
-                        <p>Status: {item.status}</p>
-                        {item.phone && <p>Phone: {item.phone}</p>}
-                        {item.notes && <p>Notes: {item.notes}</p>}
-                        <button
-  onClick={() => {
-    if (detailsView === "lent") deleteLent(item.id);
-    if (detailsView === "borrowed") deleteBorrowed(item.id);
-  }}
-  className="mt-3 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-black"
->
-  Delete
-</button>
-                      </div>
+                      <p
+                        className={
+                          detailsView === "lent"
+                            ? "text-xl font-bold text-green-400"
+                            : "text-xl font-bold text-red-400"
+                        }
+                      >
+                        ${item.amount.toLocaleString()}
+                      </p>
                     </div>
-                  )
-                )
+
+                    <div className="space-y-2 text-sm text-neutral-300">
+                      <p>Status: {item.status}</p>
+                      {item.phone && <p>Phone: {item.phone}</p>}
+                      {item.notes && <p>Notes: {item.notes}</p>}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (detailsView === "lent") deleteLent(item.id);
+                          if (detailsView === "borrowed") deleteBorrowed(item.id);
+                        }}
+                        className="mt-3 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-black"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
