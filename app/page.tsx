@@ -3,7 +3,8 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 
 type Account = "cash" | "bank";
 type Status = "Pending" | "Partly Paid" | "Fully Settled";
@@ -55,6 +56,79 @@ export default function Home() {
     id: number;
   } | null>(null);
 
+  async function loadFromSheets() {
+    if (!SHEETS_API_URL) {
+      alert("Sheets API URL missing. Check Vercel env or .env.local.");
+      return;
+    }
+
+    try {
+      const res = await fetch(SHEETS_API_URL);
+      const text = await res.text();
+      const payload = JSON.parse(text);
+
+      if (!payload.success) {
+        alert(payload.error || "Failed to load Google Sheets data");
+        return;
+      }
+
+      const sheetData = payload.data;
+
+      setIncomes(
+        (sheetData.income || []).map((item: any) => ({
+          id: Number(item.id),
+          amount: Number(item.amount),
+          source: String(item.source || ""),
+          account: item.account === "cash" ? "cash" : "bank",
+          date: String(item.date || ""),
+          notes: String(item.notes || ""),
+        }))
+      );
+
+      setExpenses(
+        (sheetData.expenses || []).map((item: any) => ({
+          id: Number(item.id),
+          amount: Number(item.amount),
+          category: String(item.category || ""),
+          account: item.account === "cash" ? "cash" : "bank",
+          date: String(item.date || ""),
+          notes: String(item.notes || ""),
+        }))
+      );
+
+      setLentRecords(
+        (sheetData.lent || []).map((item: any) => ({
+          id: Number(item.id),
+          name: String(item.name || ""),
+          amount: Number(item.amount),
+          date: String(item.date || ""),
+          phone: String(item.phone || ""),
+          notes: String(item.notes || ""),
+          status: item.status || "Pending",
+        }))
+      );
+
+      setBorrowedRecords(
+        (sheetData.borrowed || []).map((item: any) => ({
+          id: Number(item.id),
+          name: String(item.name || ""),
+          amount: Number(item.amount),
+          date: String(item.date || ""),
+          phone: String(item.phone || ""),
+          notes: String(item.notes || ""),
+          status: item.status || "Pending",
+        }))
+      );
+    } catch (error) {
+      console.error("Load Sheets error:", error);
+      alert("Failed to load data from Google Sheets.");
+    }
+  }
+
+  useEffect(() => {
+    loadFromSheets();
+  }, []);
+
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeSource, setIncomeSource] = useState("Job 1");
   const [incomeAccount, setIncomeAccount] = useState<Account>("bank");
@@ -74,8 +148,8 @@ export default function Home() {
   const [moneyNotes, setMoneyNotes] = useState("");
   const [moneyStatus, setMoneyStatus] = useState<Status>("Pending");
 
-  const baseCash = 420;
-  const baseBank = 4400;
+  const baseCash = 0;
+  const baseBank = 0;
 
   const incomeCash = incomes
     .filter((item) => item.account === "cash")
@@ -966,4 +1040,63 @@ async function updateSheetRow(
       )}
     </main>
   );
+}
+
+declare const SpreadsheetApp: any;
+
+function jsonResponse(payload: any) {
+  // Simple shim for non-Apps Script environments (keeps TypeScript happy)
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return payload;
+  }
+}
+
+function doGet() {
+  if (typeof SpreadsheetApp === "undefined") {
+    // SpreadsheetApp isn't available in this environment (e.g. Next.js client).
+    return jsonResponse({
+      success: false,
+      error: "SpreadsheetApp is not available in this environment."
+    });
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetNames = ["income", "expenses", "lent", "borrowed"];
+  const data: Record<string, any[]> = {};
+
+  sheetNames.forEach(function(name: string) {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) {
+      data[name] = [];
+      return;
+    }
+
+    const rows = sheet.getDataRange().getValues();
+
+    if (rows.length < 2) {
+      data[name] = [];
+      return;
+    }
+
+    const headers = rows[0];
+
+    data[name] = rows.slice(1).map(function(row: any[]) {
+      const item: Record<string, any> = {};
+      headers.forEach(function(header: string, index: number) {
+        item[header] = row[index];
+      });
+      return item;
+    });
+  });
+
+  return jsonResponse({
+    success: true,
+    data: data
+  });
+}
+
+function loadFromSheets() {
+  throw new Error("Function not implemented.");
 }
