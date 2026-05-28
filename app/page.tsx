@@ -40,6 +40,9 @@ type MoneyRecord = {
 export default function Home() {
   const SHEETS_API_URL = process.env.NEXT_PUBLIC_SHEETS_API_URL;
 
+  // default ISO date for form fields and when sheet rows have no date
+  const today = new Date().toISOString().split("T")[0];
+
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
@@ -56,14 +59,33 @@ export default function Home() {
     id: number;
   } | null>(null);
 
+  // Settings UI state
+  const [showSettingsForm, setShowSettingsForm] = useState(false);
+  const [settingsCash, setSettingsCash] = useState("");
+  const [settingsBank, setSettingsBank] = useState("");
+
+  const [baseCash, setBaseCash] = useState(0);
+  const [baseBank, setBaseBank] = useState(0);
+  const [loading, setLoading] = useState(true);
+  
   async function loadFromSheets() {
     if (!SHEETS_API_URL) {
       alert("Sheets API URL missing. Check Vercel env or .env.local.");
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     try {
-      const res = await fetch(SHEETS_API_URL);
+      const res = await fetch(SHEETS_API_URL, {
+        method: "GET",
+        signal: controller.signal,
+      });
+
       const text = await res.text();
       const payload = JSON.parse(text);
 
@@ -72,7 +94,14 @@ export default function Home() {
         return;
       }
 
-      const sheetData = payload.data;
+      const sheetData = payload.data || {};
+
+      const settings = sheetData.settings || [];
+      const cashSetting = settings.find((item: any) => item.key === "base_cash");
+      const bankSetting = settings.find((item: any) => item.key === "base_bank");
+
+      setBaseCash(Number(cashSetting?.value || 0));
+      setBaseBank(Number(bankSetting?.value || 0));
 
       setIncomes(
         (sheetData.income || []).map((item: any) => ({
@@ -119,12 +148,20 @@ export default function Home() {
           status: item.status || "Pending",
         }))
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Load Sheets error:", error);
-      alert("Failed to load data from Google Sheets.");
+
+      if (error.name === "AbortError") {
+        alert("Google Sheets loading timed out. Check Apps Script deployment.");
+      } else {
+        alert("Failed to load data from Google Sheets.");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
     }
   }
-
+  
   useEffect(() => {
     loadFromSheets();
   }, []);
@@ -132,24 +169,31 @@ export default function Home() {
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeSource, setIncomeSource] = useState("Job 1");
   const [incomeAccount, setIncomeAccount] = useState<Account>("bank");
-  const [incomeDate, setIncomeDate] = useState("");
+  const [incomeDate, setIncomeDate] = useState(today);
   const [incomeNotes, setIncomeNotes] = useState("");
 
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("Spending Transfer");
   const [expenseAccount, setExpenseAccount] = useState<Account>("bank");
-  const [expenseDate, setExpenseDate] = useState("");
+  const [expenseDate, setExpenseDate] = useState(today);
   const [expenseNotes, setExpenseNotes] = useState("");
 
   const [moneyName, setMoneyName] = useState("");
   const [moneyAmount, setMoneyAmount] = useState("");
-  const [moneyDate, setMoneyDate] = useState("");
+  const [moneyDate, setMoneyDate] = useState(today);
   const [moneyPhone, setMoneyPhone] = useState("");
   const [moneyNotes, setMoneyNotes] = useState("");
   const [moneyStatus, setMoneyStatus] = useState<Status>("Pending");
 
-  const baseCash = 0;
-  const baseBank = 0;
+  function isCurrentMonth(dateString: string) {
+    const date = new Date(dateString);
+    const now = new Date();
+
+    return (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  }
 
   const incomeCash = incomes
     .filter((item) => item.account === "cash")
@@ -178,8 +222,13 @@ export default function Home() {
   const cash = baseCash + incomeCash - expenseCash;
   const bank = baseBank + incomeBank - expenseBank;
 
-  const monthlyIncome = incomes.reduce((sum, item) => sum + item.amount, 0);
-  const monthlyExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const monthlyIncome = incomes
+    .filter((item) => isCurrentMonth(item.date))
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  const monthlyExpenses = expenses
+    .filter((item) => isCurrentMonth(item.date))
+    .reduce((sum, item) => sum + item.amount, 0);
 
   const totalMoney = cash + bank;
   const netWorth = cash + bank + activeLent - activeBorrowed;
@@ -290,6 +339,26 @@ async function updateSheetRow(
   });
 }
 
+// Save settings to sheet (note: updateSheetRow expects an id in first column;
+// this will only work if your settings sheet rows use 'base_cash' and 'base_bank' as IDs)
+async function saveSettings() {
+  const cashSaved = await updateSheetRow("settings", "base_cash" as any, [
+    "base_cash",
+    Number(settingsCash || 0),
+  ]);
+
+  const bankSaved = await updateSheetRow("settings", "base_bank" as any, [
+    "base_bank",
+    Number(settingsBank || 0),
+  ]);
+
+  if (!cashSaved || !bankSaved) return;
+
+  setBaseCash(Number(settingsCash || 0));
+  setBaseBank(Number(settingsBank || 0));
+  setShowSettingsForm(false);
+}
+
   async function addIncome() {
     if (!incomeAmount || Number(incomeAmount) <= 0) return;
 
@@ -329,7 +398,7 @@ async function updateSheetRow(
     setIncomeAmount("");
     setIncomeSource("Job 1");
     setIncomeAccount("bank");
-    setIncomeDate("");
+    setIncomeDate(today);
     setIncomeNotes("");
     setEditingItem(null);
     setShowIncomeForm(false);
@@ -374,7 +443,7 @@ async function updateSheetRow(
     setExpenseAmount("");
     setExpenseCategory("Spending Transfer");
     setExpenseAccount("bank");
-    setExpenseDate("");
+    setExpenseDate(today);
     setExpenseNotes("");
     setEditingItem(null);
     setShowExpenseForm(false);
@@ -565,10 +634,20 @@ async function updateSheetRow(
         <header className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Money Control</h1>
-            <p className="text-sm text-neutral-400">May 2026</p>
+            <p className="text-sm text-neutral-400">
+              {new Date().toLocaleString(undefined, { month: "long", year: "numeric" })}
+            </p>
           </div>
 
-          <button className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300">
+          <button
+            type="button"
+            onClick={() => {
+              setSettingsCash(String(baseCash));
+              setSettingsBank(String(baseBank));
+              setShowSettingsForm(true);
+            }}
+            className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
+          >
             Settings
           </button>
         </header>
@@ -1038,65 +1117,63 @@ async function updateSheetRow(
           </div>
         </div>
       )}
+
+      {showSettingsForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
+          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
+            <h2 className="mb-4 text-xl font-bold">Settings</h2>
+
+            <div className="space-y-3">
+              <input
+                type="number"
+                placeholder="Base cash balance"
+                value={settingsCash}
+                onChange={(e) => setSettingsCash(e.target.value)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              />
+
+              <input
+                type="number"
+                placeholder="Base bank balance"
+                value={settingsBank}
+                onChange={(e) => setSettingsBank(e.target.value)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              />
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSettingsForm(false)}
+                className="rounded-2xl bg-neutral-800 p-4 font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={saveSettings}
+                className="rounded-2xl bg-green-500 p-4 font-semibold text-black"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-declare const SpreadsheetApp: any;
+/*
+  Server-side Google Apps Script code removed from this client page.
 
-function jsonResponse(payload: any) {
-  // Simple shim for non-Apps Script environments (keeps TypeScript happy)
-  try {
-    return JSON.stringify(payload);
-  } catch {
-    return payload;
-  }
-}
+  This file is a Next.js client component (app/page.tsx). Any Google Apps Script
+  / SpreadsheetApp logic must run in a separate Apps Script project or be exposed
+  via a proper API route; keeping that code here produced syntax errors and
+  prevented the page from compiling.
 
-function doGet() {
-  if (typeof SpreadsheetApp === "undefined") {
-    // SpreadsheetApp isn't available in this environment (e.g. Next.js client).
-    return jsonResponse({
-      success: false,
-      error: "SpreadsheetApp is not available in this environment."
-    });
-  }
+  If you need the original Apps Script, move it to a GAS project or to a server
+  endpoint and call it from this client using fetch().
+*/
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetNames = ["income", "expenses", "lent", "borrowed"];
-  const data: Record<string, any[]> = {};
-
-  sheetNames.forEach(function(name: string) {
-    const sheet = ss.getSheetByName(name);
-    if (!sheet) {
-      data[name] = [];
-      return;
-    }
-
-    const rows = sheet.getDataRange().getValues();
-
-    if (rows.length < 2) {
-      data[name] = [];
-      return;
-    }
-
-    const headers = rows[0];
-
-    data[name] = rows.slice(1).map(function(row: any[]) {
-      const item: Record<string, any> = {};
-      headers.forEach(function(header: string, index: number) {
-        item[header] = row[index];
-      });
-      return item;
-    });
-  });
-
-  return jsonResponse({
-    success: true,
-    data: data
-  });
-}
-
-function loadFromSheets() {
-  throw new Error("Function not implemented.");
-}
