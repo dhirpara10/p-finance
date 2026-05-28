@@ -1,5 +1,8 @@
 "use client";
 
+
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
 
 type Account = "cash" | "bank";
@@ -46,6 +49,11 @@ export default function Home() {
   const [showLentForm, setShowLentForm] = useState(false);
   const [showBorrowedForm, setShowBorrowedForm] = useState(false);
   const [detailsView, setDetailsView] = useState<"lent" | "borrowed" | null>(null);
+
+  const [editingItem, setEditingItem] = useState<{
+    type: "income" | "expense" | "lent" | "borrowed";
+    id: number;
+  } | null>(null);
 
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeSource, setIncomeSource] = useState("Job 1");
@@ -151,39 +159,68 @@ export default function Home() {
     setMoneyStatus("Pending");
   }
 
-  async function saveToSheet(sheet: string, values: (string | number)[]) {
-    if (!SHEETS_API_URL) {
-      alert("Sheets API URL missing. Check Vercel env or .env.local.");
-      return false;
-    }
-
-    try {
-      const res = await fetch(SHEETS_API_URL, {
-        method: "POST",
-        body: JSON.stringify({ sheet, values }),
-      });
-
-      const text = await res.text();
-      const payload = JSON.parse(text);
-
-      if (!payload.success) {
-        alert(payload.error || "Failed to save to Google Sheets");
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Sheets save error:", error);
-      alert("Google Sheets save failed. Check Apps Script deployment URL.");
-      return false;
-    }
+  async function callSheetsApi(body: object) {
+  if (!SHEETS_API_URL) {
+    alert("Sheets API URL missing. Check Vercel env or .env.local.");
+    return false;
   }
+
+  try {
+    const res = await fetch(SHEETS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    const text = await res.text();
+    const payload = JSON.parse(text);
+
+    if (!payload.success) {
+      alert(payload.error || "Google Sheets action failed");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Sheets API error:", error);
+    alert("Google Sheets request failed.");
+    return false;
+  }
+}
+
+async function saveToSheet(sheet: string, values: (string | number)[]) {
+  return callSheetsApi({
+    action: "add",
+    sheet,
+    values,
+  });
+}
+
+async function deleteFromSheet(sheet: string, id: number) {
+  return callSheetsApi({
+    action: "delete",
+    sheet,
+    id,
+  });
+}
+
+async function updateSheetRow(
+  sheet: string,
+  id: number,
+  values: (string | number)[]
+) {
+  return callSheetsApi({
+    action: "update",
+    sheet,
+    id,
+    values,
+  });
+}
 
   async function addIncome() {
     if (!incomeAmount || Number(incomeAmount) <= 0) return;
 
     const newIncome: Income = {
-      id: Date.now(),
+      id: editingItem?.type === "income" ? editingItem.id : Date.now(),
       amount: Number(incomeAmount),
       source: incomeSource,
       account: incomeAccount,
@@ -191,23 +228,36 @@ export default function Home() {
       notes: incomeNotes,
     };
 
-    const saved = await saveToSheet("income", [
+    const values = [
       newIncome.id,
       newIncome.amount,
       newIncome.source,
       newIncome.account,
       newIncome.date,
       newIncome.notes,
-    ]);
+    ];
+
+    const saved =
+      editingItem?.type === "income"
+        ? await updateSheetRow("income", newIncome.id, values)
+        : await saveToSheet("income", values);
 
     if (!saved) return;
 
-    setIncomes([newIncome, ...incomes]);
+    if (editingItem?.type === "income") {
+      setIncomes(
+        incomes.map((item) => (item.id === newIncome.id ? newIncome : item))
+      );
+    } else {
+      setIncomes([newIncome, ...incomes]);
+    }
+
     setIncomeAmount("");
     setIncomeSource("Job 1");
     setIncomeAccount("bank");
     setIncomeDate("");
     setIncomeNotes("");
+    setEditingItem(null);
     setShowIncomeForm(false);
   }
 
@@ -215,7 +265,7 @@ export default function Home() {
     if (!expenseAmount || Number(expenseAmount) <= 0) return;
 
     const newExpense: Expense = {
-      id: Date.now(),
+      id: editingItem?.type === "expense" ? editingItem.id : Date.now(),
       amount: Number(expenseAmount),
       category: expenseCategory,
       account: expenseAccount,
@@ -223,23 +273,36 @@ export default function Home() {
       notes: expenseNotes,
     };
 
-    const saved = await saveToSheet("expenses", [
+    const values = [
       newExpense.id,
       newExpense.amount,
       newExpense.category,
       newExpense.account,
       newExpense.date,
       newExpense.notes,
-    ]);
+    ];
+
+    const saved =
+      editingItem?.type === "expense"
+        ? await updateSheetRow("expenses", newExpense.id, values)
+        : await saveToSheet("expenses", values);
 
     if (!saved) return;
 
-    setExpenses([newExpense, ...expenses]);
+    if (editingItem?.type === "expense") {
+      setExpenses(
+        expenses.map((item) => (item.id === newExpense.id ? newExpense : item))
+      );
+    } else {
+      setExpenses([newExpense, ...expenses]);
+    }
+
     setExpenseAmount("");
     setExpenseCategory("Spending Transfer");
     setExpenseAccount("bank");
     setExpenseDate("");
     setExpenseNotes("");
+    setEditingItem(null);
     setShowExpenseForm(false);
   }
 
@@ -247,7 +310,7 @@ export default function Home() {
     if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
 
     const newRecord: MoneyRecord = {
-      id: Date.now(),
+      id: editingItem?.type === "lent" ? editingItem.id : Date.now(),
       name: moneyName,
       amount: Number(moneyAmount),
       date: moneyDate || getToday(),
@@ -256,7 +319,7 @@ export default function Home() {
       status: moneyStatus,
     };
 
-    const saved = await saveToSheet("lent", [
+    const values = [
       newRecord.id,
       newRecord.name,
       newRecord.amount,
@@ -264,12 +327,25 @@ export default function Home() {
       newRecord.phone,
       newRecord.notes,
       newRecord.status,
-    ]);
+    ];
+
+    const saved =
+      editingItem?.type === "lent"
+        ? await updateSheetRow("lent", newRecord.id, values)
+        : await saveToSheet("lent", values);
 
     if (!saved) return;
 
-    setLentRecords([newRecord, ...lentRecords]);
+    if (editingItem?.type === "lent") {
+      setLentRecords(
+        lentRecords.map((item) => (item.id === newRecord.id ? newRecord : item))
+      );
+    } else {
+      setLentRecords([newRecord, ...lentRecords]);
+    }
+
     resetMoneyForm();
+    setEditingItem(null);
     setShowLentForm(false);
   }
 
@@ -277,7 +353,7 @@ export default function Home() {
     if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
 
     const newRecord: MoneyRecord = {
-      id: Date.now(),
+      id: editingItem?.type === "borrowed" ? editingItem.id : Date.now(),
       name: moneyName,
       amount: Number(moneyAmount),
       date: moneyDate || getToday(),
@@ -286,7 +362,7 @@ export default function Home() {
       status: moneyStatus,
     };
 
-    const saved = await saveToSheet("borrowed", [
+    const values = [
       newRecord.id,
       newRecord.name,
       newRecord.amount,
@@ -294,12 +370,27 @@ export default function Home() {
       newRecord.phone,
       newRecord.notes,
       newRecord.status,
-    ]);
+    ];
+
+    const saved =
+      editingItem?.type === "borrowed"
+        ? await updateSheetRow("borrowed", newRecord.id, values)
+        : await saveToSheet("borrowed", values);
 
     if (!saved) return;
 
-    setBorrowedRecords([newRecord, ...borrowedRecords]);
+    if (editingItem?.type === "borrowed") {
+      setBorrowedRecords(
+        borrowedRecords.map((item) =>
+          item.id === newRecord.id ? newRecord : item
+        )
+      );
+    } else {
+      setBorrowedRecords([newRecord, ...borrowedRecords]);
+    }
+
     resetMoneyForm();
+    setEditingItem(null);
     setShowBorrowedForm(false);
   }
 
@@ -309,20 +400,89 @@ export default function Home() {
     setShowBorrowedForm(false);
   }
 
-  function deleteIncome(id: number) {
+  async function deleteIncome(id: number) {
+    const deleted = await deleteFromSheet("income", id);
+    if (!deleted) return;
+
     setIncomes(incomes.filter((item) => item.id !== id));
   }
 
-  function deleteExpense(id: number) {
+  async function deleteExpense(id: number) {
+    const deleted = await deleteFromSheet("expenses", id);
+    if (!deleted) return;
+
     setExpenses(expenses.filter((item) => item.id !== id));
   }
 
-  function deleteLent(id: number) {
+  async function deleteLent(id: number) {
+    const deleted = await deleteFromSheet("lent", id);
+    if (!deleted) return;
+
     setLentRecords(lentRecords.filter((item) => item.id !== id));
   }
 
-  function deleteBorrowed(id: number) {
+  async function deleteBorrowed(id: number) {
+    const deleted = await deleteFromSheet("borrowed", id);
+    if (!deleted) return;
+
     setBorrowedRecords(borrowedRecords.filter((item) => item.id !== id));
+  }
+
+  function startEdit(item: any) {
+    setEditingItem({
+      type: item.type,
+      id: item.id,
+    });
+
+    if (item.type === "income") {
+      const record = incomes.find((x) => x.id === item.id);
+      if (!record) return;
+
+      setIncomeAmount(String(record.amount));
+      setIncomeSource(record.source);
+      setIncomeAccount(record.account);
+      setIncomeDate(record.date);
+      setIncomeNotes(record.notes);
+      setShowIncomeForm(true);
+    }
+
+    if (item.type === "expense") {
+      const record = expenses.find((x) => x.id === item.id);
+      if (!record) return;
+
+      setExpenseAmount(String(record.amount));
+      setExpenseCategory(record.category);
+      setExpenseAccount(record.account);
+      setExpenseDate(record.date);
+      setExpenseNotes(record.notes);
+      setShowExpenseForm(true);
+    }
+
+    if (item.type === "lent") {
+      const record = lentRecords.find((x) => x.id === item.id);
+      if (!record) return;
+
+      setMoneyName(record.name);
+      setMoneyAmount(String(record.amount));
+      setMoneyDate(record.date);
+      setMoneyPhone(record.phone);
+      setMoneyNotes(record.notes);
+      setMoneyStatus(record.status);
+      setShowLentForm(true);
+    }
+
+    if (item.type === "borrowed") {
+      const record = borrowedRecords.find((x) => x.id === item.id);
+      if (!record) return;
+
+      setMoneyName(record.name);
+      setMoneyAmount(String(record.amount));
+      setMoneyDate(record.date);
+      setMoneyPhone(record.phone);
+      setMoneyNotes(record.notes);
+      setMoneyStatus(record.status);
+      setShowBorrowedForm(true);
+    }
   }
 
   return (
@@ -453,42 +613,47 @@ export default function Home() {
             {recentActivity.length === 0 ? (
               <p className="text-sm text-neutral-500">No activity yet.</p>
             ) : (
-              recentActivity.map((item) => {
-                const isPositive = item.type === "income" || item.type === "lent";
-
-                return (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
-                  >
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-xs text-neutral-400">
-                        {item.date} • {item.account}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className={isPositive ? "text-green-400" : "text-red-400"}>
-                        {isPositive ? "+" : "-"}${item.amount.toLocaleString()}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (item.type === "income") deleteIncome(item.id);
-                          if (item.type === "expense") deleteExpense(item.id);
-                          if (item.type === "lent") deleteLent(item.id);
-                          if (item.type === "borrowed") deleteBorrowed(item.id);
-                        }}
-                        className="mt-1 text-xs text-neutral-500"
-                      >
-                        Delete
-                      </button>
-                    </div>
+              recentActivity.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
+                >
+                  <div>
+                    <p className="font-medium">{item.title}</p>
+                    <p className="text-xs text-neutral-400">
+                      {item.date} • {item.account}
+                    </p>
                   </div>
-                );
-              })
+
+                  <div className="text-right">
+                    <p className={item.type === "income" ? "text-green-400" : "text-red-400"}>
+                      {item.type === "income" ? "+" : "-"}${item.amount.toLocaleString()}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="mt-1 block text-xs text-blue-400"
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} />
+                    </button>
+                    
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.type === "income") deleteIncome(item.id);
+                        if (item.type === "expense") deleteExpense(item.id);
+                        if (item.type === "lent") deleteLent(item.id);
+                        if (item.type === "borrowed") deleteBorrowed(item.id);
+                      }}
+                      className="mt-1 block text-xs text-neutral-500"
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </section>
