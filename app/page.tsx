@@ -42,6 +42,7 @@ const SHEETS_API_URL = "/api/sheets";
 
   // default ISO date for form fields and when sheet rows have no date
   const today = new Date().toISOString().split("T")[0];
+  
 
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -67,6 +68,13 @@ const SHEETS_API_URL = "/api/sheets";
   const [baseCash, setBaseCash] = useState(0);
   const [baseBank, setBaseBank] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // simple passcode unlock state
+  const APP_PASSCODE = "2605";
+  const [passcodeInput, setPasscodeInput] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
   
   async function loadFromSheets() {
   if (!SHEETS_API_URL) {
@@ -162,6 +170,19 @@ const SHEETS_API_URL = "/api/sheets";
   
   useEffect(() => {
     loadFromSheets();
+  }, []);
+
+  useEffect(() => {
+    const unlocked = localStorage.getItem("finance_unlocked");
+    const lockedUntil = localStorage.getItem("finance_locked_until");
+
+    if (unlocked === "true") {
+      setIsUnlocked(true);
+    }
+
+    if (lockedUntil) {
+      setLockUntil(Number(lockedUntil));
+    }
   }, []);
 
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -626,6 +647,68 @@ async function saveSettings() {
     }
   }
 
+  function unlockApp() {
+    const now = Date.now();
+
+    if (lockUntil && now < lockUntil) {
+      const minutesLeft = Math.ceil((lockUntil - now) / 60000);
+      alert(`Too many wrong attempts. Try again in ${minutesLeft} minutes.`);
+      return;
+    }
+
+    if (passcodeInput === APP_PASSCODE) {
+      setIsUnlocked(true);
+      localStorage.setItem("finance_unlocked", "true");
+
+      setFailedAttempts(0);
+      localStorage.removeItem("finance_locked_until");
+
+      return;
+    }
+
+    const nextAttempts = failedAttempts + 1;
+    setFailedAttempts(nextAttempts);
+
+    if (nextAttempts >= 2) {
+      const nextLock = Date.now() + 10 * 60 * 1000;
+      setLockUntil(nextLock);
+      localStorage.setItem("finance_locked_until", String(nextLock));
+      alert("Too many wrong attempts. Locked for 10 minutes.");
+      return;
+    }
+
+    alert("Wrong passcode.");
+  }
+
+  // show passcode unlock before rendering the main app
+  if (!isUnlocked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black px-4 text-white">
+        <div className="w-full max-w-sm rounded-3xl bg-neutral-900 p-6">
+          <h1 className="mb-2 text-2xl font-bold">Money Control</h1>
+
+          <p className="mb-5 text-sm text-neutral-400">Enter passcode</p>
+
+          <input
+            type="password"
+            value={passcodeInput}
+            onChange={(e) => setPasscodeInput(e.target.value)}
+            className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+            placeholder="Passcode"
+          />
+
+          <button
+            type="button"
+            onClick={unlockApp}
+            className="mt-4 w-full rounded-2xl bg-white p-4 font-semibold text-black"
+          >
+            Unlock
+          </button>
+        </div>
+      </main>
+    );
+  }
+  
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-md px-4 py-6">
@@ -637,17 +720,31 @@ async function saveSettings() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSettingsCash(String(baseCash));
-              setSettingsBank(String(baseBank));
-              setShowSettingsForm(true);
-            }}
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
-          >
-            Settings
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsCash(String(baseCash));
+                setSettingsBank(String(baseBank));
+                setShowSettingsForm(true);
+              }}
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
+            >
+              Settings
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("finance_unlocked");
+                setIsUnlocked(false);
+                setPasscodeInput("");
+              }}
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
+            >
+              Lock
+            </button>
+          </div>
         </header>
 
         <section className="mb-5 rounded-3xl bg-neutral-900 p-5 shadow-lg">
