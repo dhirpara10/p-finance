@@ -38,7 +38,7 @@ type MoneyRecord = {
 };
 
 export default function Home() {
-  const SHEETS_API_URL = process.env.NEXT_PUBLIC_SHEETS_API_URL;
+const SHEETS_API_URL = "/api/sheets";
 
   // default ISO date for form fields and when sheet rows have no date
   const today = new Date().toISOString().split("T")[0];
@@ -69,98 +69,96 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   
   async function loadFromSheets() {
-    if (!SHEETS_API_URL) {
-      alert("Sheets API URL missing. Check Vercel env or .env.local.");
-      setLoading(false);
+  if (!SHEETS_API_URL) {
+    alert("Sheets API URL missing. Check server API route /api/sheets.");
+    setLoading(false);
+    return;
+  }
+
+  setLoading(true);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const res = await fetch(SHEETS_API_URL, {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    console.log("Sheets raw response:", text);
+
+    const payload = JSON.parse(text);
+
+    if (!payload.success) {
+      console.error("Sheets load failed:", payload);
+      alert(payload.error || "Failed to load Google Sheets data");
       return;
     }
 
-    setLoading(true);
+    const sheetData = payload.data || {};
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const settings = sheetData.settings || [];
+    const cashSetting = settings.find((item: any) => item.key === "base_cash");
+    const bankSetting = settings.find((item: any) => item.key === "base_bank");
 
-    try {
-      const res = await fetch(SHEETS_API_URL, {
-        method: "GET",
-        signal: controller.signal,
-      });
+    setBaseCash(Number(cashSetting?.value || 0));
+    setBaseBank(Number(bankSetting?.value || 0));
 
-      const text = await res.text();
-      const payload = JSON.parse(text);
+    setIncomes(
+      (sheetData.income || []).map((item: any) => ({
+        id: Number(item.id),
+        amount: Number(item.amount),
+        source: String(item.source || ""),
+        account: item.account === "cash" ? "cash" : "bank",
+        date: String(item.date || ""),
+        notes: String(item.notes || ""),
+      }))
+    );
 
-      if (!payload.success) {
-        alert(payload.error || "Failed to load Google Sheets data");
-        return;
-      }
+    setExpenses(
+      (sheetData.expenses || []).map((item: any) => ({
+        id: Number(item.id),
+        amount: Number(item.amount),
+        category: String(item.category || ""),
+        account: item.account === "cash" ? "cash" : "bank",
+        date: String(item.date || ""),
+        notes: String(item.notes || ""),
+      }))
+    );
 
-      const sheetData = payload.data || {};
+    setLentRecords(
+      (sheetData.lent || []).map((item: any) => ({
+        id: Number(item.id),
+        name: String(item.name || ""),
+        amount: Number(item.amount),
+        date: String(item.date || ""),
+        phone: String(item.phone || ""),
+        notes: String(item.notes || ""),
+        status: item.status || "Pending",
+      }))
+    );
 
-      const settings = sheetData.settings || [];
-      const cashSetting = settings.find((item: any) => item.key === "base_cash");
-      const bankSetting = settings.find((item: any) => item.key === "base_bank");
-
-      setBaseCash(Number(cashSetting?.value || 0));
-      setBaseBank(Number(bankSetting?.value || 0));
-
-      setIncomes(
-        (sheetData.income || []).map((item: any) => ({
-          id: Number(item.id),
-          amount: Number(item.amount),
-          source: String(item.source || ""),
-          account: item.account === "cash" ? "cash" : "bank",
-          date: String(item.date || ""),
-          notes: String(item.notes || ""),
-        }))
-      );
-
-      setExpenses(
-        (sheetData.expenses || []).map((item: any) => ({
-          id: Number(item.id),
-          amount: Number(item.amount),
-          category: String(item.category || ""),
-          account: item.account === "cash" ? "cash" : "bank",
-          date: String(item.date || ""),
-          notes: String(item.notes || ""),
-        }))
-      );
-
-      setLentRecords(
-        (sheetData.lent || []).map((item: any) => ({
-          id: Number(item.id),
-          name: String(item.name || ""),
-          amount: Number(item.amount),
-          date: String(item.date || ""),
-          phone: String(item.phone || ""),
-          notes: String(item.notes || ""),
-          status: item.status || "Pending",
-        }))
-      );
-
-      setBorrowedRecords(
-        (sheetData.borrowed || []).map((item: any) => ({
-          id: Number(item.id),
-          name: String(item.name || ""),
-          amount: Number(item.amount),
-          date: String(item.date || ""),
-          phone: String(item.phone || ""),
-          notes: String(item.notes || ""),
-          status: item.status || "Pending",
-        }))
-      );
-    } catch (error: any) {
-      console.error("Load Sheets error:", error);
-
-      if (error.name === "AbortError") {
-        alert("Google Sheets loading timed out. Check Apps Script deployment.");
-      } else {
-        alert("Failed to load data from Google Sheets.");
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
+    setBorrowedRecords(
+      (sheetData.borrowed || []).map((item: any) => ({
+        id: Number(item.id),
+        name: String(item.name || ""),
+        amount: Number(item.amount),
+        date: String(item.date || ""),
+        phone: String(item.phone || ""),
+        notes: String(item.notes || ""),
+        status: item.status || "Pending",
+      }))
+    );
+  } catch (error: any) {
+    console.error("Load Sheets error:", error);
+    alert(`Failed to load data from Google Sheets: ${error.message}`);
+  } finally {
+    clearTimeout(timeoutId);
+    setLoading(false);
   }
+}
   
   useEffect(() => {
     loadFromSheets();
@@ -284,7 +282,7 @@ export default function Home() {
 
   async function callSheetsApi(body: object) {
   if (!SHEETS_API_URL) {
-    alert("Sheets API URL missing. Check Vercel env or .env.local.");
+    alert("Sheets API URL missing. Ensure /api/sheets exists.");
     return false;
   }
 
