@@ -4,23 +4,41 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState } from "react";
 
-type Account = "cash" | "bank";
 type Status = "Pending" | "Partly Paid" | "Fully Settled";
+type IncomeType = "Hourly" | "Fixed Amount";
+type ExpenseAccount = "Usable Balance" | "Cash";
+type Bucket =
+  | "Usable Balance"
+  | "Emergency Fund"
+  | "Debt Repayment"
+  | "Remittance Fund"
+  | "Cash";
 
 type Income = {
   id: number;
-  amount: number;
+  income_type: "Hourly" | "Fixed Amount";
   source: string;
-  account: Account;
+  rate: number;
+  hours: number;
+  amount: number;
+  cash_received: number;
   date: string;
   notes: string;
 };
-
 type Expense = {
   id: number;
   amount: number;
   category: string;
-  account: Account;
+  account: ExpenseAccount;
+  date: string;
+  notes: string;
+};
+
+type Transfer = {
+  id: number;
+  from_bucket: Bucket;
+  to_bucket: Bucket;
+  amount: number;
   date: string;
   notes: string;
 };
@@ -35,44 +53,20 @@ type MoneyRecord = {
   status: Status;
 };
 
+type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer";
+
+const jobRates: Record<string, number> = {
+  "Hawthorn Pizza": 20,
+  "Pizza High": 23,
+};
+
 export default function Home() {
   const SHEETS_API_URL = "/api/sheets";
   const today = new Date().toISOString().split("T")[0];
 
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
-  const [borrowedRecords, setBorrowedRecords] = useState<MoneyRecord[]>([]);
+  const [authReady, setAuthReady] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [showIncomeForm, setShowIncomeForm] = useState(false);
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [showLentForm, setShowLentForm] = useState(false);
-  const [showBorrowedForm, setShowBorrowedForm] = useState(false);
-  const [detailsView, setDetailsView] = useState<"lent" | "borrowed" | null>(
-    null
-  );
-
-  const [editingItem, setEditingItem] = useState<{
-    type: "income" | "expense" | "lent" | "borrowed";
-    id: number;
-  } | null>(null);
-
-  const [showSettingsForm, setShowSettingsForm] = useState(false);
-  const [settingsCash, setSettingsCash] = useState("");
-  const [settingsBank, setSettingsBank] = useState("");
-
-  const [baseCash, setBaseCash] = useState(0);
-  const [baseBank, setBaseBank] = useState(0);
-
-  const [emergencyGoal, setEmergencyGoal] = useState(5000);
-  const [emergencySaved, setEmergencySaved] = useState(0);
-  const [debtRepaymentSaved, setDebtRepaymentSaved] = useState(0);
-  const [remittanceGoal, setRemittanceGoal] = useState(10000);
-  const [remittanceSaved, setRemittanceSaved] = useState(0);
-
-  const [loading, setLoading] = useState(true);
-
-  // passcode / unlock state
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -80,17 +74,51 @@ export default function Home() {
   const [appPasscode, setAppPasscode] = useState("2605");
   const [newPasscode, setNewPasscode] = useState("");
 
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [incomeCashReceived, setIncomeCashReceived] = useState("");
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
+  const [borrowedRecords, setBorrowedRecords] = useState<MoneyRecord[]>([]);
+
+  const [showIncomeForm, setShowIncomeForm] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [showLentForm, setShowLentForm] = useState(false);
+  const [showBorrowedForm, setShowBorrowedForm] = useState(false);
+  const [showSettingsForm, setShowSettingsForm] = useState(false);
+  const [detailsView, setDetailsView] = useState<"lent" | "borrowed" | null>(
+    null
+  );
+
+  const [editingItem, setEditingItem] = useState<{
+    type: EditingItemType;
+    id: number;
+  } | null>(null);
+
+  const [emergencyGoal, setEmergencyGoal] = useState(5000);
+  const [remittanceGoal, setRemittanceGoal] = useState(10000);
+
+  const [incomeType, setIncomeType] = useState<IncomeType>("Hourly");
+  const [incomeSource, setIncomeSource] = useState("Hawthorn Pizza");
+  const [incomeRate, setIncomeRate] = useState("20");
+  const [incomeHours, setIncomeHours] = useState("");
   const [incomeAmount, setIncomeAmount] = useState("");
-  const [incomeSource, setIncomeSource] = useState("Job 1");
-  const [incomeAccount, setIncomeAccount] = useState<Account>("bank");
   const [incomeDate, setIncomeDate] = useState(today);
   const [incomeNotes, setIncomeNotes] = useState("");
 
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("Spending Transfer");
-  const [expenseAccount, setExpenseAccount] = useState<Account>("bank");
+  const [expenseAccount, setExpenseAccount] =
+    useState<ExpenseAccount>("Usable Balance");
   const [expenseDate, setExpenseDate] = useState(today);
   const [expenseNotes, setExpenseNotes] = useState("");
+
+  const [fromBucket, setFromBucket] = useState<Bucket>("Usable Balance");
+  const [toBucket, setToBucket] = useState<Bucket>("Emergency Fund");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferDate, setTransferDate] = useState(today);
+  const [transferNotes, setTransferNotes] = useState("");
 
   const [moneyName, setMoneyName] = useState("");
   const [moneyAmount, setMoneyAmount] = useState("");
@@ -119,6 +147,79 @@ export default function Home() {
     return Math.min((current / goal) * 100, 100);
   }
 
+  function getToday() {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  function resetIncomeForm() {
+  setIncomeType("Hourly");
+  setIncomeSource("Hawthorn Pizza");
+  setIncomeRate("20");
+  setIncomeHours("");
+  setIncomeAmount("");
+  setIncomeCashReceived("");
+  setIncomeDate(today);
+  setIncomeNotes("");
+}
+
+  function resetExpenseForm() {
+    setExpenseAmount("");
+    setExpenseCategory("Spending Transfer");
+    setExpenseAccount("Usable Balance");
+    setExpenseDate(today);
+    setExpenseNotes("");
+  }
+
+  function resetTransferForm() {
+    setFromBucket("Usable Balance");
+    setToBucket("Emergency Fund");
+    setTransferAmount("");
+    setTransferDate(today);
+    setTransferNotes("");
+  }
+
+  function resetMoneyForm() {
+    setMoneyName("");
+    setMoneyAmount("");
+    setMoneyDate(today);
+    setMoneyPhone("");
+    setMoneyNotes("");
+    setMoneyStatus("Pending");
+  }
+
+  function closeAllForms() {
+    resetIncomeForm();
+    resetExpenseForm();
+    resetTransferForm();
+    resetMoneyForm();
+    setEditingItem(null);
+    setShowIncomeForm(false);
+    setShowExpenseForm(false);
+    setShowTransferForm(false);
+    setShowLentForm(false);
+    setShowBorrowedForm(false);
+  }
+
+  function handleIncomeTypeChange(value: IncomeType) {
+    setIncomeType(value);
+
+    if (value === "Hourly") {
+      setIncomeRate(String(jobRates[incomeSource] ?? 0));
+      setIncomeAmount("");
+    } else {
+      setIncomeHours("");
+      setIncomeRate("0");
+    }
+  }
+
+  function handleIncomeSourceChange(value: string) {
+    setIncomeSource(value);
+
+    if (incomeType === "Hourly") {
+      setIncomeRate(String(jobRates[value] ?? 0));
+    }
+  }
+
   async function loadFromSheets() {
     setLoading(true);
 
@@ -142,51 +243,52 @@ export default function Home() {
       const sheetData = payload.data || {};
       const settings = sheetData.settings || [];
 
-      const cashSetting = settings.find((item: any) => item.key === "base_cash");
-      const bankSetting = settings.find((item: any) => item.key === "base_bank");
-
-      const emergencySavedSetting = settings.find(
-        (item: any) => item.key === "emergency_saved"
-      );
       const emergencyGoalSetting = settings.find(
         (item: any) => item.key === "emergency_goal"
-      );
-      const debtRepaymentSavedSetting = settings.find(
-        (item: any) => item.key === "debt_repayment_saved"
-      );
-      const remittanceSavedSetting = settings.find(
-        (item: any) => item.key === "remittance_saved"
       );
       const remittanceGoalSetting = settings.find(
         (item: any) => item.key === "remittance_goal"
       );
 
-      setBaseCash(toNumber(cashSetting?.value));
-      setBaseBank(toNumber(bankSetting?.value));
-
-      setEmergencySaved(toNumber(emergencySavedSetting?.value));
       setEmergencyGoal(toNumber(emergencyGoalSetting?.value || 5000));
-      setDebtRepaymentSaved(toNumber(debtRepaymentSavedSetting?.value));
-      setRemittanceSaved(toNumber(remittanceSavedSetting?.value));
       setRemittanceGoal(toNumber(remittanceGoalSetting?.value || 10000));
 
-      setIncomes(
-        (sheetData.income || []).map((item: any) => ({
-          id: toNumber(item.id),
-          amount: toNumber(item.amount),
-          source: String(item.source || ""),
-          account: item.account === "cash" ? "cash" : "bank",
-          date: String(item.date || ""),
-          notes: String(item.notes || ""),
-        }))
-      );
+     setIncomes(
+  (sheetData.income || []).map((item: any) => ({
+    id: toNumber(item.id),
+    income_type: item.income_type === "Hourly" ? "Hourly" : "Fixed Amount",
+    source: String(item.source || ""),
+    rate: toNumber(item.rate),
+    hours: toNumber(item.hours),
+    amount: toNumber(item.amount),
+    cash_received: toNumber(item.cash_received),
+    date: String(item.date || ""),
+    notes: String(item.notes || ""),
+  }))
+);
 
       setExpenses(
         (sheetData.expenses || []).map((item: any) => ({
           id: toNumber(item.id),
           amount: toNumber(item.amount),
           category: String(item.category || ""),
-          account: item.account === "cash" ? "cash" : "bank",
+          account:
+            item.account === "Cash" || item.account === "cash"
+              ? "Cash"
+              : "Usable Balance",
+          date: String(item.date || ""),
+          notes: String(item.notes || ""),
+        }))
+      );
+
+      setTransfers(
+        (sheetData.transfers || []).map((item: any) => ({
+          id: toNumber(item.id),
+          from_bucket: String(
+            item.from_bucket || "Usable Balance"
+          ) as Bucket,
+          to_bucket: String(item.to_bucket || "Emergency Fund") as Bucket,
+          amount: toNumber(item.amount),
           date: String(item.date || ""),
           notes: String(item.notes || ""),
         }))
@@ -224,13 +326,9 @@ export default function Home() {
   }
 
   useEffect(() => {
-    loadFromSheets();
-  }, []);
-
-  useEffect(() => {
     const savedPasscode = localStorage.getItem("finance_app_passcode");
     const unlocked = localStorage.getItem("finance_unlocked");
-    const lockedUntil = localStorage.getItem("finance_locked_until");
+    const lockedUntilValue = localStorage.getItem("finance_locked_until");
 
     if (savedPasscode) {
       setAppPasscode(savedPasscode);
@@ -240,26 +338,18 @@ export default function Home() {
       setIsUnlocked(true);
     }
 
-    if (lockedUntil) {
-      setLockUntil(Number(lockedUntil));
+    if (lockedUntilValue) {
+      setLockUntil(Number(lockedUntilValue));
     }
+
+    setAuthReady(true);
   }, []);
 
-  const incomeCash = incomes
-    .filter((item) => item.account === "cash")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const incomeBank = incomes
-    .filter((item) => item.account === "bank")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const expenseCash = expenses
-    .filter((item) => item.account === "cash")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const expenseBank = expenses
-    .filter((item) => item.account === "bank")
-    .reduce((sum, item) => sum + item.amount, 0);
+  useEffect(() => {
+    if (authReady && isUnlocked) {
+      loadFromSheets();
+    }
+  }, [authReady, isUnlocked]);
 
   const activeLent = lentRecords
     .filter((item) => item.status !== "Fully Settled")
@@ -269,19 +359,81 @@ export default function Home() {
     .filter((item) => item.status !== "Fully Settled")
     .reduce((sum, item) => sum + item.amount, 0);
 
-  const cash = baseCash + incomeCash - expenseCash;
-  const bank = baseBank + incomeBank - expenseBank;
+const totalIncomeAll = incomes.reduce((sum, item) => sum + item.amount, 0);
+
+const totalCashReceivedFromIncome = incomes.reduce(
+  (sum, item) => sum + item.cash_received,
+  0
+);
+
+const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
+  const expenseFromUsableBalance = expenses
+    .filter((item) => item.account === "Usable Balance")
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  const expenseFromCash = expenses
+    .filter((item) => item.account === "Cash")
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  function bucketIn(bucket: Bucket) {
+    return transfers
+      .filter((item) => item.to_bucket === bucket)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }
+
+  function bucketOut(bucket: Bucket) {
+    return transfers
+      .filter((item) => item.from_bucket === bucket)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }
+
+ const usableBalance =
+  totalUsableIncome -
+  expenseFromUsableBalance -
+  bucketOut("Usable Balance") +
+  bucketIn("Usable Balance");
+
+  const emergencySaved =
+    bucketIn("Emergency Fund") - bucketOut("Emergency Fund");
+
+  const debtRepaymentSaved =
+    bucketIn("Debt Repayment") - bucketOut("Debt Repayment");
+
+  const remittanceSaved =
+    bucketIn("Remittance Fund") - bucketOut("Remittance Fund");
+
+ const cashBalance =
+  totalCashReceivedFromIncome +
+  bucketIn("Cash") -
+  bucketOut("Cash") -
+  expenseFromCash;
+
+  const totalMoney =
+    usableBalance +
+    emergencySaved +
+    debtRepaymentSaved +
+    remittanceSaved +
+    cashBalance;
+
+  const netWorth = totalMoney + activeLent - activeBorrowed;
 
   const monthlyIncome = incomes
     .filter((item) => isCurrentMonth(item.date))
     .reduce((sum, item) => sum + item.amount, 0);
+
+  const monthlyHours = incomes
+    .filter(
+      (item) => item.income_type === "Hourly" && isCurrentMonth(item.date)
+    )
+    .reduce((sum, item) => sum + item.hours, 0);
 
   const monthlyExpenses = expenses
     .filter((item) => isCurrentMonth(item.date))
     .reduce((sum, item) => sum + item.amount, 0);
 
   const spendingTransfersThisMonth = expenses.filter(
-    (item) => item.category === "Spending Transfer" && isCurrentMonth(item.date)
+    (item) =>
+      item.category === "Spending Transfer" && isCurrentMonth(item.date)
   );
 
   const spendThisMonth = spendingTransfersThisMonth.reduce(
@@ -290,62 +442,60 @@ export default function Home() {
   );
 
   const spendTransferCount = spendingTransfersThisMonth.length;
-
-  const totalMoney = cash + bank;
-  const netWorth = cash + bank + activeLent - activeBorrowed;
   const remaining = monthlyIncome - monthlyExpenses;
 
   const emergencyProgress = getProgress(emergencySaved, emergencyGoal);
-  const debtRepaymentProgress = getProgress(debtRepaymentSaved, activeBorrowed);
+  const debtRepaymentProgress = getProgress(
+    debtRepaymentSaved,
+    activeBorrowed
+  );
   const remittanceProgress = getProgress(remittanceSaved, remittanceGoal);
 
   const recentActivity = [
     ...incomes.map((item) => ({
       id: item.id,
-      type: "income",
+      type: "income" as const,
       title: item.source,
+      subtitle:
+        item.income_type === "Hourly"
+          ? `${item.hours}h × $${item.rate}/hr`
+          : "Fixed amount",
       amount: item.amount,
       date: item.date,
-      account: item.account,
     })),
     ...expenses.map((item) => ({
       id: item.id,
-      type: "expense",
+      type: "expense" as const,
       title: item.category,
+      subtitle: item.account,
       amount: item.amount,
       date: item.date,
-      account: item.account,
+    })),
+    ...transfers.map((item) => ({
+      id: item.id,
+      type: "transfer" as const,
+      title: `${item.from_bucket} → ${item.to_bucket}`,
+      subtitle: item.notes || "Bucket transfer",
+      amount: item.amount,
+      date: item.date,
     })),
     ...lentRecords.map((item) => ({
       id: item.id,
-      type: "lent",
+      type: "lent" as const,
       title: `Lent to ${item.name}`,
+      subtitle: item.status,
       amount: item.amount,
       date: item.date,
-      account: item.status,
     })),
     ...borrowedRecords.map((item) => ({
       id: item.id,
-      type: "borrowed",
+      type: "borrowed" as const,
       title: `Borrowed from ${item.name}`,
+      subtitle: item.status,
       amount: item.amount,
       date: item.date,
-      account: item.status,
     })),
   ].sort((a, b) => b.id - a.id);
-
-  function getToday() {
-    return new Date().toISOString().split("T")[0];
-  }
-
-  function resetMoneyForm() {
-    setMoneyName("");
-    setMoneyAmount("");
-    setMoneyDate(today);
-    setMoneyPhone("");
-    setMoneyNotes("");
-    setMoneyStatus("Pending");
-  }
 
   async function callSheetsApi(body: object) {
     try {
@@ -363,7 +513,7 @@ export default function Home() {
       }
 
       return true;
-    } catch (error) {
+    } catch {
       alert("Google Sheets request failed.");
       return false;
     }
@@ -386,36 +536,19 @@ export default function Home() {
   }
 
   async function saveSettings() {
-    const actions = [
-      updateSheetRow("settings", "emergency_saved", [
-        "emergency_saved",
-        emergencySaved,
-      ]),
-
+    const results = await Promise.all([
       updateSheetRow("settings", "emergency_goal", [
         "emergency_goal",
         emergencyGoal,
       ]),
-
-      updateSheetRow("settings", "debt_repayment_saved", [
-        "debt_repayment_saved",
-        debtRepaymentSaved,
-      ]),
-
-      updateSheetRow("settings", "remittance_saved", [
-        "remittance_saved",
-        remittanceSaved,
-      ]),
-
       updateSheetRow("settings", "remittance_goal", [
         "remittance_goal",
         remittanceGoal,
       ]),
-    ];
+    ]);
 
-    await Promise.all(actions);
+    if (results.some((item) => !item)) return;
 
-    // persist passcode if user provided a new one
     if (newPasscode.trim()) {
       if (newPasscode.length < 4) {
         alert("Passcode must be at least 4 digits.");
@@ -431,49 +564,63 @@ export default function Home() {
   }
 
   async function addIncome() {
-    if (!incomeAmount || Number(incomeAmount) <= 0) return;
+  const calculatedAmount =
+    incomeType === "Hourly"
+      ? Number(incomeRate) * Number(incomeHours)
+      : Number(incomeAmount);
 
-    const newIncome: Income = {
-      id: editingItem?.type === "income" ? editingItem.id : Date.now(),
-      amount: Number(incomeAmount),
-      source: incomeSource,
-      account: incomeAccount,
-      date: incomeDate || getToday(),
-      notes: incomeNotes,
-    };
+  const cashReceived = Number(incomeCashReceived || 0);
 
-    const values = [
-      newIncome.id,
-      newIncome.amount,
-      newIncome.source,
-      newIncome.account,
-      newIncome.date,
-      newIncome.notes,
-    ];
+  if (!calculatedAmount || calculatedAmount <= 0) return;
 
-    const saved =
-      editingItem?.type === "income"
-        ? await updateSheetRow("income", newIncome.id, values)
-        : await saveToSheet("income", values);
-
-    if (!saved) return;
-
-    if (editingItem?.type === "income") {
-      setIncomes(
-        incomes.map((item) => (item.id === newIncome.id ? newIncome : item))
-      );
-    } else {
-      setIncomes([newIncome, ...incomes]);
-    }
-
-    setIncomeAmount("");
-    setIncomeSource("Job 1");
-    setIncomeAccount("bank");
-    setIncomeDate(today);
-    setIncomeNotes("");
-    setEditingItem(null);
-    setShowIncomeForm(false);
+  if (cashReceived < 0 || cashReceived > calculatedAmount) {
+    alert("Cash received cannot be more than total income.");
+    return;
   }
+
+  const newIncome: Income = {
+    id: editingItem?.type === "income" ? editingItem.id : Date.now(),
+    income_type: incomeType,
+    source: incomeSource,
+    rate: incomeType === "Hourly" ? Number(incomeRate) : 0,
+    hours: incomeType === "Hourly" ? Number(incomeHours) : 0,
+    amount: calculatedAmount,
+    cash_received: cashReceived,
+    date: incomeDate || getToday(),
+    notes: incomeNotes,
+  };
+
+  const values = [
+    newIncome.id,
+    newIncome.income_type,
+    newIncome.source,
+    newIncome.rate,
+    newIncome.hours,
+    newIncome.amount,
+    newIncome.cash_received,
+    newIncome.date,
+    newIncome.notes,
+  ];
+
+  const saved =
+    editingItem?.type === "income"
+      ? await updateSheetRow("income", newIncome.id, values)
+      : await saveToSheet("income", values);
+
+  if (!saved) return;
+
+  if (editingItem?.type === "income") {
+    setIncomes(
+      incomes.map((item) => (item.id === newIncome.id ? newIncome : item))
+    );
+  } else {
+    setIncomes([newIncome, ...incomes]);
+  }
+
+  resetIncomeForm();
+  setEditingItem(null);
+  setShowIncomeForm(false);
+}
 
   async function addExpense() {
     if (!expenseAmount || Number(expenseAmount) <= 0) return;
@@ -511,13 +658,57 @@ export default function Home() {
       setExpenses([newExpense, ...expenses]);
     }
 
-    setExpenseAmount("");
-    setExpenseCategory("Spending Transfer");
-    setExpenseAccount("bank");
-    setExpenseDate(today);
-    setExpenseNotes("");
+    resetExpenseForm();
     setEditingItem(null);
     setShowExpenseForm(false);
+  }
+
+  async function addTransfer() {
+    if (!transferAmount || Number(transferAmount) <= 0) return;
+
+    if (fromBucket === toBucket) {
+      alert("From and To bucket cannot be same.");
+      return;
+    }
+
+    const newTransfer: Transfer = {
+      id: editingItem?.type === "transfer" ? editingItem.id : Date.now(),
+      from_bucket: fromBucket,
+      to_bucket: toBucket,
+      amount: Number(transferAmount),
+      date: transferDate || getToday(),
+      notes: transferNotes,
+    };
+
+    const values = [
+      newTransfer.id,
+      newTransfer.from_bucket,
+      newTransfer.to_bucket,
+      newTransfer.amount,
+      newTransfer.date,
+      newTransfer.notes,
+    ];
+
+    const saved =
+      editingItem?.type === "transfer"
+        ? await updateSheetRow("transfers", newTransfer.id, values)
+        : await saveToSheet("transfers", values);
+
+    if (!saved) return;
+
+    if (editingItem?.type === "transfer") {
+      setTransfers(
+        transfers.map((item) =>
+          item.id === newTransfer.id ? newTransfer : item
+        )
+      );
+    } else {
+      setTransfers([newTransfer, ...transfers]);
+    }
+
+    resetTransferForm();
+    setEditingItem(null);
+    setShowTransferForm(false);
   }
 
   async function addLent() {
@@ -608,13 +799,6 @@ export default function Home() {
     setShowBorrowedForm(false);
   }
 
-  function closeMoneyForms() {
-    resetMoneyForm();
-    setEditingItem(null);
-    setShowLentForm(false);
-    setShowBorrowedForm(false);
-  }
-
   async function deleteIncome(id: number) {
     const deleted = await deleteFromSheet("income", id);
     if (!deleted) return;
@@ -625,6 +809,12 @@ export default function Home() {
     const deleted = await deleteFromSheet("expenses", id);
     if (!deleted) return;
     setExpenses(expenses.filter((item) => item.id !== id));
+  }
+
+  async function deleteTransfer(id: number) {
+    const deleted = await deleteFromSheet("transfers", id);
+    if (!deleted) return;
+    setTransfers(transfers.filter((item) => item.id !== id));
   }
 
   async function deleteLent(id: number) {
@@ -639,19 +829,24 @@ export default function Home() {
     setBorrowedRecords(borrowedRecords.filter((item) => item.id !== id));
   }
 
-  function startEdit(item: any) {
+  function startEdit(item: (typeof recentActivity)[number]) {
     setEditingItem({ type: item.type, id: item.id });
 
     if (item.type === "income") {
       const record = incomes.find((x) => x.id === item.id);
       if (!record) return;
 
-      setIncomeAmount(String(record.amount));
+      setIncomeType(record.income_type);
       setIncomeSource(record.source);
-      setIncomeAccount(record.account);
+      setIncomeRate(String(record.rate));
+      setIncomeHours(String(record.hours || ""));
+      setIncomeAmount(
+        record.income_type === "Fixed Amount" ? String(record.amount) : ""
+      );
       setIncomeDate(record.date);
       setIncomeNotes(record.notes);
       setShowIncomeForm(true);
+      setIncomeCashReceived(String(record.cash_received || 0));
     }
 
     if (item.type === "expense") {
@@ -664,6 +859,18 @@ export default function Home() {
       setExpenseDate(record.date);
       setExpenseNotes(record.notes);
       setShowExpenseForm(true);
+    }
+
+    if (item.type === "transfer") {
+      const record = transfers.find((x) => x.id === item.id);
+      if (!record) return;
+
+      setFromBucket(record.from_bucket);
+      setToBucket(record.to_bucket);
+      setTransferAmount(String(record.amount));
+      setTransferDate(record.date);
+      setTransferNotes(record.notes);
+      setShowTransferForm(true);
     }
 
     if (item.type === "lent") {
@@ -724,6 +931,10 @@ export default function Home() {
     alert("Wrong passcode.");
   }
 
+  if (!authReady) {
+    return null;
+  }
+
   if (!isUnlocked) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 text-white">
@@ -753,13 +964,22 @@ export default function Home() {
   }
 
   if (loading) {
-    return null;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-neutral-950 text-white">
+        <div className="text-center">
+          <p className="text-lg font-semibold">Loading Finance Data...</p>
+          <p className="mt-2 text-sm text-neutral-500">
+            Syncing with Google Sheets
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="mx-auto max-w-md px-4 py-6">
-        <header className="mb-6 flex items-center justify-between">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
+        <header className="mb-6 flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Money Control</h1>
             <p className="text-sm text-neutral-400">
@@ -773,11 +993,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setSettingsCash(String(baseCash));
-                setSettingsBank(String(baseBank));
-                setShowSettingsForm(true);
-              }}
+              onClick={() => setShowSettingsForm(true)}
               className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
             >
               Settings
@@ -797,257 +1013,295 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="mb-5 rounded-3xl bg-neutral-900 p-5 shadow-lg">
-          <p className="text-sm text-neutral-400">Total Money</p>
-          <h2 className="mt-2 text-4xl font-bold">
-            ${totalMoney.toLocaleString()}
-          </h2>
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-6">
+            <section className="rounded-3xl bg-neutral-900 p-5 shadow-lg">
+              <p className="text-sm text-neutral-400">Total Money</p>
+              <h2 className="mt-2 text-4xl font-bold">
+                ${totalMoney.toLocaleString()}
+              </h2>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-neutral-800 p-4">
-              <p className="text-xs text-neutral-400">Cash</p>
-              <p className="mt-1 text-xl font-semibold">
-                ${cash.toLocaleString()}
-              </p>
-            </div>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-neutral-800 p-4">
+                  <p className="text-xs text-neutral-400">Usable Balance</p>
+                  <p className="mt-1 text-xl font-semibold">
+                    ${usableBalance.toLocaleString()}
+                  </p>
+                </div>
 
-            <div className="rounded-2xl bg-neutral-800 p-4">
-              <p className="text-xs text-neutral-400">Bank</p>
-              <p className="mt-1 text-xl font-semibold">
-                ${bank.toLocaleString()}
-              </p>
-            </div>
-          </div>
+                <div className="rounded-2xl bg-neutral-800 p-4">
+                  <p className="text-xs text-neutral-400">Cash</p>
+                  <p className="mt-1 text-xl font-semibold">
+                    ${cashBalance.toLocaleString()}
+                  </p>
+                </div>
+              </div>
 
-          <div className="mt-4 rounded-2xl bg-neutral-800 p-4">
-            <p className="text-xs text-neutral-400">Net Worth</p>
-            <p className="mt-1 text-2xl font-semibold">
-              ${netWorth.toLocaleString()}
-            </p>
-          </div>
-        </section>
+              <div className="mt-4 rounded-2xl bg-neutral-800 p-4">
+                <p className="text-xs text-neutral-400">Net Worth</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  ${netWorth.toLocaleString()}
+                </p>
+              </div>
+            </section>
 
-        <section className="mb-5 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setShowIncomeForm(true)}
-            className="rounded-2xl bg-green-500 p-4 text-left font-semibold text-black"
-          >
-            + Add Income
-          </button>
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <button
+                type="button"
+                onClick={() => setShowIncomeForm(true)}
+                className="rounded-2xl bg-green-500 p-4 text-left font-semibold text-black"
+              >
+                + Add Income
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setShowExpenseForm(true)}
-            className="rounded-2xl bg-red-500 p-4 text-left font-semibold text-black"
-          >
-            - Add Expense
-          </button>
+              <button
+                type="button"
+                onClick={() => setShowExpenseForm(true)}
+                className="rounded-2xl bg-red-500 p-4 text-left font-semibold text-black"
+              >
+                - Add Expense
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setShowLentForm(true)}
-            className="rounded-2xl border border-green-500 p-4 text-left font-semibold text-green-400"
-          >
-            Lent
-          </button>
+              <button
+                type="button"
+                onClick={() => setShowTransferForm(true)}
+                className="rounded-2xl border border-blue-500 p-4 text-left font-semibold text-blue-400"
+              >
+                Transfer
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setShowBorrowedForm(true)}
-            className="rounded-2xl border border-red-500 p-4 text-left font-semibold text-red-400"
-          >
-            Borrowed
-          </button>
-        </section>
+              <button
+                type="button"
+                onClick={() => setShowLentForm(true)}
+                className="rounded-2xl border border-green-500 p-4 text-left font-semibold text-green-400"
+              >
+                Lent
+              </button>
 
-        <section className="mb-5 rounded-3xl bg-neutral-900 p-5">
-          <h3 className="mb-4 text-lg font-semibold">This Month</h3>
+              <button
+                type="button"
+                onClick={() => setShowBorrowedForm(true)}
+                className="rounded-2xl border border-red-500 p-4 text-left font-semibold text-red-400"
+              >
+                Borrowed
+              </button>
+            </section>
 
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Income</span>
-              <span className="text-green-400">
-                +${monthlyIncome.toLocaleString()}
-              </span>
-            </div>
+            <section className="rounded-3xl bg-neutral-900 p-5">
+              <h3 className="mb-4 text-lg font-semibold">This Month</h3>
 
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Expenses</span>
-              <span className="text-red-400">
-                -${monthlyExpenses.toLocaleString()}
-              </span>
-            </div>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Income</span>
+                  <span className="text-green-400">
+                    +${monthlyIncome.toLocaleString()}
+                  </span>
+                </div>
 
-            <div className="flex justify-between border-t border-neutral-800 pt-3">
-              <span className="font-medium">Remaining</span>
-              <span className="font-semibold">
-                ${remaining.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </section>
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Hours Worked</span>
+                  <span>{monthlyHours.toLocaleString()}h</span>
+                </div>
 
-        <section className="mb-5 rounded-3xl border border-green-500/30 bg-neutral-900 p-5">
-          <p className="text-sm text-neutral-400">Spend This Month</p>
-          <h3 className="mt-2 text-3xl font-bold text-green-400">
-            ${spendThisMonth.toLocaleString()}
-          </h3>
-          <p className="mt-2 text-sm text-neutral-500">
-            {spendTransferCount} transfer
-            {spendTransferCount === 1 ? "" : "s"} this month
-          </p>
-        </section>
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Expenses</span>
+                  <span className="text-red-400">
+                    -${monthlyExpenses.toLocaleString()}
+                  </span>
+                </div>
 
-        <section className="mb-5 rounded-3xl bg-neutral-900 p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-neutral-400">Emergency Fund</p>
-            <p className="text-sm text-green-400">
-              {emergencyProgress.toFixed(0)}%
-            </p>
-          </div>
+                <div className="flex justify-between border-t border-neutral-800 pt-3">
+                  <span className="font-medium">Remaining</span>
+                  <span className="font-semibold">
+                    ${remaining.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </section>
 
-          <h3 className="mt-2 text-2xl font-bold">
-            ${emergencySaved.toLocaleString()} / $
-            {emergencyGoal.toLocaleString()}
-          </h3>
+            <section className="rounded-3xl bg-neutral-900 p-5">
+              <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
 
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-            <div
-              className="h-full rounded-full bg-green-500"
-              style={{ width: `${emergencyProgress}%` }}
-            />
-          </div>
-        </section>
+              <div className="space-y-3">
+                {recentActivity.length === 0 ? (
+                  <p className="text-sm text-neutral-500">No activity yet.</p>
+                ) : (
+                  recentActivity.map((item) => {
+                    const amountClass =
+                      item.type === "income" || item.type === "lent"
+                        ? "text-green-400"
+                        : item.type === "transfer"
+                          ? "text-blue-400"
+                          : "text-red-400";
 
-        <section className="mb-5 rounded-3xl bg-neutral-900 p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-neutral-400">
-              Debt Repayment Collection
-            </p>
-            <p className="text-sm text-red-400">
-              {debtRepaymentProgress.toFixed(0)}%
-            </p>
-          </div>
+                    const prefix =
+                      item.type === "income" || item.type === "lent"
+                        ? "+"
+                        : item.type === "transfer"
+                          ? "↔"
+                          : "-";
 
-          <h3 className="mt-2 text-2xl font-bold">
-            ${debtRepaymentSaved.toLocaleString()} / $
-            {activeBorrowed.toLocaleString()}
-          </h3>
-
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-            <div
-              className="h-full rounded-full bg-red-500"
-              style={{ width: `${debtRepaymentProgress}%` }}
-            />
-          </div>
-        </section>
-
-        <section className="mb-5 rounded-3xl bg-neutral-900 p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-neutral-400">Remittance Savings</p>
-            <p className="text-sm text-blue-400">
-              {remittanceProgress.toFixed(0)}%
-            </p>
-          </div>
-
-          <h3 className="mt-2 text-2xl font-bold">
-            ${remittanceSaved.toLocaleString()} / $
-            {remittanceGoal.toLocaleString()}
-          </h3>
-
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-            <div
-              className="h-full rounded-full bg-blue-500"
-              style={{ width: `${remittanceProgress}%` }}
-            />
-          </div>
-        </section>
-
-        <section className="mb-5 grid grid-cols-2 gap-3">
-          <div className="rounded-3xl bg-neutral-900 p-5">
-            <p className="text-sm text-neutral-400">Money I Lent</p>
-            <p className="mt-2 text-2xl font-bold text-green-400">
-              ${activeLent.toLocaleString()}
-            </p>
-            <button
-              type="button"
-              onClick={() => setDetailsView("lent")}
-              className="mt-3 text-sm text-green-400"
-            >
-              See More
-            </button>
-          </div>
-
-          <div className="rounded-3xl bg-neutral-900 p-5">
-            <p className="text-sm text-neutral-400">Money I Borrowed</p>
-            <p className="mt-2 text-2xl font-bold text-red-400">
-              ${activeBorrowed.toLocaleString()}
-            </p>
-            <button
-              type="button"
-              onClick={() => setDetailsView("borrowed")}
-              className="mt-3 text-sm text-red-400"
-            >
-              See More
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-neutral-900 p-5">
-          <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
-
-          <div className="space-y-3">
-            {recentActivity.length === 0 ? (
-              <p className="text-sm text-neutral-500">No activity yet.</p>
-            ) : (
-              recentActivity.map((item) => {
-                const isPositive = item.type === "income" || item.type === "lent";
-
-                return (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
-                  >
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-xs text-neutral-400">
-                        {item.date} • {item.account}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className={isPositive ? "text-green-400" : "text-red-400"}>
-                        {isPositive ? "+" : "-"}${item.amount.toLocaleString()}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => startEdit(item)}
-                        className="mt-1 block text-xs text-blue-400"
+                    return (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
                       >
-                        <FontAwesomeIcon icon={faPenToSquare} />
-                      </button>
+                        <div>
+                          <p className="font-medium">{item.title}</p>
+                          <p className="text-xs text-neutral-400">
+                            {item.date} • {item.subtitle}
+                          </p>
+                        </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (item.type === "income") deleteIncome(item.id);
-                          if (item.type === "expense") deleteExpense(item.id);
-                          if (item.type === "lent") deleteLent(item.id);
-                          if (item.type === "borrowed") deleteBorrowed(item.id);
-                        }}
-                        className="mt-1 block text-xs text-neutral-500"
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                        <div className="text-right">
+                          <p className={amountClass}>
+                            {prefix}${item.amount.toLocaleString()}
+                          </p>
+
+                          <div className="mt-2 flex items-center justify-end gap-4">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(item)}
+                              className="text-xs text-blue-400"
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (item.type === "income")
+                                  deleteIncome(item.id);
+                                if (item.type === "expense")
+                                  deleteExpense(item.id);
+                                if (item.type === "transfer")
+                                  deleteTransfer(item.id);
+                                if (item.type === "lent") deleteLent(item.id);
+                                if (item.type === "borrowed")
+                                  deleteBorrowed(item.id);
+                              }}
+                              className="text-xs text-neutral-500"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
           </div>
-        </section>
+
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-green-500/30 bg-neutral-900 p-5">
+              <p className="text-sm text-neutral-400">Spend This Month</p>
+              <h3 className="mt-2 text-3xl font-bold text-green-400">
+                ${spendThisMonth.toLocaleString()}
+              </h3>
+              <p className="mt-2 text-sm text-neutral-500">
+                {spendTransferCount} transfer
+                {spendTransferCount === 1 ? "" : "s"} this month
+              </p>
+            </section>
+
+            <section className="rounded-3xl bg-neutral-900 p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-400">Emergency Fund</p>
+                <p className="text-sm text-green-400">
+                  {emergencyProgress.toFixed(0)}%
+                </p>
+              </div>
+
+              <h3 className="mt-2 text-2xl font-bold">
+                ${emergencySaved.toLocaleString()} / $
+                {emergencyGoal.toLocaleString()}
+              </h3>
+
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-green-500"
+                  style={{ width: `${emergencyProgress}%` }}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-neutral-900 p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-400">
+                  Debt Repayment Collection
+                </p>
+                <p className="text-sm text-red-400">
+                  {debtRepaymentProgress.toFixed(0)}%
+                </p>
+              </div>
+
+              <h3 className="mt-2 text-2xl font-bold">
+                ${debtRepaymentSaved.toLocaleString()} / $
+                {activeBorrowed.toLocaleString()}
+              </h3>
+
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${debtRepaymentProgress}%` }}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-neutral-900 p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-400">Remittance Savings</p>
+                <p className="text-sm text-blue-400">
+                  {remittanceProgress.toFixed(0)}%
+                </p>
+              </div>
+
+              <h3 className="mt-2 text-2xl font-bold">
+                ${remittanceSaved.toLocaleString()} / $
+                {remittanceGoal.toLocaleString()}
+              </h3>
+
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-blue-500"
+                  style={{ width: `${remittanceProgress}%` }}
+                />
+              </div>
+            </section>
+
+            <section className="grid grid-cols-2 gap-3">
+              <div className="rounded-3xl bg-neutral-900 p-5">
+                <p className="text-sm text-neutral-400">Money I Lent</p>
+                <p className="mt-2 text-2xl font-bold text-green-400">
+                  ${activeLent.toLocaleString()}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDetailsView("lent")}
+                  className="mt-3 text-sm text-green-400"
+                >
+                  See More
+                </button>
+              </div>
+
+              <div className="rounded-3xl bg-neutral-900 p-5">
+                <p className="text-sm text-neutral-400">Money I Borrowed</p>
+                <p className="mt-2 text-2xl font-bold text-red-400">
+                  ${activeBorrowed.toLocaleString()}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDetailsView("borrowed")}
+                  className="mt-3 text-sm text-red-400"
+                >
+                  See More
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
 
       {showIncomeForm && (
@@ -1058,35 +1312,92 @@ export default function Home() {
             </h2>
 
             <div className="space-y-3">
-              <input
-                type="number"
-                placeholder="Amount"
-                value={incomeAmount}
-                onChange={(e) => setIncomeAmount(e.target.value)}
+              <select
+                value={incomeType}
+                onChange={(e) =>
+                  handleIncomeTypeChange(e.target.value as IncomeType)
+                }
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
+              >
+                <option value="Hourly">Hourly</option>
+                <option value="Fixed Amount">Fixed Amount</option>
+              </select>
 
               <select
                 value={incomeSource}
-                onChange={(e) => setIncomeSource(e.target.value)}
+                onChange={(e) => handleIncomeSourceChange(e.target.value)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Job 1</option>
-                <option>Job 2</option>
-                <option>Side Hustle</option>
+                <option>Hawthorn Pizza</option>
+                <option>Pizza High</option>
                 <option>Business</option>
                 <option>Refund</option>
                 <option>Gift</option>
+                <option>Other</option>
               </select>
 
-              <select
-                value={incomeAccount}
-                onChange={(e) => setIncomeAccount(e.target.value as Account)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              >
-                <option value="bank">Bank</option>
-                <option value="cash">Cash</option>
-              </select>
+              {incomeType === "Hourly" ? (
+                <>
+                  <input
+                    type="number"
+                    placeholder="Rate"
+                    value={incomeRate}
+                    onChange={(e) => setIncomeRate(e.target.value)}
+                    className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                  />
+
+                  <input
+                    type="number"
+                    placeholder="Hours"
+                    value={incomeHours}
+                    onChange={(e) => setIncomeHours(e.target.value)}
+                    className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                  />
+                  <div>
+  <label className="mb-2 block text-sm text-neutral-400">
+    Cash Received
+  </label>
+  <input
+    type="number"
+    placeholder="0"
+    value={incomeCashReceived}
+    onChange={(e) => setIncomeCashReceived(e.target.value)}
+    className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+  />
+</div>
+<div className="rounded-2xl bg-neutral-800 p-4">
+  <p className="text-sm text-neutral-400">Usable Balance Portion</p>
+  <p className="mt-1 text-xl font-semibold">
+    $
+    {Math.max(
+      0,
+      (
+        (incomeType === "Hourly"
+          ? toNumber(incomeRate) * toNumber(incomeHours)
+          : toNumber(incomeAmount)) - toNumber(incomeCashReceived)
+      )
+    ).toLocaleString()}
+  </p>
+</div>
+                  <div className="rounded-2xl bg-neutral-800 p-4">
+                    <p className="text-sm text-neutral-400">Calculated Amount</p>
+                    <p className="mt-1 text-xl font-semibold">
+                      $
+                      {(
+                        toNumber(incomeRate) * toNumber(incomeHours)
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  value={incomeAmount}
+                  onChange={(e) => setIncomeAmount(e.target.value)}
+                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                />
+              )}
 
               <input
                 type="date"
@@ -1106,10 +1417,7 @@ export default function Home() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setEditingItem(null);
-                  setShowIncomeForm(false);
-                }}
+                onClick={closeAllForms}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
                 Cancel
@@ -1167,11 +1475,13 @@ export default function Home() {
 
               <select
                 value={expenseAccount}
-                onChange={(e) => setExpenseAccount(e.target.value as Account)}
+                onChange={(e) =>
+                  setExpenseAccount(e.target.value as ExpenseAccount)
+                }
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option value="bank">Bank</option>
-                <option value="cash">Cash</option>
+                <option value="Usable Balance">Usable Balance</option>
+                <option value="Cash">Cash</option>
               </select>
 
               <input
@@ -1192,10 +1502,7 @@ export default function Home() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setEditingItem(null);
-                  setShowExpenseForm(false);
-                }}
+                onClick={closeAllForms}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
                 Cancel
@@ -1213,6 +1520,82 @@ export default function Home() {
         </div>
       )}
 
+      {showTransferForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
+          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
+            <h2 className="mb-4 text-xl font-bold">
+              {editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"}
+            </h2>
+
+            <div className="space-y-3">
+              <select
+                value={fromBucket}
+                onChange={(e) => setFromBucket(e.target.value as Bucket)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              >
+                <option>Usable Balance</option>
+                <option>Emergency Fund</option>
+                <option>Debt Repayment</option>
+                <option>Remittance Fund</option>
+                <option>Cash</option>
+              </select>
+
+              <select
+                value={toBucket}
+                onChange={(e) => setToBucket(e.target.value as Bucket)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              >
+                <option>Usable Balance</option>
+                <option>Emergency Fund</option>
+                <option>Debt Repayment</option>
+                <option>Remittance Fund</option>
+                <option>Cash</option>
+              </select>
+
+              <input
+                type="number"
+                placeholder="Amount"
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              />
+
+              <input
+                type="date"
+                value={transferDate}
+                onChange={(e) => setTransferDate(e.target.value)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              />
+
+              <textarea
+                placeholder="Notes"
+                value={transferNotes}
+                onChange={(e) => setTransferNotes(e.target.value)}
+                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+              />
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={closeAllForms}
+                className="rounded-2xl bg-neutral-800 p-4 font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={addTransfer}
+                className="rounded-2xl bg-blue-500 p-4 font-semibold text-black"
+              >
+                Save Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(showLentForm || showBorrowedForm) && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
           <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
@@ -1222,8 +1605,8 @@ export default function Home() {
                   ? "Edit Lent Money"
                   : "Add Lent Money"
                 : editingItem?.type === "borrowed"
-                ? "Edit Borrowed Money"
-                : "Add Borrowed Money"}
+                  ? "Edit Borrowed Money"
+                  : "Add Borrowed Money"}
             </h2>
 
             <div className="space-y-3">
@@ -1279,7 +1662,7 @@ export default function Home() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={closeMoneyForms}
+                onClick={closeAllForms}
                 className="rounded-2xl bg-neutral-800 p-4 font-semibold"
               >
                 Cancel
@@ -1359,7 +1742,8 @@ export default function Home() {
                           type="button"
                           onClick={() => {
                             if (detailsView === "lent") deleteLent(item.id);
-                            if (detailsView === "borrowed") deleteBorrowed(item.id);
+                            if (detailsView === "borrowed")
+                              deleteBorrowed(item.id);
                           }}
                           className="mt-3 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-black"
                         >
@@ -1383,34 +1767,6 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Emergency Fund Saved
-                </label>
-                <input
-                  type="number"
-                  value={String(emergencySaved)}
-                  onChange={(e) => setEmergencySaved(Number(e.target.value))}
-                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm text-neutral-400">
-                  Change Passcode
-                </label>
-
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={newPasscode}
-                  onChange={(e) => setNewPasscode(e.target.value)}
-                  placeholder="Enter new passcode"
-                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-                />
-              </div>
-              
-              <div>
-                <label className="mb-2 block text-sm text-neutral-400">
                   Emergency Fund Goal
                 </label>
                 <input
@@ -1423,39 +1779,27 @@ export default function Home() {
 
               <div>
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Debt Repayment Saved
-                </label>
-
-                <input
-                  type="number"
-                  value={String(debtRepaymentSaved)}
-                  onChange={(e) => setDebtRepaymentSaved(Number(e.target.value))}
-                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm text-neutral-400">
-                  Remittance Saved
-                </label>
-
-                <input
-                  type="number"
-                  value={String(remittanceSaved)}
-                  onChange={(e) => setRemittanceSaved(Number(e.target.value))}
-                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm text-neutral-400">
                   Remittance Goal
                 </label>
-
                 <input
                   type="number"
                   value={String(remittanceGoal)}
                   onChange={(e) => setRemittanceGoal(Number(e.target.value))}
+                  className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-neutral-400">
+                  Change Passcode
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={newPasscode}
+                  onChange={(e) => setNewPasscode(e.target.value)}
+                  placeholder="Enter new passcode"
                   className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
                 />
               </div>
