@@ -1,22 +1,30 @@
 "use client";
 
-import { AuthGate } from "@/components/dashboard/AuthGate";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { LoadingState } from "@/components/dashboard/LoadingState";
 import { useFinanceDashboard } from "@/components/dashboard/useFinanceDashboard";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { TransferForm } from "@/components/expenses/TransferForm";
 import { IncomeForm } from "@/components/income/IncomeForm";
+import { FinanceLoadingScreen } from "@/components/layout/FinanceLoadingScreen";
 import { LendingDetails } from "@/components/lending/LendingDetails";
 import { LendingForm } from "@/components/lending/LendingForm";
+import { PasscodeLock } from "@/components/settings/PasscodeLock";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 
 export default function Home() {
   const dashboard = useFinanceDashboard();
 
   if (!dashboard.authReady) return null;
-  if (!dashboard.isUnlocked) return <AuthGate state={dashboard} />;
-  if (dashboard.loading) return <LoadingState />;
+  if (!dashboard.isUnlocked) return <PasscodeLock state={dashboard} />;
+  if (dashboard.loading) return <FinanceLoadingScreen />;
+  if (dashboard.loadError) {
+    return (
+      <FinanceLoadingScreen
+        error={dashboard.loadError}
+        onRetry={dashboard.retryLoad}
+      />
+    );
+  }
 
   return (
     <>

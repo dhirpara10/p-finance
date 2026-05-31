@@ -1,23 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
-import { deleteFromSheet, loadSheetsData, saveToSheet, updateSheetRow } from "@/lib/sheets";
-import type { Bucket, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, MoneyRecord, RecentActivityItem, Status, Transfer } from "@/lib/types";
+import { findPersonByName } from "@/lib/lending";
+import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
+import type { Bucket, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, Status, Transfer, IncomeSourceRate } from "@/lib/types";
 
-const jobRates: Record<string, number> = {
-  "Hawthorn Pizza": 20,
-  "Pizza High": 23,
-};
+const defaultIncomeSources = [
+  { name: "Hawthorn Pizza", rate: 20 },
+  { name: "Pizza High", rate: 23 },
+];
 
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
+  const hasLoadedData = useRef(false);
 
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
+  const [passcodeError, setPasscodeError] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [appPasscode, setAppPasscode] = useState("2605");
@@ -27,6 +31,8 @@ export function useFinanceDashboard() {
   const [incomeCashReceived, setIncomeCashReceived] = useState("");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [lendingTransactions, setLendingTransactions] = useState<LendingTransactionRecord[]>([]);
   const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
   const [borrowedRecords, setBorrowedRecords] = useState<MoneyRecord[]>([]);
 
@@ -45,8 +51,16 @@ export function useFinanceDashboard() {
     id: number;
   } | null>(null);
 
+  const [initialCashBalance, setInitialCashBalance] = useState(200);
+  const [initialCommbankBalance, setInitialCommbankBalance] = useState(1400);
+  const [initialUpBalance, setInitialUpBalance] = useState(300);
   const [emergencyGoal, setEmergencyGoal] = useState(5000);
+  const [debtRepaymentGoal, setDebtRepaymentGoal] = useState(3000);
   const [remittanceGoal, setRemittanceGoal] = useState(10000);
+  const [monthlyResetDay, setMonthlyResetDay] = useState(1);
+  const [currency, setCurrency] = useState("AUD");
+  const [incomeSources, setIncomeSources] =
+    useState<IncomeSourceRate[]>(defaultIncomeSources);
 
   const [incomeType, setIncomeType] = useState<IncomeType>("Hourly");
   const [incomeSource, setIncomeSource] = useState("Hawthorn Pizza");
@@ -75,18 +89,32 @@ export function useFinanceDashboard() {
   const [moneyPhone, setMoneyPhone] = useState("");
   const [moneyNotes, setMoneyNotes] = useState("");
   const [moneyStatus, setMoneyStatus] = useState<Status>("Pending");
+  const [lendingPersonMode, setLendingPersonMode] = useState<
+    "existing" | "new"
+  >("existing");
+  const [selectedPersonId, setSelectedPersonId] = useState<string | number | null>(
+    null
+  );
+  const [personSearch, setPersonSearch] = useState("");
+  const [settlementProfileId, setSettlementProfileId] = useState<
+    string | number | null
+  >(null);
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementDate, setSettlementDate] = useState(today);
+  const [settlementNotes, setSettlementNotes] = useState("");
 
 
   function resetIncomeForm() {
-  setIncomeType("Hourly");
-  setIncomeSource("Hawthorn Pizza");
-  setIncomeRate("20");
-  setIncomeHours("");
-  setIncomeAmount("");
-  setIncomeCashReceived("");
-  setIncomeDate(today);
-  setIncomeNotes("");
-}
+    const firstSource = incomeSources[0] || defaultIncomeSources[0];
+    setIncomeType("Hourly");
+    setIncomeSource(firstSource.name);
+    setIncomeRate(String(firstSource.rate));
+    setIncomeHours("");
+    setIncomeAmount("");
+    setIncomeCashReceived("");
+    setIncomeDate(today);
+    setIncomeNotes("");
+  }
 
   function resetExpenseForm() {
     setExpenseAmount("");
@@ -105,6 +133,9 @@ export function useFinanceDashboard() {
   }
 
   function resetMoneyForm() {
+    setLendingPersonMode("existing");
+    setSelectedPersonId(null);
+    setPersonSearch("");
     setMoneyName("");
     setMoneyAmount("");
     setMoneyDate(today);
@@ -113,11 +144,19 @@ export function useFinanceDashboard() {
     setMoneyStatus("Pending");
   }
 
+  function resetSettlementForm() {
+    setSettlementProfileId(null);
+    setSettlementAmount("");
+    setSettlementDate(today);
+    setSettlementNotes("");
+  }
+
   function closeAllForms() {
     resetIncomeForm();
     resetExpenseForm();
     resetTransferForm();
     resetMoneyForm();
+    resetSettlementForm();
     setEditingItem(null);
     setShowIncomeForm(false);
     setShowExpenseForm(false);
@@ -126,11 +165,105 @@ export function useFinanceDashboard() {
     setShowBorrowedForm(false);
   }
 
+  function getSheetId(value: unknown) {
+    if (typeof value === "number" && value > 0) return value;
+    if (typeof value === "string" && value.trim()) return value.trim();
+    return null;
+  }
+
+  function extractCreatedId(payload: unknown) {
+    if (payload && typeof payload === "object") {
+      const record = payload as Record<string, any>;
+      return getSheetId(
+        record.id ??
+          record.personId ??
+          record.person?.id ??
+          record.transaction?.id ??
+          record.data?.id ??
+          record.data?.personId ??
+          record.data?.person?.id ??
+          record.data?.transaction?.id
+      );
+    }
+
+    return null;
+  }
+
+  function getPersonId(person: Person | null | undefined) {
+    return getSheetId(person?.id);
+  }
+
+  function getSelectedPerson() {
+    if (!selectedPersonId) return null;
+    return (
+      people.find((person) => String(person.id) === String(selectedPersonId)) ||
+      null
+    );
+  }
+
+  function getSettingValue(settings: any[], key: string, fallback: string) {
+    const setting = settings.find((item: any) => item.key === key);
+    return String(setting?.value ?? fallback);
+  }
+
+  function parseIncomeSources(value: string) {
+    try {
+      const parsed = JSON.parse(value);
+
+      if (Array.isArray(parsed)) {
+        const sources = parsed
+          .map((item) => ({
+            name: String(item.name || "").trim(),
+            rate: toNumber(item.rate),
+          }))
+          .filter((item) => item.name);
+
+        if (sources.length) return sources;
+      }
+    } catch {}
+
+    return defaultIncomeSources;
+  }
+
+  function currencySymbolFor(value: string) {
+    if (value === "AUD" || value === "USD" || value === "CAD") return "$";
+    if (value === "GBP") return "GBP ";
+    if (value === "EUR") return "EUR ";
+    return "$";
+  }
+
+  function updateIncomeSource(index: number, field: "name" | "rate", value: string) {
+    setIncomeSources(
+      incomeSources.map((source, sourceIndex) =>
+        sourceIndex === index
+          ? {
+              ...source,
+              [field]: field === "rate" ? toNumber(value) : value,
+            }
+          : source
+      )
+    );
+  }
+
+  function addIncomeSourceSetting() {
+    setIncomeSources([...incomeSources, { name: "", rate: 0 }]);
+  }
+
+  function removeIncomeSourceSetting(index: number) {
+    const nextSources = incomeSources.filter((_, sourceIndex) => sourceIndex !== index);
+    setIncomeSources(nextSources.length ? nextSources : defaultIncomeSources);
+  }
+
   function handleIncomeTypeChange(value: IncomeType) {
     setIncomeType(value);
 
     if (value === "Hourly") {
-      setIncomeRate(String(jobRates[incomeSource] ?? 0));
+      setIncomeRate(
+        String(
+          incomeSources.find((source) => source.name === incomeSource)?.rate ??
+            0
+        )
+      );
       setIncomeAmount("");
     } else {
       setIncomeHours("");
@@ -142,36 +275,56 @@ export function useFinanceDashboard() {
     setIncomeSource(value);
 
     if (incomeType === "Hourly") {
-      setIncomeRate(String(jobRates[value] ?? 0));
+      setIncomeRate(
+        String(incomeSources.find((source) => source.name === value)?.rate ?? 0)
+      );
     }
   }
 
   async function loadFromSheets() {
     setLoading(true);
+    setLoadError("");
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
-      const payload = await loadSheetsData(controller.signal);
-
-      if (!payload.success) {
-        alert(payload.error || "Failed to load Google Sheets data");
-        return;
-      }
-
-      const sheetData = payload.data || {};
+      const sheetData = await getAllData(controller.signal);
       const settings = sheetData.settings || [];
 
-      const emergencyGoalSetting = settings.find(
-        (item: any) => item.key === "emergency_goal"
+      setInitialCashBalance(
+        toNumber(getSettingValue(settings, "initial_cash_balance", "200"))
       );
-      const remittanceGoalSetting = settings.find(
-        (item: any) => item.key === "remittance_goal"
+      setInitialCommbankBalance(
+        toNumber(getSettingValue(settings, "initial_commbank_balance", "1400"))
       );
-
-      setEmergencyGoal(toNumber(emergencyGoalSetting?.value || 5000));
-      setRemittanceGoal(toNumber(remittanceGoalSetting?.value || 10000));
+      setInitialUpBalance(
+        toNumber(getSettingValue(settings, "initial_up_balance", "300"))
+      );
+      setEmergencyGoal(toNumber(getSettingValue(settings, "emergency_goal", "5000")));
+      setDebtRepaymentGoal(
+        toNumber(getSettingValue(settings, "debt_repayment_goal", "3000"))
+      );
+      setRemittanceGoal(toNumber(getSettingValue(settings, "remittance_goal", "10000")));
+      setMonthlyResetDay(
+        Math.min(
+          Math.max(toNumber(getSettingValue(settings, "monthly_reset_day", "1")), 1),
+          28
+        )
+      );
+      setCurrency(getSettingValue(settings, "currency", "AUD"));
+      const loadedIncomeSources = parseIncomeSources(
+        getSettingValue(
+          settings,
+          "income_sources",
+          JSON.stringify(defaultIncomeSources)
+        )
+      );
+      setIncomeSources(loadedIncomeSources);
+      if (!loadedIncomeSources.some((source) => source.name === incomeSource)) {
+        setIncomeSource(loadedIncomeSources[0]?.name || "Hawthorn Pizza");
+        setIncomeRate(String(loadedIncomeSources[0]?.rate || 0));
+      }
 
      setIncomes(
   (sheetData.income || []).map((item: any) => ({
@@ -216,7 +369,7 @@ export function useFinanceDashboard() {
 
       setLentRecords(
         (sheetData.lent || []).map((item: any) => ({
-          id: toNumber(item.id),
+          id: toNumber(item.id ?? item[""]),
           name: String(item.name || ""),
           amount: toNumber(item.amount),
           date: String(item.date || ""),
@@ -228,7 +381,7 @@ export function useFinanceDashboard() {
 
       setBorrowedRecords(
         (sheetData.borrowed || []).map((item: any) => ({
-          id: toNumber(item.id),
+          id: toNumber(item.id ?? item[""]),
           name: String(item.name || ""),
           amount: toNumber(item.amount),
           date: String(item.date || ""),
@@ -237,8 +390,34 @@ export function useFinanceDashboard() {
           status: item.status || "Pending",
         }))
       );
+
+      setPeople(
+        (sheetData.People || []).map((item: any) => ({
+          id: getSheetId(item.id) || "",
+          name: String(item.name || ""),
+          phone: String(item.phone || ""),
+          createdAt: String(item.createdAt || ""),
+          updatedAt: String(item.updatedAt || ""),
+        }))
+      );
+
+      setLendingTransactions(
+        (sheetData.LendingTransactions || []).map((item: any) => ({
+          id: getSheetId(item.id) || "",
+          personId: getSheetId(item.personId) || "",
+          type:
+            item.type === "borrowed" || item.type === "settlement"
+              ? item.type
+              : "lent",
+          amount: toNumber(item.amount),
+          date: String(item.date || ""),
+          note: String(item.note || ""),
+          createdAt: String(item.createdAt || ""),
+        }))
+      );
+      hasLoadedData.current = true;
     } catch (error: any) {
-      alert(`Failed to load data from Google Sheets: ${error.message}`);
+      setLoadError(error.message || "Failed to load data from Google Sheets.");
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
@@ -247,52 +426,77 @@ export function useFinanceDashboard() {
 
   useEffect(() => {
     const savedPasscode = localStorage.getItem("finance_app_passcode");
-    const unlocked = localStorage.getItem("finance_unlocked");
-    const lockedUntilValue = localStorage.getItem("finance_locked_until");
 
     if (savedPasscode) {
       setAppPasscode(savedPasscode);
     }
 
-    if (unlocked === "true") {
-      setIsUnlocked(true);
-    }
-
-    if (lockedUntilValue) {
-      setLockUntil(Number(lockedUntilValue));
-    }
+    localStorage.removeItem("finance_unlocked");
+    localStorage.removeItem("finance_locked_until");
 
     setAuthReady(true);
   }, []);
 
   useEffect(() => {
-    if (authReady && isUnlocked) {
+    if (authReady && isUnlocked && !hasLoadedData.current) {
       loadFromSheets();
     }
   }, [authReady, isUnlocked]);
+
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setIsUnlocked(false);
+      setPasscodeInput("");
+      setPasscodeError("");
+    }, 5 * 60 * 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isUnlocked]);
 
   const dashboardValues = calculateDashboardValues({
     incomes,
     expenses,
     transfers,
+    people,
+    lendingTransactions,
     lentRecords,
     borrowedRecords,
+    initialCashBalance,
+    initialCommbankBalance,
+    initialUpBalance,
     emergencyGoal,
+    debtRepaymentGoal,
     remittanceGoal,
+    monthlyResetDay,
   });
 
 
 
   async function saveSettings() {
+    const cleanIncomeSources = incomeSources
+      .map((source) => ({
+        name: source.name.trim(),
+        rate: toNumber(source.rate),
+      }))
+      .filter((source) => source.name);
+
+    if (!cleanIncomeSources.length) {
+      alert("Add at least one income source.");
+      return;
+    }
+
     const results = await Promise.all([
-      updateSheetRow("settings", "emergency_goal", [
-        "emergency_goal",
-        emergencyGoal,
-      ]),
-      updateSheetRow("settings", "remittance_goal", [
-        "remittance_goal",
-        remittanceGoal,
-      ]),
+      saveSetting("initial_cash_balance", initialCashBalance),
+      saveSetting("initial_commbank_balance", initialCommbankBalance),
+      saveSetting("initial_up_balance", initialUpBalance),
+      saveSetting("emergency_goal", emergencyGoal),
+      saveSetting("debt_repayment_goal", debtRepaymentGoal),
+      saveSetting("remittance_goal", remittanceGoal),
+      saveSetting("monthly_reset_day", monthlyResetDay),
+      saveSetting("currency", currency),
+      saveSetting("income_sources", JSON.stringify(cleanIncomeSources)),
     ]);
 
     if (results.some((item) => !item)) return;
@@ -308,6 +512,7 @@ export function useFinanceDashboard() {
       setNewPasscode("");
     }
 
+    setIncomeSources(cleanIncomeSources);
     setShowSettingsForm(false);
   }
 
@@ -459,92 +664,236 @@ export function useFinanceDashboard() {
     setShowTransferForm(false);
   }
 
-  async function addLent() {
-    if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
+  async function ensurePerson(name: string, phone: string) {
+    const cleanedName = name.trim().replace(/\s+/g, " ");
+    const cleanedPhone = phone.trim();
 
-    const newRecord: MoneyRecord = {
-      id: editingItem?.type === "lent" ? editingItem.id : Date.now(),
-      name: moneyName,
-      amount: Number(moneyAmount),
-      date: moneyDate || getToday(),
-      phone: moneyPhone,
-      notes: moneyNotes,
-      status: moneyStatus,
-    };
-
-    const values = [
-      newRecord.id,
-      newRecord.name,
-      newRecord.amount,
-      newRecord.date,
-      newRecord.phone,
-      newRecord.notes,
-      newRecord.status,
-    ];
-
-    const saved =
-      editingItem?.type === "lent"
-        ? await updateSheetRow("lent", newRecord.id, values)
-        : await saveToSheet("lent", values);
-
-    if (!saved) return;
-
-    if (editingItem?.type === "lent") {
-      setLentRecords(
-        lentRecords.map((item) => (item.id === newRecord.id ? newRecord : item))
-      );
-    } else {
-      setLentRecords([newRecord, ...lentRecords]);
+    if (!cleanedName) {
+      alert("Person name is required.");
+      return null;
     }
 
-    resetMoneyForm();
-    setEditingItem(null);
-    setShowLentForm(false);
+    const existingPerson = findPersonByName(people, name);
+    const now = new Date().toISOString();
+
+    if (existingPerson) {
+      return existingPerson;
+    }
+
+    const saved = await addPerson({
+      name: cleanedName,
+      phone: cleanedPhone,
+    });
+
+    console.log("Created person response:", saved);
+
+    if (!saved) return null;
+
+    const personId = extractCreatedId(saved);
+    console.log("Extracted personId:", personId);
+
+    if (!personId) {
+      throw new Error("Person profile is missing an id.");
+    }
+
+    const savedPerson: Person = {
+      id: personId,
+      name: cleanedName,
+      phone: cleanedPhone,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setPeople([savedPerson, ...people]);
+    return savedPerson;
+  }
+
+  async function saveLendingTransaction({
+    person,
+    type,
+    amount,
+    date,
+    note,
+  }: {
+    person: Person;
+    type: LendingTransactionRecord["type"];
+    amount: number;
+    date: string;
+    note: string;
+  }) {
+    const validTypes: LendingTransactionRecord["type"][] = [
+      "lent",
+      "borrowed",
+      "settlement",
+    ];
+
+    const personId = getPersonId(person);
+
+    if (!personId) {
+      alert("Person profile is missing an id.");
+      return null;
+    }
+
+    if (!validTypes.includes(type)) {
+      alert("Invalid lending transaction type.");
+      return null;
+    }
+
+    if (!amount || amount <= 0) {
+      alert("Amount must be greater than 0.");
+      return null;
+    }
+
+    const newTransaction: LendingTransactionRecord = {
+      id: "",
+      personId,
+      type,
+      amount,
+      date,
+      note,
+      createdAt: new Date().toISOString(),
+    };
+
+    const payload = {
+      personId: newTransaction.personId,
+      type: newTransaction.type,
+      amount: newTransaction.amount,
+      date: newTransaction.date,
+      note: newTransaction.note,
+    };
+
+    console.log("Final transaction payload:", payload);
+
+    const saved = await addLendingTransaction(payload);
+
+    if (!saved) return null;
+
+    const transactionId = extractCreatedId(saved);
+
+    if (!transactionId) {
+      await loadFromSheets();
+      return newTransaction;
+    }
+
+    const savedTransaction = {
+      ...newTransaction,
+      id: transactionId,
+    };
+
+    setLendingTransactions([savedTransaction, ...lendingTransactions]);
+    return savedTransaction;
+  }
+
+  async function addMoneyTransaction(type: LendingTransactionRecord["type"]) {
+    const amount = Number(moneyAmount);
+
+    if (!amount || amount <= 0) {
+      alert("Amount must be greater than 0.");
+      return;
+    }
+
+    try {
+      let person: Person | null = null;
+
+      if (lendingPersonMode === "existing") {
+        person = getSelectedPerson();
+
+        if (!getPersonId(person)) {
+          alert("Select an existing person profile.");
+          return;
+        }
+      } else {
+        const existing = findPersonByName(people, moneyName);
+
+        if (existing) {
+          alert("This person already exists. Select existing profile instead.");
+          return;
+        }
+
+        person = await ensurePerson(moneyName, moneyPhone);
+      }
+
+      if (!person) return;
+
+      const saved = await saveLendingTransaction({
+        person,
+        type,
+        amount,
+        date: moneyDate || getToday(),
+        note: moneyNotes,
+      });
+
+      if (!saved) return;
+
+      resetMoneyForm();
+      setEditingItem(null);
+      setShowLentForm(false);
+      setShowBorrowedForm(false);
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to save lending transaction.");
+    }
+  }
+
+  async function addLent() {
+    await addMoneyTransaction("lent");
   }
 
   async function addBorrowed() {
-    if (!moneyName || !moneyAmount || Number(moneyAmount) <= 0) return;
+    await addMoneyTransaction("borrowed");
+  }
 
-    const newRecord: MoneyRecord = {
-      id: editingItem?.type === "borrowed" ? editingItem.id : Date.now(),
-      name: moneyName,
-      amount: Number(moneyAmount),
-      date: moneyDate || getToday(),
-      phone: moneyPhone,
-      notes: moneyNotes,
-      status: moneyStatus,
-    };
+  function openSettlement(profileId: string | number, amount?: number) {
+    setSettlementProfileId(profileId);
+    setSettlementAmount(amount ? String(amount) : "");
+    setSettlementDate(getToday());
+    setSettlementNotes("");
+  }
 
-    const values = [
-      newRecord.id,
-      newRecord.name,
-      newRecord.amount,
-      newRecord.date,
-      newRecord.phone,
-      newRecord.notes,
-      newRecord.status,
-    ];
+  async function saveSettlement() {
+    const profile = dashboardValues.personProfiles.find(
+      (item) => item.id === settlementProfileId
+    );
+    const amount = Number(settlementAmount);
 
-    const saved =
-      editingItem?.type === "borrowed"
-        ? await updateSheetRow("borrowed", newRecord.id, values)
-        : await saveToSheet("borrowed", values);
+    if (!profile || !amount || amount <= 0) return;
+
+    const openBalance = Math.abs(profile.netBalance);
+    if (openBalance > 0 && amount > openBalance) {
+      alert("Settlement amount cannot be more than the open balance.");
+      return;
+    }
+
+    const person = await ensurePerson(profile.name, profile.phone || "");
+    if (!person) return;
+
+    const saved = await saveLendingTransaction({
+      person,
+      type: "settlement",
+      amount,
+      date: settlementDate || getToday(),
+      note: settlementNotes,
+    });
 
     if (!saved) return;
 
-    if (editingItem?.type === "borrowed") {
-      setBorrowedRecords(
-        borrowedRecords.map((item) =>
-          item.id === newRecord.id ? newRecord : item
-        )
-      );
-    } else {
-      setBorrowedRecords([newRecord, ...borrowedRecords]);
-    }
+    resetSettlementForm();
+  }
 
-    resetMoneyForm();
-    setEditingItem(null);
-    setShowBorrowedForm(false);
+  async function deleteSettlement(id: string | number) {
+    const deleted = await deleteFromSheet("LendingTransactions", id);
+    if (!deleted) return;
+    setLendingTransactions(
+      lendingTransactions.filter((item) => item.id !== id)
+    );
+  }
+
+  async function deleteLendingTransaction(id: string | number) {
+    const deleted = await deleteFromSheet("LendingTransactions", id);
+    if (!deleted) return;
+    setLendingTransactions(
+      lendingTransactions.filter((item) => item.id !== id)
+    );
   }
 
   async function deleteIncome(id: number) {
@@ -578,7 +927,11 @@ export function useFinanceDashboard() {
   }
 
   function startEdit(item: RecentActivityItem) {
-    setEditingItem({ type: item.type, id: item.id });
+    if (item.type === "settlement" || item.source === "lendingTransaction") {
+      return;
+    }
+
+    setEditingItem({ type: item.type, id: Number(item.id) });
 
     if (item.type === "income") {
       const record = incomes.find((x) => x.id === item.id);
@@ -649,37 +1002,22 @@ export function useFinanceDashboard() {
   }
 
   function unlockApp() {
-    const now = Date.now();
-
-    if (lockUntil && now < lockUntil) {
-      const minutesLeft = Math.ceil((lockUntil - now) / 60000);
-      alert(`Too many wrong attempts. Try again in ${minutesLeft} minutes.`);
-      return;
-    }
-
     if (passcodeInput === appPasscode) {
+      setLoading(!hasLoadedData.current);
       setIsUnlocked(true);
       setFailedAttempts(0);
-      localStorage.setItem("finance_unlocked", "true");
-      localStorage.removeItem("finance_locked_until");
+      setLockUntil(null);
+      setPasscodeError("");
+      setPasscodeInput("");
       return;
     }
 
-    const nextAttempts = failedAttempts + 1;
-    setFailedAttempts(nextAttempts);
-
-    if (nextAttempts >= 2) {
-      const nextLock = Date.now() + 10 * 60 * 1000;
-      setLockUntil(nextLock);
-      localStorage.setItem("finance_locked_until", String(nextLock));
-      alert("Too many wrong attempts. Locked for 10 minutes.");
-      return;
-    }
-
-    alert("Wrong passcode.");
+    setFailedAttempts(failedAttempts + 1);
+    setPasscodeInput("");
+    setPasscodeError("Wrong passcode");
   }
 
-  return { authReady, loading, isUnlocked, passcodeInput, setPasscodeInput, newPasscode, setNewPasscode, incomes, expenses, transfers, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, emergencyGoal, setEmergencyGoal, remittanceGoal, setRemittanceGoal, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, ...dashboardValues, toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, lockApp() { localStorage.removeItem("finance_unlocked"); setIsUnlocked(false); setPasscodeInput(""); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialCommbankBalance, setInitialCommbankBalance, initialUpBalance, setInitialUpBalance, emergencyGoal, setEmergencyGoal, debtRepaymentGoal, setDebtRepaymentGoal, remittanceGoal, setRemittanceGoal, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

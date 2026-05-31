@@ -1,16 +1,24 @@
 "use client";
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
+import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type DashboardLayoutProps = { state: FinanceDashboardState; };
 
 export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, recentActivity, startEdit, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, spendThisMonth, spendTransferCount, emergencyProgress, emergencySaved, emergencyGoal, debtRepaymentProgress, debtRepaymentSaved, activeBorrowed, remittanceProgress, remittanceSaved, remittanceGoal, activeLent, setDetailsView } = state;
+  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, emergencyProgress, emergencySaved, emergencyGoal, debtRepaymentProgress, debtRepaymentSaved, debtRepaymentGoal, remittanceProgress, remittanceSaved, remittanceGoal, activeLent, activeBorrowed, setDetailsView } = state;
+  const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
+
+  const openIncomeForm = () => setShowIncomeForm(true);
+  const openExpenseForm = () => setShowExpenseForm(true);
+  const openTransferForm = () => setShowTransferForm(true);
+  const openLentForm = () => setShowLentForm(true);
+  const openBorrowedForm = () => setShowBorrowedForm(true);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
+    <main className="min-h-screen bg-neutral-950 pb-24 text-white md:pb-0">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
         <header className="mb-6 flex items-center justify-between gap-3">
           <div>
@@ -47,21 +55,21 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
             <section className="rounded-3xl bg-neutral-900 p-5 shadow-lg">
               <p className="text-sm text-neutral-400">Total Money</p>
               <h2 className="mt-2 text-4xl font-bold">
-                ${totalMoney.toLocaleString()}
+                {currencySymbol}{totalMoney.toLocaleString()}
               </h2>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-neutral-800 p-4">
                   <p className="text-xs text-neutral-400">Usable Balance</p>
                   <p className="mt-1 text-xl font-semibold">
-                    ${usableBalance.toLocaleString()}
+                    {currencySymbol}{usableBalance.toLocaleString()}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-neutral-800 p-4">
                   <p className="text-xs text-neutral-400">Cash</p>
                   <p className="mt-1 text-xl font-semibold">
-                    ${cashBalance.toLocaleString()}
+                    {currencySymbol}{cashBalance.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -69,15 +77,15 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               <div className="mt-4 rounded-2xl bg-neutral-800 p-4">
                 <p className="text-xs text-neutral-400">Net Worth</p>
                 <p className="mt-1 text-2xl font-semibold">
-                  ${netWorth.toLocaleString()}
+                  {currencySymbol}{netWorth.toLocaleString()}
                 </p>
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <section className="hidden gap-3 md:grid md:grid-cols-3 lg:grid-cols-5">
               <button
                 type="button"
-                onClick={() => setShowIncomeForm(true)}
+                onClick={openIncomeForm}
                 className="rounded-2xl bg-green-500 p-4 text-left font-semibold text-black"
               >
                 + Add Income
@@ -85,7 +93,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <button
                 type="button"
-                onClick={() => setShowExpenseForm(true)}
+                onClick={openExpenseForm}
                 className="rounded-2xl bg-red-500 p-4 text-left font-semibold text-black"
               >
                 - Add Expense
@@ -93,7 +101,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <button
                 type="button"
-                onClick={() => setShowTransferForm(true)}
+                onClick={openTransferForm}
                 className="rounded-2xl border border-blue-500 p-4 text-left font-semibold text-blue-400"
               >
                 Transfer
@@ -101,7 +109,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <button
                 type="button"
-                onClick={() => setShowLentForm(true)}
+                onClick={openLentForm}
                 className="rounded-2xl border border-green-500 p-4 text-left font-semibold text-green-400"
               >
                 Lent
@@ -109,7 +117,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <button
                 type="button"
-                onClick={() => setShowBorrowedForm(true)}
+                onClick={openBorrowedForm}
                 className="rounded-2xl border border-red-500 p-4 text-left font-semibold text-red-400"
               >
                 Borrowed
@@ -123,7 +131,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Income</span>
                   <span className="text-green-400">
-                    +${monthlyIncome.toLocaleString()}
+                    +{currencySymbol}{monthlyIncome.toLocaleString()}
                   </span>
                 </div>
 
@@ -135,99 +143,35 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Expenses</span>
                   <span className="text-red-400">
-                    -${monthlyExpenses.toLocaleString()}
+                    -{currencySymbol}{monthlyExpenses.toLocaleString()}
                   </span>
                 </div>
 
                 <div className="flex justify-between border-t border-neutral-800 pt-3">
                   <span className="font-medium">Remaining</span>
                   <span className="font-semibold">
-                    ${remaining.toLocaleString()}
+                    {currencySymbol}{remaining.toLocaleString()}
                   </span>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-3xl bg-neutral-900 p-5">
-              <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
-
-              <div className="space-y-3">
-                {recentActivity.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No activity yet.</p>
-                ) : (
-                  recentActivity.map((item) => {
-                    const amountClass =
-                      item.type === "income" || item.type === "lent"
-                        ? "text-green-400"
-                        : item.type === "transfer"
-                          ? "text-blue-400"
-                          : "text-red-400";
-
-                    const prefix =
-                      item.type === "income" || item.type === "lent"
-                        ? "+"
-                        : item.type === "transfer"
-                          ? "↔"
-                          : "-";
-
-                    return (
-                      <div
-                        key={`${item.type}-${item.id}`}
-                        className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
-                      >
-                        <div>
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-xs text-neutral-400">
-                            {item.date} • {item.subtitle}
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <p className={amountClass}>
-                            {prefix}${item.amount.toLocaleString()}
-                          </p>
-
-                          <div className="mt-2 flex items-center justify-end gap-4">
-                            <button
-                              type="button"
-                              onClick={() => startEdit(item)}
-                              className="text-xs text-blue-400"
-                            >
-                              <FontAwesomeIcon icon={faPenToSquare} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (item.type === "income")
-                                  deleteIncome(item.id);
-                                if (item.type === "expense")
-                                  deleteExpense(item.id);
-                                if (item.type === "transfer")
-                                  deleteTransfer(item.id);
-                                if (item.type === "lent") deleteLent(item.id);
-                                if (item.type === "borrowed")
-                                  deleteBorrowed(item.id);
-                              }}
-                              className="text-xs text-neutral-500"
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </section>
+            <div className="hidden lg:block">
+              <RecentActivity
+                state={state}
+                showAll={showAllRecentActivity}
+                onToggleShowAll={() =>
+                  setShowAllRecentActivity(!showAllRecentActivity)
+                }
+              />
+            </div>
           </div>
 
           <div className="space-y-6">
             <section className="rounded-3xl border border-green-500/30 bg-neutral-900 p-5">
               <p className="text-sm text-neutral-400">Spend This Month</p>
               <h3 className="mt-2 text-3xl font-bold text-green-400">
-                ${spendThisMonth.toLocaleString()}
+                {currencySymbol}{spendThisMonth.toLocaleString()}
               </h3>
               <p className="mt-2 text-sm text-neutral-500">
                 {spendTransferCount} transfer
@@ -244,7 +188,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               </div>
 
               <h3 className="mt-2 text-2xl font-bold">
-                ${emergencySaved.toLocaleString()} / $
+                {currencySymbol}{emergencySaved.toLocaleString()} / {currencySymbol}
                 {emergencyGoal.toLocaleString()}
               </h3>
 
@@ -267,8 +211,8 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               </div>
 
               <h3 className="mt-2 text-2xl font-bold">
-                ${debtRepaymentSaved.toLocaleString()} / $
-                {activeBorrowed.toLocaleString()}
+                {currencySymbol}{debtRepaymentSaved.toLocaleString()} / {currencySymbol}
+                {debtRepaymentGoal.toLocaleString()}
               </h3>
 
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
@@ -288,7 +232,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               </div>
 
               <h3 className="mt-2 text-2xl font-bold">
-                ${remittanceSaved.toLocaleString()} / $
+                {currencySymbol}{remittanceSaved.toLocaleString()} / {currencySymbol}
                 {remittanceGoal.toLocaleString()}
               </h3>
 
@@ -304,7 +248,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               <div className="rounded-3xl bg-neutral-900 p-5">
                 <p className="text-sm text-neutral-400">Money I Lent</p>
                 <p className="mt-2 text-2xl font-bold text-green-400">
-                  ${activeLent.toLocaleString()}
+                  {currencySymbol}{activeLent.toLocaleString()}
                 </p>
                 <button
                   type="button"
@@ -318,7 +262,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               <div className="rounded-3xl bg-neutral-900 p-5">
                 <p className="text-sm text-neutral-400">Money I Borrowed</p>
                 <p className="mt-2 text-2xl font-bold text-red-400">
-                  ${activeBorrowed.toLocaleString()}
+                  {currencySymbol}{activeBorrowed.toLocaleString()}
                 </p>
                 <button
                   type="button"
@@ -331,7 +275,25 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
             </section>
           </div>
         </div>
+
+        <div className="mt-6 lg:hidden">
+          <RecentActivity
+            state={state}
+            showAll={showAllRecentActivity}
+            onToggleShowAll={() =>
+              setShowAllRecentActivity(!showAllRecentActivity)
+            }
+          />
+        </div>
       </div>
+
+      <FloatingActionMenu
+        onAddIncome={openIncomeForm}
+        onAddExpense={openExpenseForm}
+        onTransfer={openTransferForm}
+        onLent={openLentForm}
+        onBorrowed={openBorrowedForm}
+      />
     </main>
   );
 }

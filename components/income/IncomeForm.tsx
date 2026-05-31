@@ -6,7 +6,7 @@ import type { IncomeType } from "@/lib/types";
 type IncomeFormProps = { state: FinanceDashboardState; };
 
 export function IncomeForm({ state }: IncomeFormProps) {
-  const { editingItem, incomeType, handleIncomeTypeChange, incomeSource, handleIncomeSourceChange, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeCashReceived, setIncomeCashReceived, toNumber, incomeAmount, setIncomeAmount, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, closeAllForms, addIncome } = state;
+  const { editingItem, incomeSources, incomeType, handleIncomeTypeChange, incomeSource, handleIncomeSourceChange, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeCashReceived, setIncomeCashReceived, toNumber, incomeAmount, setIncomeAmount, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, closeAllForms, addIncome } = state;
 
   return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
@@ -32,8 +32,9 @@ export function IncomeForm({ state }: IncomeFormProps) {
                 onChange={(e) => handleIncomeSourceChange(e.target.value)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Hawthorn Pizza</option>
-                <option>Pizza High</option>
+                {incomeSources.map((source) => (
+                  <option key={source.name}>{source.name}</option>
+                ))}
                 <option>Business</option>
                 <option>Refund</option>
                 <option>Gift</option>

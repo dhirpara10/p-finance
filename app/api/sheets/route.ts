@@ -1,17 +1,36 @@
 const SHEETS_API_URL = process.env.SHEETS_API_URL;
 const SHEETS_API_KEY = process.env.SHEETS_API_KEY;
 
-function getSheetsUrl() {
+function getSheetsUrl(action?: string | null) {
   if (!SHEETS_API_URL || !SHEETS_API_KEY) {
     throw new Error("Missing SHEETS_API_URL or SHEETS_API_KEY");
   }
 
-  return `${SHEETS_API_URL}?key=${encodeURIComponent(SHEETS_API_KEY)}`;
+  const url = new URL(SHEETS_API_URL);
+  url.searchParams.set("key", SHEETS_API_KEY);
+
+  if (action) {
+    url.searchParams.set("action", action);
+  }
+
+  return url.toString();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const finalUrl = getSheetsUrl();
+    const action = new URL(request.url).searchParams.get("action");
+
+    if (!action) {
+      return Response.json(
+        {
+          success: false,
+          error: "Missing GET action",
+        },
+        { status: 400 }
+      );
+    }
+
+    const finalUrl = getSheetsUrl(action);
 
     const res = await fetch(finalUrl, {
       method: "GET",
@@ -53,10 +72,47 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.text();
+    let action = new URL(request.url).searchParams.get("action");
+    let forwardedBody = body;
 
-    const res = await fetch(getSheetsUrl(), {
+    if (!action) {
+      try {
+        const payload = JSON.parse(body);
+        action = payload.action || null;
+      } catch {
+        action = null;
+      }
+    }
+
+    if (!action) {
+      return Response.json(
+        {
+          success: false,
+          error: "Missing POST action",
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const payload = JSON.parse(body);
+      if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+        forwardedBody = JSON.stringify({
+          ...payload,
+          action,
+          key: SHEETS_API_KEY,
+        });
+      }
+    } catch {
+      forwardedBody = body;
+    }
+
+    const res = await fetch(getSheetsUrl(action), {
       method: "POST",
-      body,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: forwardedBody,
     });
 
     const text = await res.text();

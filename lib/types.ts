@@ -20,6 +20,11 @@ export type Income = {
   notes: string;
 };
 
+export type IncomeSourceRate = {
+  name: string;
+  rate: number;
+};
+
 export type Expense = {
   id: number;
   amount: number;
@@ -48,13 +53,59 @@ export type MoneyRecord = {
   status: Status;
 };
 
+export type Person = {
+  id: string | number;
+  name: string;
+  phone: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LendingTransactionRecord = {
+  id: string | number;
+  personId: string | number;
+  type: "lent" | "borrowed" | "settlement";
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+};
+
+export type LendingTransaction = {
+  id: string | number;
+  personId?: string | number;
+  type: "lent" | "borrowed" | "settlement";
+  amount: number;
+  date: string;
+  note?: string;
+  createdAt?: string;
+  legacy?: boolean;
+};
+
+export type PersonProfile = {
+  id: string | number;
+  personId?: string | number;
+  name: string;
+  phone?: string;
+  createdAt: string;
+  updatedAt?: string;
+  transactions: LendingTransaction[];
+  totalLent: number;
+  totalBorrowed: number;
+  totalSettled: number;
+  netBalance: number;
+  status: string;
+};
+
 export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer";
+export type RecentActivityType = EditingItemType | "settlement";
 
 export type RecentActivityItem = {
-  id: number;
-  type: EditingItemType;
+  id: string | number;
+  type: RecentActivityType;
   title: string;
   subtitle: string;
   amount: number;
   date: string;
+  source?: "lendingTransaction";
 };
