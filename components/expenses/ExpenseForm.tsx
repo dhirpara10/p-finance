@@ -6,7 +6,7 @@ import type { ExpenseAccount } from "@/lib/types";
 type ExpenseFormProps = { state: FinanceDashboardState; };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
-  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, closeAllForms, addExpense } = state;
+  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
 
   return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
@@ -29,22 +29,29 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
                 onChange={(e) => setExpenseCategory(e.target.value)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Spending Transfer</option>
-                <option>Rent</option>
-                <option>Food</option>
-                <option>Transport</option>
-                <option>Laundry</option>
-                <option>Phone</option>
-                <option>Visa</option>
-                <option>College</option>
-                <option>Gym</option>
-                <option>Subscriptions</option>
-                <option>Business</option>
-                <option>Shopify</option>
-                <option>Ads</option>
-                <option>Emergency</option>
-                <option>Other</option>
+                {expenseCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="New category name"
+                  value={newExpenseCategory}
+                  onChange={(e) => setNewExpenseCategory(e.target.value)}
+                  className="flex-1 rounded-2xl bg-neutral-800 p-4 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={addExpenseCategory}
+                  className="rounded-2xl bg-neutral-700 px-4 py-4 font-semibold hover:bg-neutral-600"
+                >
+                  + Add
+                </button>
+              </div>
 
               <select
                 value={expenseAccount}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import Statistics from "@/components/dashboard/Statistics";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type DashboardLayoutProps = { state: FinanceDashboardState; };
@@ -178,6 +179,8 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                 {spendTransferCount === 1 ? "" : "s"} this month
               </p>
             </section>
+
+            <Statistics state={state} />
 
             <section className="rounded-3xl bg-neutral-900 p-5">
               <div className="flex items-center justify-between">

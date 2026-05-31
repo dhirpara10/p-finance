@@ -35,6 +35,167 @@ export function getToday() {
   return new Date().toISOString().split("T")[0];
 }
 
+export function getStatisticsDateRange({
+  period,
+  customStartDate,
+  customEndDate,
+}: {
+  period: "1M" | "2M" | "3M" | "6M" | "12M" | "LIFETIME" | "CUSTOM";
+  customStartDate?: string;
+  customEndDate?: string;
+}) {
+  const now = new Date();
+  let startDate: Date | null = new Date();
+  let endDate = new Date();
+
+  if (period === "1M") startDate.setMonth(startDate.getMonth() - 1);
+  if (period === "2M") startDate.setMonth(startDate.getMonth() - 2);
+  if (period === "3M") startDate.setMonth(startDate.getMonth() - 3);
+  if (period === "6M") startDate.setMonth(startDate.getMonth() - 6);
+  if (period === "12M") startDate.setMonth(startDate.getMonth() - 12);
+
+  if (period === "LIFETIME") {
+    startDate = null;
+  }
+
+  if (period === "CUSTOM") {
+    startDate = customStartDate ? new Date(customStartDate) : null;
+    endDate = customEndDate ? new Date(customEndDate) : now;
+  }
+
+  return { startDate, endDate };
+}
+
+export function getCategoryWiseSpend({
+  expenses,
+  period,
+  customStartDate,
+  customEndDate,
+}: {
+  expenses: Expense[];
+  period: "1M" | "2M" | "3M" | "6M" | "12M" | "LIFETIME" | "CUSTOM";
+  customStartDate?: string;
+  customEndDate?: string;
+}) {
+  const { startDate, endDate } = getStatisticsDateRange({
+    period,
+    customStartDate,
+    customEndDate,
+  });
+
+  const filteredExpenses = expenses.filter((expense) => {
+    const expenseDate = new Date(expense.date);
+
+    if (Number.isNaN(expenseDate.getTime())) return false;
+    if (startDate && expenseDate < startDate) return false;
+    if (endDate && expenseDate > endDate) return false;
+
+    return true;
+  });
+
+  const grouped = filteredExpenses.reduce((acc, expense) => {
+    const category = expense.category || "Uncategorized";
+    acc[category] = (acc[category] || 0) + toNumber(expense.amount);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const total = Object.values(grouped).reduce((sum, amount) => sum + amount, 0);
+
+  return Object.entries(grouped)
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: total > 0 ? (amount / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+export function getTimeWiseSpend({
+  expenses,
+  period,
+  grouping,
+  customStartDate,
+  customEndDate,
+}: {
+  expenses: Expense[];
+  period: "1M" | "2M" | "3M" | "6M" | "12M" | "LIFETIME" | "CUSTOM";
+  grouping: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+  customStartDate?: string;
+  customEndDate?: string;
+}) {
+  const { startDate, endDate } = getStatisticsDateRange({
+    period,
+    customStartDate,
+    customEndDate,
+  });
+
+  function getWeekNumber(date: Date) {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+
+  function getLabel(date: Date) {
+    if (grouping === "DAILY") {
+      return date.toISOString().split("T")[0];
+    }
+
+    if (grouping === "WEEKLY") {
+      return `Week ${getWeekNumber(date)}, ${date.getFullYear()}`;
+    }
+
+    if (grouping === "MONTHLY") {
+      return date.toLocaleString(undefined, {
+        month: "short",
+        year: "numeric",
+      });
+    }
+
+    return String(date.getFullYear());
+  }
+
+  const filteredExpenses = expenses.filter((expense) => {
+    const expenseDate = new Date(expense.date);
+
+    if (Number.isNaN(expenseDate.getTime())) return false;
+    if (startDate && expenseDate < startDate) return false;
+    if (endDate && expenseDate > endDate) return false;
+
+    return true;
+  });
+
+  const grouped = filteredExpenses.reduce((acc, expense) => {
+    const expenseDate = new Date(expense.date);
+    const label = getLabel(expenseDate);
+
+    if (!acc[label]) {
+      acc[label] = {
+        label,
+        amount: 0,
+        sortTime: expenseDate.getTime(),
+      } as { label: string; amount: number; sortTime: number };
+    }
+
+    acc[label].amount += toNumber(expense.amount);
+    // Keep earliest sortTime for ordering
+    acc[label].sortTime = Math.min(acc[label].sortTime, expenseDate.getTime());
+
+    return acc;
+  }, {} as Record<string, { label: string; amount: number; sortTime: number }>);
+
+  const total = Object.values(grouped).reduce((sum, item) => sum + item.amount, 0);
+
+  return Object.values(grouped)
+    .map((item) => ({
+      label: item.label,
+      amount: item.amount,
+      percentage: total > 0 ? (item.amount / total) * 100 : 0,
+      sortTime: item.sortTime,
+    }))
+    .sort((a, b) => a.sortTime - b.sortTime);
+}
+
 function getActivityTime(dateString: string) {
   const time = new Date(dateString).getTime();
   return Number.isFinite(time) ? time : 0;

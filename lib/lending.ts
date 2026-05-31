@@ -72,8 +72,12 @@ export function buildPersonProfiles({
 }) {
   const profiles = new Map<string, PersonProfile>();
 
+  function getPersonKey(person: Person) {
+    return String(person.id);
+  }
+
   function ensureProfileFromPerson(person: Person) {
-    const key = normalizePersonName(person.name);
+    const key = getPersonKey(person);
     const existing = profiles.get(key);
 
     if (existing) {
@@ -92,6 +96,33 @@ export function buildPersonProfiles({
       phone: person.phone || undefined,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
+      transactions: [],
+      totalLent: 0,
+      totalBorrowed: 0,
+      totalSettled: 0,
+      netBalance: 0,
+      status: "Settled",
+    };
+
+    profiles.set(key, profile);
+    return profile;
+  }
+
+  function ensureFallbackProfile(record: LendingTransactionRecord) {
+    const key = record.personId != null
+      ? `fallback:${String(record.personId)}`
+      : `fallback:unknown:${String(record.id)}`;
+    const existing = profiles.get(key);
+    if (existing) return existing;
+
+    const fallbackName = String(record.note || "").trim() || "Unknown Person";
+    const profile: PersonProfile = {
+      id: record.personId ?? `unknown-${record.id}`,
+      personId: record.personId,
+      name: fallbackName,
+      phone: undefined,
+      createdAt: record.createdAt || record.date || "",
+      updatedAt: undefined,
       transactions: [],
       totalLent: 0,
       totalBorrowed: 0,
@@ -142,9 +173,11 @@ export function buildPersonProfiles({
     const person = people.find(
       (item) => String(item.id) === String(record.personId)
     );
-    if (!person) return;
 
-    const profile = ensureProfileFromPerson(person);
+    const profile = person
+      ? ensureProfileFromPerson(person)
+      : ensureFallbackProfile(record);
+
     profile.transactions.push({
       id: record.id,
       personId: record.personId,

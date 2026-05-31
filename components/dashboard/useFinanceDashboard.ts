@@ -11,6 +11,25 @@ const defaultIncomeSources = [
   { name: "Pizza High", rate: 23 },
 ];
 
+const defaultExpenseCategories = [
+  "Food",
+  "Transport",
+  "Rent",
+  "Laundry",
+  "Phone",
+  "Visa",
+  "Fees",
+  "Tech",
+  "College",
+  "Gym",
+  "Subscriptions",
+  "Business",
+  "Shopify",
+  "Ads",
+  "Emergency",
+  "Other",
+];
+
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const hasLoadedData = useRef(false);
@@ -62,6 +81,23 @@ export function useFinanceDashboard() {
   const [incomeSources, setIncomeSources] =
     useState<IncomeSourceRate[]>(defaultIncomeSources);
 
+  type StatisticsMode = "CATEGORY" | "TIME";
+  type StatisticsPeriod =
+    | "1M"
+    | "2M"
+    | "3M"
+    | "6M"
+    | "12M"
+    | "LIFETIME"
+    | "CUSTOM";
+  type TimeGrouping = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+
+  const [statisticsMode, setStatisticsMode] = useState<StatisticsMode>("CATEGORY");
+  const [statisticsPeriod, setStatisticsPeriod] = useState<StatisticsPeriod>("1M");
+  const [statisticsStartDate, setStatisticsStartDate] = useState("");
+  const [statisticsEndDate, setStatisticsEndDate] = useState("");
+  const [timeGrouping, setTimeGrouping] = useState<TimeGrouping>("MONTHLY");
+
   const [incomeType, setIncomeType] = useState<IncomeType>("Hourly");
   const [incomeSource, setIncomeSource] = useState("Hawthorn Pizza");
   const [incomeRate, setIncomeRate] = useState("20");
@@ -76,6 +112,9 @@ export function useFinanceDashboard() {
     useState<ExpenseAccount>("Usable Balance");
   const [expenseDate, setExpenseDate] = useState(today);
   const [expenseNotes, setExpenseNotes] = useState("");
+  const [expenseCategories, setExpenseCategories] = useState<string[]>(defaultExpenseCategories);
+  const [newExpenseCategory, setNewExpenseCategory] = useState("");
+
 
   const [fromBucket, setFromBucket] = useState<Bucket>("Usable Balance");
   const [toBucket, setToBucket] = useState<Bucket>("Emergency Fund");
@@ -202,8 +241,40 @@ export function useFinanceDashboard() {
   }
 
   function getSettingValue(settings: any[], key: string, fallback: string) {
-    const setting = settings.find((item: any) => item.key === key);
-    return String(setting?.value ?? fallback);
+    const getKey = (item: any) => {
+      if (item == null) return null;
+      if (typeof item.key === "string") return item.key;
+      if (typeof item.Key === "string") return item.Key;
+      if (typeof item.name === "string") return item.name;
+      if (typeof item.id === "string") return item.id;
+      return null;
+    };
+
+    const getValue = (item: any) => {
+      if (Array.isArray(item) && item.length >= 2) return item[1];
+      if (item == null || typeof item !== "object") return undefined;
+      return item.value ?? item.Value ?? item.val ?? item[1];
+    };
+
+    const normalizedKey = key.toString().toLowerCase();
+    const setting = settings.find((item: any) => {
+      const itemKey = getKey(item);
+      return itemKey?.toString().toLowerCase() === normalizedKey;
+    });
+
+    const rawValue = setting ? getValue(setting) : undefined;
+    if (rawValue !== undefined && rawValue !== null) {
+      return String(rawValue);
+    }
+
+    const fallbackRow = settings.find(
+      (item: any) => Array.isArray(item) && String(item[0]).toLowerCase() === normalizedKey
+    );
+    if (fallbackRow) {
+      return String(fallbackRow[1]);
+    }
+
+    return String(fallback);
   }
 
   function parseIncomeSources(value: string) {
@@ -224,6 +295,23 @@ export function useFinanceDashboard() {
 
     return defaultIncomeSources;
   }
+
+  function parseExpenseCategories(value: string) {
+    try {
+      const parsed = JSON.parse(value);
+
+      if (Array.isArray(parsed)) {
+        const categories = parsed
+          .map((item) => String(item || "").trim())
+          .filter(Boolean);
+
+        if (categories.length) return categories;
+      }
+    } catch {}
+
+    return defaultExpenseCategories;
+  }
+
 
   function currencySymbolFor(value: string) {
     if (value === "AUD" || value === "USD" || value === "CAD") return "$";
@@ -289,8 +377,29 @@ export function useFinanceDashboard() {
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
-      const sheetData = await getAllData(controller.signal);
+      const sheetDataRaw = await getAllData(controller.signal);
+      const sheetData = {
+        ...sheetDataRaw,
+        People:
+          sheetDataRaw.People ||
+          sheetDataRaw.people ||
+          sheetDataRaw.PEOPLE ||
+          [],
+        LendingTransactions:
+          sheetDataRaw.LendingTransactions ||
+          sheetDataRaw.lendingTransactions ||
+          sheetDataRaw.Lendingtransactions ||
+          sheetDataRaw.lendingtransactions ||
+          [],
+      };
+
+      console.log("sheetData keys", Object.keys(sheetDataRaw));
+      console.log("People", sheetData.People);
+      console.log("LendingTransactions", sheetData.LendingTransactions);
+
       const settings = sheetData.settings || [];
+
+      console.log("loaded settings", settings);
 
       setInitialCashBalance(
         toNumber(getSettingValue(settings, "initial_cash_balance", "200"))
@@ -325,6 +434,19 @@ export function useFinanceDashboard() {
         setIncomeSource(loadedIncomeSources[0]?.name || "Hawthorn Pizza");
         setIncomeRate(String(loadedIncomeSources[0]?.rate || 0));
       }
+
+      const loadedExpenseCategories = parseExpenseCategories(
+        getSettingValue(
+          settings,
+          "expense_categories",
+          JSON.stringify(defaultExpenseCategories)
+        )
+      );
+      setExpenseCategories(loadedExpenseCategories);
+      if (!loadedExpenseCategories.some((cat) => cat === expenseCategory)) {
+        setExpenseCategory(loadedExpenseCategories[0] || "Food");
+      }
+
 
      setIncomes(
   (sheetData.income || []).map((item: any) => ({
@@ -497,6 +619,7 @@ export function useFinanceDashboard() {
       saveSetting("monthly_reset_day", monthlyResetDay),
       saveSetting("currency", currency),
       saveSetting("income_sources", JSON.stringify(cleanIncomeSources)),
+      saveSetting("expense_categories", JSON.stringify(expenseCategories)),
     ]);
 
     if (results.some((item) => !item)) return;
@@ -1017,7 +1140,36 @@ export function useFinanceDashboard() {
     setPasscodeError("Wrong passcode");
   }
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialCommbankBalance, setInitialCommbankBalance, initialUpBalance, setInitialUpBalance, emergencyGoal, setEmergencyGoal, debtRepaymentGoal, setDebtRepaymentGoal, remittanceGoal, setRemittanceGoal, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); } };
+  async function addExpenseCategory() {
+    const cleanName = newExpenseCategory.trim();
+
+    if (!cleanName) return;
+
+    const alreadyExists = expenseCategories.some(
+      (category) => category.toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (alreadyExists) {
+      alert("Category already exists.");
+      return;
+    }
+
+    const nextCategories = [...expenseCategories, cleanName];
+
+    const saved = await saveSetting(
+      "expense_categories",
+      JSON.stringify(nextCategories)
+    );
+
+    if (!saved) return;
+
+    setExpenseCategories(nextCategories);
+    setExpenseCategory(cleanName);
+    setNewExpenseCategory("");
+  }
+
+
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialCommbankBalance, setInitialCommbankBalance, initialUpBalance, setInitialUpBalance, emergencyGoal, setEmergencyGoal, debtRepaymentGoal, setDebtRepaymentGoal, remittanceGoal, setRemittanceGoal, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;
