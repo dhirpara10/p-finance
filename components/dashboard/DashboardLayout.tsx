@@ -175,8 +175,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                 {currencySymbol}{spendThisMonth.toLocaleString()}
               </h3>
               <p className="mt-2 text-sm text-neutral-500">
-                {spendTransferCount} transfer
-                {spendTransferCount === 1 ? "" : "s"} this month
+                {spendTransferCount} expense{spendTransferCount === 1 ? "" : "s"} this month
               </p>
             </section>
 

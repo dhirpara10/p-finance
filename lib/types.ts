@@ -9,7 +9,7 @@ export type Bucket =
   | "Cash";
 
 export type Income = {
-  id: number;
+  id: string | number;
   income_type: "Hourly" | "Fixed Amount";
   source: string;
   rate: number;
@@ -26,7 +26,7 @@ export type IncomeSourceRate = {
 };
 
 export type Expense = {
-  id: number;
+  id: string | number;
   amount: number;
   category: string;
   account: ExpenseAccount;
@@ -35,7 +35,7 @@ export type Expense = {
 };
 
 export type Transfer = {
-  id: number;
+  id: string | number;
   from_bucket: Bucket;
   to_bucket: Bucket;
   amount: number;
@@ -44,7 +44,7 @@ export type Transfer = {
 };
 
 export type MoneyRecord = {
-  id: number;
+  id: string | number;
   name: string;
   amount: number;
   date: string;

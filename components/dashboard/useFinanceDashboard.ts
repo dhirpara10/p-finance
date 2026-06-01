@@ -67,7 +67,7 @@ export function useFinanceDashboard() {
 
   const [editingItem, setEditingItem] = useState<{
     type: EditingItemType;
-    id: number;
+    id: string | number;
   } | null>(null);
 
   const [initialCashBalance, setInitialCashBalance] = useState(200);
@@ -208,6 +208,166 @@ export function useFinanceDashboard() {
     if (typeof value === "number" && value > 0) return value;
     if (typeof value === "string" && value.trim()) return value.trim();
     return null;
+  }
+
+  function looksLikeExistingId(value: unknown) {
+    if (value === undefined || value === null) return false;
+
+    const text = String(value).trim();
+    if (!text) return false;
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) {
+      return true;
+    }
+
+    if (/^\d{10,}$/.test(text)) {
+      return true;
+    }
+
+    if (text.length >= 12 && /[a-zA-Z]/.test(text)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function normalizeSheetRow(item: any) {
+    if (!Array.isArray(item)) return item;
+
+    if (
+      item.length >= 2 &&
+      looksLikeExistingId(item[0]) &&
+      looksLikeExistingId(item[1])
+    ) {
+      return item.slice(1);
+    }
+
+    return item;
+  }
+
+  function normalizeRowId(value: any): string | number {
+    const idValue = getSheetId(value);
+    if (idValue !== null) return idValue;
+    if (value === undefined || value === null) return "";
+    return String(value);
+  }
+
+  function parseIncomeRow(item: any): Income {
+    const row = normalizeSheetRow(item);
+
+    if (Array.isArray(row)) {
+      const [id, income_type, source, rate, hours, amount, cash_received, date, notes] = row;
+
+      return {
+        id: normalizeRowId(id),
+        income_type: income_type === "Hourly" ? "Hourly" : "Fixed Amount",
+        source: String(source || ""),
+        rate: toNumber(rate),
+        hours: toNumber(hours),
+        amount: toNumber(amount),
+        cash_received: toNumber(cash_received),
+        date: String(date || ""),
+        notes: String(notes || ""),
+      };
+    }
+
+    return {
+      id: normalizeRowId(item?.id ?? item?.[0]),
+      income_type: item?.income_type === "Hourly" ? "Hourly" : "Fixed Amount",
+      source: String(item?.source || ""),
+      rate: toNumber(item?.rate),
+      hours: toNumber(item?.hours),
+      amount: toNumber(item?.amount),
+      cash_received: toNumber(item?.cash_received),
+      date: String(item?.date || ""),
+      notes: String(item?.notes || ""),
+    };
+  }
+
+  function parseExpenseRow(item: any): Expense {
+    const row = normalizeSheetRow(item);
+
+    if (Array.isArray(row)) {
+      const [id, amount, category, account, date, notes] = row;
+
+      return {
+        id: normalizeRowId(id),
+        amount: toNumber(amount),
+        category: String(category || ""),
+        account:
+          account === "Cash" || account === "cash"
+            ? "Cash"
+            : "Usable Balance",
+        date: String(date || ""),
+        notes: String(notes || ""),
+      };
+    }
+
+    return {
+      id: normalizeRowId(item?.id ?? item?.[0]),
+      amount: toNumber(item?.amount),
+      category: String(item?.category || ""),
+      account:
+        item?.account === "Cash" || item?.account === "cash"
+          ? "Cash"
+          : "Usable Balance",
+      date: String(item?.date || ""),
+      notes: String(item?.notes || ""),
+    };
+  }
+
+  function parseTransferRow(item: any): Transfer {
+    const row = normalizeSheetRow(item);
+
+    if (Array.isArray(row)) {
+      const [id, from_bucket, to_bucket, amount, date, notes] = row;
+
+      return {
+        id: normalizeRowId(id),
+        from_bucket: String(from_bucket || "Usable Balance") as Bucket,
+        to_bucket: String(to_bucket || "Emergency Fund") as Bucket,
+        amount: toNumber(amount),
+        date: String(date || ""),
+        notes: String(notes || ""),
+      };
+    }
+
+    return {
+      id: normalizeRowId(item?.id ?? item?.[0]),
+      from_bucket: String(item?.from_bucket || "Usable Balance") as Bucket,
+      to_bucket: String(item?.to_bucket || "Emergency Fund") as Bucket,
+      amount: toNumber(item?.amount),
+      date: String(item?.date || ""),
+      notes: String(item?.notes || ""),
+    };
+  }
+
+  function parseMoneyRecordRow(item: any): MoneyRecord {
+    const row = normalizeSheetRow(item);
+
+    if (Array.isArray(row)) {
+      const [id, name, amount, date, phone, notes, status] = row;
+
+      return {
+        id: normalizeRowId(id),
+        name: String(name || ""),
+        amount: toNumber(amount),
+        date: String(date || ""),
+        phone: String(phone || ""),
+        notes: String(notes || ""),
+        status: String(status || "Pending") as Status,
+      };
+    }
+
+    return {
+      id: normalizeRowId(item?.id ?? item?.[0]),
+      name: String(item?.name || ""),
+      amount: toNumber(item?.amount),
+      date: String(item?.date || ""),
+      phone: String(item?.phone || ""),
+      notes: String(item?.notes || ""),
+      status: item?.status || "Pending",
+    };
   }
 
   function extractCreatedId(payload: unknown) {
@@ -448,70 +608,15 @@ export function useFinanceDashboard() {
       }
 
 
-     setIncomes(
-  (sheetData.income || []).map((item: any) => ({
-    id: toNumber(item.id),
-    income_type: item.income_type === "Hourly" ? "Hourly" : "Fixed Amount",
-    source: String(item.source || ""),
-    rate: toNumber(item.rate),
-    hours: toNumber(item.hours),
-    amount: toNumber(item.amount),
-    cash_received: toNumber(item.cash_received),
-    date: String(item.date || ""),
-    notes: String(item.notes || ""),
-  }))
-);
+      setIncomes((sheetData.income || []).map(parseIncomeRow));
 
-      setExpenses(
-        (sheetData.expenses || []).map((item: any) => ({
-          id: toNumber(item.id),
-          amount: toNumber(item.amount),
-          category: String(item.category || ""),
-          account:
-            item.account === "Cash" || item.account === "cash"
-              ? "Cash"
-              : "Usable Balance",
-          date: String(item.date || ""),
-          notes: String(item.notes || ""),
-        }))
-      );
+      setExpenses((sheetData.expenses || []).map(parseExpenseRow));
 
-      setTransfers(
-        (sheetData.transfers || []).map((item: any) => ({
-          id: toNumber(item.id),
-          from_bucket: String(
-            item.from_bucket || "Usable Balance"
-          ) as Bucket,
-          to_bucket: String(item.to_bucket || "Emergency Fund") as Bucket,
-          amount: toNumber(item.amount),
-          date: String(item.date || ""),
-          notes: String(item.notes || ""),
-        }))
-      );
+      setTransfers((sheetData.transfers || []).map(parseTransferRow));
 
-      setLentRecords(
-        (sheetData.lent || []).map((item: any) => ({
-          id: toNumber(item.id ?? item[""]),
-          name: String(item.name || ""),
-          amount: toNumber(item.amount),
-          date: String(item.date || ""),
-          phone: String(item.phone || ""),
-          notes: String(item.notes || ""),
-          status: item.status || "Pending",
-        }))
-      );
+      setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
 
-      setBorrowedRecords(
-        (sheetData.borrowed || []).map((item: any) => ({
-          id: toNumber(item.id ?? item[""]),
-          name: String(item.name || ""),
-          amount: toNumber(item.amount),
-          date: String(item.date || ""),
-          phone: String(item.phone || ""),
-          notes: String(item.notes || ""),
-          status: item.status || "Pending",
-        }))
-      );
+      setBorrowedRecords((sheetData.borrowed || []).map(parseMoneyRecordRow));
 
       setPeople(
         (sheetData.People || []).map((item: any) => ({
@@ -687,7 +792,9 @@ export function useFinanceDashboard() {
 
   if (editingItem?.type === "income") {
     setIncomes(
-      incomes.map((item) => (item.id === newIncome.id ? newIncome : item))
+      incomes.map((item) =>
+        String(item.id) === String(newIncome.id) ? newIncome : item
+      )
     );
   } else {
     setIncomes([newIncome, ...incomes]);
@@ -728,7 +835,9 @@ export function useFinanceDashboard() {
 
     if (editingItem?.type === "expense") {
       setExpenses(
-        expenses.map((item) => (item.id === newExpense.id ? newExpense : item))
+        expenses.map((item) =>
+          String(item.id) === String(newExpense.id) ? newExpense : item
+        )
       );
     } else {
       setExpenses([newExpense, ...expenses]);
@@ -775,7 +884,7 @@ export function useFinanceDashboard() {
     if (editingItem?.type === "transfer") {
       setTransfers(
         transfers.map((item) =>
-          item.id === newTransfer.id ? newTransfer : item
+          String(item.id) === String(newTransfer.id) ? newTransfer : item
         )
       );
     } else {
@@ -975,7 +1084,7 @@ export function useFinanceDashboard() {
 
   async function saveSettlement() {
     const profile = dashboardValues.personProfiles.find(
-      (item) => item.id === settlementProfileId
+      (item) => String(item.id) === String(settlementProfileId)
     );
     const amount = Number(settlementAmount);
 
@@ -1007,7 +1116,7 @@ export function useFinanceDashboard() {
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
-      lendingTransactions.filter((item) => item.id !== id)
+      lendingTransactions.filter((item) => String(item.id) !== String(id))
     );
   }
 
@@ -1015,38 +1124,40 @@ export function useFinanceDashboard() {
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
-      lendingTransactions.filter((item) => item.id !== id)
+      lendingTransactions.filter((item) => String(item.id) !== String(id))
     );
   }
 
-  async function deleteIncome(id: number) {
+  async function deleteIncome(id: string | number) {
     const deleted = await deleteFromSheet("income", id);
     if (!deleted) return;
-    setIncomes(incomes.filter((item) => item.id !== id));
+    setIncomes(incomes.filter((item) => String(item.id) !== String(id)));
   }
 
-  async function deleteExpense(id: number) {
+  async function deleteExpense(id: string | number) {
     const deleted = await deleteFromSheet("expenses", id);
     if (!deleted) return;
-    setExpenses(expenses.filter((item) => item.id !== id));
+    setExpenses(expenses.filter((item) => String(item.id) !== String(id)));
   }
 
-  async function deleteTransfer(id: number) {
+  async function deleteTransfer(id: string | number) {
     const deleted = await deleteFromSheet("transfers", id);
     if (!deleted) return;
-    setTransfers(transfers.filter((item) => item.id !== id));
+    setTransfers(transfers.filter((item) => String(item.id) !== String(id)));
   }
 
-  async function deleteLent(id: number) {
+  async function deleteLent(id: string | number) {
     const deleted = await deleteFromSheet("lent", id);
     if (!deleted) return;
-    setLentRecords(lentRecords.filter((item) => item.id !== id));
+    setLentRecords(lentRecords.filter((item) => String(item.id) !== String(id)));
   }
 
-  async function deleteBorrowed(id: number) {
+  async function deleteBorrowed(id: string | number) {
     const deleted = await deleteFromSheet("borrowed", id);
     if (!deleted) return;
-    setBorrowedRecords(borrowedRecords.filter((item) => item.id !== id));
+    setBorrowedRecords(
+      borrowedRecords.filter((item) => String(item.id) !== String(id))
+    );
   }
 
   function startEdit(item: RecentActivityItem) {
@@ -1054,10 +1165,12 @@ export function useFinanceDashboard() {
       return;
     }
 
-    setEditingItem({ type: item.type, id: Number(item.id) });
+    setEditingItem({ type: item.type, id: item.id });
 
     if (item.type === "income") {
-      const record = incomes.find((x) => x.id === item.id);
+      const record = incomes.find(
+        (x) => String(x.id) === String(item.id)
+      );
       if (!record) return;
 
       setIncomeType(record.income_type);
@@ -1074,7 +1187,9 @@ export function useFinanceDashboard() {
     }
 
     if (item.type === "expense") {
-      const record = expenses.find((x) => x.id === item.id);
+      const record = expenses.find(
+        (x) => String(x.id) === String(item.id)
+      );
       if (!record) return;
 
       setExpenseAmount(String(record.amount));
@@ -1086,7 +1201,9 @@ export function useFinanceDashboard() {
     }
 
     if (item.type === "transfer") {
-      const record = transfers.find((x) => x.id === item.id);
+      const record = transfers.find(
+        (x) => String(x.id) === String(item.id)
+      );
       if (!record) return;
 
       setFromBucket(record.from_bucket);
@@ -1098,7 +1215,9 @@ export function useFinanceDashboard() {
     }
 
     if (item.type === "lent") {
-      const record = lentRecords.find((x) => x.id === item.id);
+      const record = lentRecords.find(
+        (x) => String(x.id) === String(item.id)
+      );
       if (!record) return;
 
       setMoneyName(record.name);
@@ -1111,7 +1230,9 @@ export function useFinanceDashboard() {
     }
 
     if (item.type === "borrowed") {
-      const record = borrowedRecords.find((x) => x.id === item.id);
+      const record = borrowedRecords.find(
+        (x) => String(x.id) === String(item.id)
+      );
       if (!record) return;
 
       setMoneyName(record.name);

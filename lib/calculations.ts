@@ -252,16 +252,18 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
   const monthlyExpenses = expenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
-  const spendingTransfersThisMonth = expenses.filter((item) => item.category === "Spending Transfer" && isCurrentMonth(item.date, monthlyResetDay));
-  const spendThisMonth = spendingTransfersThisMonth.reduce((sum, item) => sum + item.amount, 0);
-  const spendTransferCount = spendingTransfersThisMonth.length;
+  const thisMonthExpenses = expenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay));
+  const spendThisMonth = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const spendTransferCount = thisMonthExpenses.length;
   const remaining = monthlyIncome - monthlyExpenses;
   const emergencyProgress = getProgress(emergencySaved, emergencyGoal);
   const debtRepaymentProgress = getProgress(debtRepaymentSaved, debtRepaymentGoal);
   const remittanceProgress = getProgress(remittanceSaved, remittanceGoal);
   const recentActivity: RecentActivityItem[] = [
-    ...incomes.map((item) => ({
-      id: item.id,
+    ...incomes.map((item, index) => ({
+      id:
+        item.id ||
+        `income-${item.date || "no-date"}-${item.amount || 0}-${index}`,
       type: "income" as const,
       title: item.source,
       subtitle:
@@ -271,30 +273,36 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       amount: item.amount,
       date: item.date,
     })),
-    ...expenses.map((item) => ({
-      id: item.id,
+    ...expenses.map((item, index) => ({
+      id:
+        item.id ||
+        `expense-${item.date || "no-date"}-${item.amount || 0}-${index}`,
       type: "expense" as const,
       title: item.category,
       subtitle: item.account,
       amount: item.amount,
       date: item.date,
     })),
-    ...transfers.map((item) => ({
-      id: item.id,
+    ...transfers.map((item, index) => ({
+      id:
+        item.id ||
+        `transfer-${item.date || "no-date"}-${item.amount || 0}-${index}`,
       type: "transfer" as const,
       title: item.from_bucket + " → " + item.to_bucket,
       subtitle: item.notes || "Bucket transfer",
       amount: item.amount,
       date: item.date,
     })),
-    ...lendingTransactions.map((item) => {
+    ...lendingTransactions.map((item, index) => {
       const person = people.find(
         (profile) => String(profile.id) === String(item.personId)
       );
       const name = person?.name || "Unknown";
 
       return {
-        id: item.id,
+        id:
+          item.id ||
+          `${item.type}-${item.date || "no-date"}-${item.amount || 0}-${index}`,
         type: item.type,
         title:
           item.type === "lent"

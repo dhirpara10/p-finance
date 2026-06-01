@@ -23,6 +23,7 @@ export function RecentActivity({
     deleteTransfer,
     deleteLendingTransaction,
   } = state;
+
   const displayedRecentActivity = showAll
     ? recentActivity
     : recentActivity.slice(0, 5);
@@ -35,7 +36,7 @@ export function RecentActivity({
         {recentActivity.length === 0 ? (
           <p className="text-sm text-neutral-500">No recent activity</p>
         ) : (
-          displayedRecentActivity.map((item) => {
+          displayedRecentActivity.map((item, index) => {
             const amountClass =
               item.type === "income" || item.type === "lent"
                 ? "text-green-400"
@@ -50,21 +51,31 @@ export function RecentActivity({
                   ? "->"
                   : "-";
 
+            const safeAmount =
+              typeof item.amount === "number" && !Number.isNaN(item.amount)
+                ? item.amount
+                : 0;
+
             return (
               <div
-                key={`${item.type}-${item.id}`}
+                key={`${item.source ?? "activity"}-${item.type}-${String(
+                  item.id ?? "no-id"
+                )}-${index}`}
                 className="flex items-center justify-between rounded-2xl bg-neutral-800 p-4"
               >
                 <div>
-                  <p className="font-medium">{item.title}</p>
+                  <p className="font-medium">
+                    {item.title?.trim() || "Untitled activity"}
+                  </p>
+
                   <p className="text-xs text-neutral-400">
-                    {item.date} - {item.subtitle}
+                    {item.date || "No date"} - {item.subtitle || "No details"}
                   </p>
                 </div>
 
                 <div className="text-right">
                   <p className={amountClass}>
-                    {prefix}${item.amount.toLocaleString()}
+                    {prefix}${safeAmount.toLocaleString()}
                   </p>
 
                   <div className="mt-2 flex items-center justify-end gap-4">
@@ -80,12 +91,33 @@ export function RecentActivity({
                     <button
                       type="button"
                       onClick={() => {
-                        const numericId = Number(item.id);
-                        if (item.type === "income") deleteIncome(numericId);
-                        if (item.type === "expense") deleteExpense(numericId);
-                        if (item.type === "transfer") deleteTransfer(numericId);
+                        if (
+                          item.id === undefined ||
+                          item.id === null ||
+                          String(item.id).trim() === ""
+                        ) {
+                          alert("Missing row id");
+                          return;
+                        }
+
                         if (item.source === "lendingTransaction") {
                           deleteLendingTransaction(item.id);
+                          return;
+                        }
+
+                        if (item.type === "income") {
+                          deleteIncome(item.id);
+                          return;
+                        }
+
+                        if (item.type === "expense") {
+                          deleteExpense(item.id);
+                          return;
+                        }
+
+                        if (item.type === "transfer") {
+                          deleteTransfer(item.id);
+                          return;
                         }
                       }}
                       className="text-xs text-neutral-500"

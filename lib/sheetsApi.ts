@@ -116,25 +116,12 @@ export async function updateSheetRow(
 export async function saveSetting(key: string, value: SheetValue) {
   console.log("[sheetsApi] saveSetting", key, value);
 
-  try {
-    await trySheetsApi({
-      action: "updateRow",
-      sheet: "settings",
-      id: key,
-      data: [key, value],
-    });
-    return true;
-  } catch (error: any) {
-    console.warn(
-      `[sheetsApi] updateRow failed for setting ${key}, falling back to addRow`,
-      error?.message || error
-    );
-    return callSheetsApi({
-      action: "addRow",
-      sheet: "settings",
-      data: [key, value],
-    });
-  }
+  return callSheetsApi({
+    action: "updateRow",
+    sheet: "settings",
+    id: key,
+    data: [key, value],
+  });
 }
 
 export async function addRow(sheet: string, data: unknown) {
