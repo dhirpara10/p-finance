@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { requestNotificationPermissionAndSubscribe, sendTestNotification } from "@/lib/pushNotifications";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type SettingsFormProps = { state: FinanceDashboardState };
@@ -22,6 +24,12 @@ export function SettingsForm({ state }: SettingsFormProps) {
     setMonthlyResetDay,
     currency,
     setCurrency,
+    dailyReminderEnabled,
+    setDailyReminderEnabled,
+    dailyReminderTime,
+    setDailyReminderTime,
+    dailyReminderTone,
+    setDailyReminderTone,
     incomeSources,
     updateIncomeSource,
     addIncomeSourceSetting,
@@ -31,6 +39,35 @@ export function SettingsForm({ state }: SettingsFormProps) {
     setShowSettingsForm,
     saveSettings,
   } = state;
+
+  const [testingNotification, setTestingNotification] = useState(false);
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
+
+  async function handleSendTestNotification() {
+    try {
+      setTestingNotification(true);
+      await sendTestNotification();
+      alert("Test notification sent.");
+    } catch (error: any) {
+      alert(error?.message || "Could not send test notification.");
+    } finally {
+      setTestingNotification(false);
+    }
+  }
+
+  async function handleEnableDailyReminder() {
+    try {
+      setEnablingNotifications(true);
+      await requestNotificationPermissionAndSubscribe(
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
+      );
+      alert("Daily reminder notifications enabled.");
+    } catch (error: any) {
+      alert(error?.message || "Could not enable notifications.");
+    } finally {
+      setEnablingNotifications(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
@@ -154,6 +191,81 @@ export function SettingsForm({ state }: SettingsFormProps) {
                 <option value="GBP">GBP</option>
                 <option value="EUR">EUR</option>
               </select>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Daily reminder
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Save reminder preferences for daily notification scheduling.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={dailyReminderEnabled}
+                  onChange={(event) => setDailyReminderEnabled(event.target.checked)}
+                  className="h-5 w-5 rounded border-neutral-700 bg-neutral-800 text-emerald-300 outline-none"
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm text-neutral-400">Reminder time</label>
+                  <input
+                    type="time"
+                    value={dailyReminderTime}
+                    onChange={(event) => setDailyReminderTime(event.target.value)}
+                    disabled={!dailyReminderEnabled}
+                    className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-neutral-400">Tone</label>
+                  <select
+                    value={dailyReminderTone}
+                    onChange={(event) => setDailyReminderTone(event.target.value)}
+                    disabled={!dailyReminderEnabled}
+                    className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+                  >
+                    <option value="mixed">Mixed</option>
+                    <option value="encouraging">Encouraging</option>
+                    <option value="focused">Focused</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3 rounded-2xl bg-neutral-900 p-4">
+            <h3 className="mb-2 text-base font-semibold text-white">
+              Notifications
+            </h3>
+            <p className="mb-4 text-sm text-neutral-400">
+              Enable daily finance reminders and send a test notification.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleEnableDailyReminder}
+                disabled={enablingNotifications}
+                className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+              >
+                {enablingNotifications ? "Enabling..." : "Enable Daily Reminder"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendTestNotification}
+                disabled={testingNotification}
+                className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {testingNotification ? "Sending..." : "Send Test Notification"}
+              </button>
             </div>
           </section>
 
