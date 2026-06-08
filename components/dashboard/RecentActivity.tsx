@@ -1,7 +1,6 @@
 "use client";
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { Pencil, Trash2 } from "lucide-react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type RecentActivityProps = {
@@ -85,7 +84,7 @@ export function RecentActivity({
                       disabled={item.source === "lendingTransaction"}
                       className="text-xs text-blue-400 disabled:text-neutral-600"
                     >
-                      <FontAwesomeIcon icon={faPenToSquare} />
+                      <Pencil size={15} />
                     </button>
 
                     <button
@@ -122,7 +121,7 @@ export function RecentActivity({
                       }}
                       className="text-xs text-neutral-500"
                     >
-                      <FontAwesomeIcon icon={faTrash} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
