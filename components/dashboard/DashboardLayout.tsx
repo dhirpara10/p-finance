@@ -6,6 +6,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import Statistics from "@/components/dashboard/Statistics";
 import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { BarChart3, Home, Layers3, List, Settings } from "lucide-react";
 import { SettingsAccountsPage } from "@/components/settings/SettingsAccountsPage";
 import { SettingsAppearancePage } from "@/components/settings/SettingsAppearancePage";
 import { SettingsBucketHistoryPage } from "@/components/settings/SettingsBucketHistoryPage";
@@ -21,6 +22,7 @@ type DashboardLayoutProps = { state: FinanceDashboardState; };
 export function DashboardLayout({ state }: DashboardLayoutProps) {
   const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, settingsPage, navigateToSettingsPage, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, expenses, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
+  const [activeTab, setActiveTab] = useState<"home" | "buckets" | "activity" | "stats" | "settings">("home");
   const [bucketHistory, setBucketHistory] = useState<{
     type: "savings" | "tracker";
     id: string;
@@ -31,6 +33,13 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
   const openTransferForm = () => setShowTransferForm(true);
   const openLentForm = () => setShowLentForm(true);
   const openBorrowedForm = () => setShowBorrowedForm(true);
+  const tabs = [
+    { id: "home", label: "Home", icon: Home },
+    { id: "buckets", label: "Buckets", icon: Layers3 },
+    { id: "activity", label: "Activity", icon: List },
+    { id: "stats", label: "Stats", icon: BarChart3 },
+    { id: "settings", label: "Settings", icon: Settings },
+  ] as const;
   const selectedSavingsHistory =
     bucketHistory?.type === "savings"
       ? savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id)
@@ -96,7 +105,10 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigateToSettingsPage("hub")}
+              onClick={() => {
+                setActiveTab("settings");
+                navigateToSettingsPage("hub");
+              }}
               className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
             >
               Settings
@@ -112,8 +124,52 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {settingsPage ? (
+        <nav className="mb-6 hidden grid-cols-5 gap-2 rounded-3xl bg-neutral-900 p-2 md:grid">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "settings") navigateToSettingsPage("hub");
+                  if (tab.id !== "settings") state.closeSettings();
+                }}
+                className={`flex items-center justify-center gap-2 rounded-2xl p-3 text-sm font-semibold ${selected ? "bg-emerald-500 text-black" : "text-neutral-400"}`}
+              >
+                <Icon size={18} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {activeTab === "settings" && settingsPage ? (
           <SettingsRouter state={state} />
+        ) : activeTab === "activity" ? (
+          <RecentActivity
+            state={state}
+            showAll={showAllRecentActivity}
+            onToggleShowAll={() =>
+              setShowAllRecentActivity(!showAllRecentActivity)
+            }
+          />
+        ) : activeTab === "stats" ? (
+          <Statistics state={state} />
+        ) : activeTab === "buckets" ? (
+          <div className="space-y-6">
+            <BucketsView
+              state={state}
+              bucketHistory={bucketHistory}
+              setBucketHistory={setBucketHistory}
+              selectedSavingsHistory={selectedSavingsHistory}
+              selectedTrackerHistory={selectedTrackerHistory}
+              savingsHistoryRows={savingsHistoryRows}
+              trackerHistoryRows={trackerHistoryRows}
+            />
+          </div>
         ) : (
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
@@ -475,6 +531,27 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
         onLent={openLentForm}
         onBorrowed={openBorrowedForm}
       />
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 gap-1 rounded-3xl border border-neutral-800 bg-neutral-950/95 p-2 shadow-2xl md:hidden">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const selected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === "settings") navigateToSettingsPage("hub");
+                if (tab.id !== "settings") state.closeSettings();
+              }}
+              className={`flex flex-col items-center gap-1 rounded-2xl p-2 text-[11px] font-semibold ${selected ? "bg-emerald-500 text-black" : "text-neutral-400"}`}
+            >
+              <Icon size={18} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
     </main>
   );
 }
@@ -489,4 +566,101 @@ function SettingsRouter({ state }: DashboardLayoutProps) {
   if (state.settingsPage === "appearance") return <SettingsAppearancePage state={state} />;
   if (state.settingsPage === "bucket-history") return <SettingsBucketHistoryPage state={state} />;
   return <SettingsHub state={state} />;
+}
+
+function BucketsView({
+  state,
+  bucketHistory,
+  setBucketHistory,
+  selectedSavingsHistory,
+  selectedTrackerHistory,
+  savingsHistoryRows,
+  trackerHistoryRows,
+}: {
+  state: FinanceDashboardState;
+  bucketHistory: { type: "savings" | "tracker"; id: string } | null;
+  setBucketHistory: (value: { type: "savings" | "tracker"; id: string } | null) => void;
+  selectedSavingsHistory: any;
+  selectedTrackerHistory: any;
+  savingsHistoryRows: any[];
+  trackerHistoryRows: any[];
+}) {
+  const { currencySymbol, savingsBucketBalances, trackerSummaries, sharedRolloverJar } = state;
+
+  return (
+    <>
+      <section className="rounded-3xl border border-purple-500/20 bg-neutral-900 p-5">
+        <p className="text-sm text-purple-200">Featured Shared Rollover Jar</p>
+        <h2 className="mt-2 text-3xl font-bold">
+          {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
+        </h2>
+        <p className="mt-2 text-sm text-neutral-400">
+          One shared jar for all bucket-list trackers.
+        </p>
+      </section>
+
+      <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
+        <h2 className="text-xl font-bold">Savings Buckets</h2>
+        {savingsBucketBalances.map((bucket) => (
+          <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">{bucket.name}</p>
+              <p className="text-sm text-blue-300">{bucket.progress.toFixed(0)}%</p>
+            </div>
+            <p className="mt-2 text-sm text-neutral-400">
+              {currencySymbol}{bucket.currentBalance.toLocaleString()} / {currencySymbol}
+              {bucket.targetAmount.toLocaleString()}
+            </p>
+            <button type="button" onClick={() => setBucketHistory({ type: "savings", id: bucket.id })} className="mt-3 text-sm font-semibold text-blue-300">History</button>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
+        <h2 className="text-xl font-bold">Bucket List Trackers</h2>
+        {trackerSummaries.map((tracker) => (
+          <div key={tracker.id} className="rounded-2xl bg-neutral-800 p-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">{tracker.name}</p>
+              <p className="text-sm text-purple-300">{tracker.progress.toFixed(0)}%</p>
+            </div>
+            <p className="mt-2 text-sm text-neutral-400">
+              {currencySymbol}{tracker.spentThisMonth.toLocaleString()} spent of {currencySymbol}
+              {tracker.monthlyBudget.toLocaleString()}
+            </p>
+            <button type="button" onClick={() => setBucketHistory({ type: "tracker", id: tracker.id })} className="mt-3 text-sm font-semibold text-purple-300">History</button>
+          </div>
+        ))}
+      </section>
+
+      {bucketHistory && (
+        <section className="rounded-3xl bg-neutral-900 p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold">
+              {selectedSavingsHistory?.name || selectedTrackerHistory?.name}
+            </h2>
+            <button type="button" onClick={() => setBucketHistory(null)} className="rounded-full bg-neutral-800 px-3 py-1 text-sm">Close</button>
+          </div>
+          {selectedTrackerHistory && (
+            <div className="mb-4 rounded-2xl bg-neutral-800 p-4 text-sm text-neutral-300">
+              Shared jar available: {currencySymbol}{sharedRolloverJar.available.toLocaleString()} · Monthly result: {currencySymbol}{sharedRolloverJar.monthlyResult.toLocaleString()}
+            </div>
+          )}
+          <div className="space-y-2">
+            {(selectedSavingsHistory ? savingsHistoryRows : trackerHistoryRows).map((row) => (
+              <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{row.title || row.category}</p>
+                    <p className="text-xs text-neutral-500">{row.date} · {row.account}</p>
+                  </div>
+                  <p className="font-semibold">{currencySymbol}{row.amount.toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
 }
