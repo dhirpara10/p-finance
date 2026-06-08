@@ -6,7 +6,14 @@ import type { Bucket } from "@/lib/types";
 type TransferFormProps = { state: FinanceDashboardState; };
 
 export function TransferForm({ state }: TransferFormProps) {
-  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, closeAllForms, addTransfer } = state;
+  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, closeAllForms, addTransfer, savingsBuckets } = state;
+  const transferOptions = [
+    { value: "Bank", label: "Bank" },
+    { value: "Cash", label: "Cash" },
+    ...savingsBuckets
+      .filter((bucket) => bucket.active)
+      .map((bucket) => ({ value: bucket.id, label: bucket.name })),
+  ];
 
   return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
@@ -21,11 +28,11 @@ export function TransferForm({ state }: TransferFormProps) {
                 onChange={(e) => setFromBucket(e.target.value as Bucket)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Bank</option>
-                <option>Emergency Fund</option>
-                <option>Debt Repayment</option>
-                <option>Remittance Fund</option>
-                <option>Cash</option>
+                {transferOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
 
               <select
@@ -33,11 +40,11 @@ export function TransferForm({ state }: TransferFormProps) {
                 onChange={(e) => setToBucket(e.target.value as Bucket)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Bank</option>
-                <option>Emergency Fund</option>
-                <option>Debt Repayment</option>
-                <option>Remittance Fund</option>
-                <option>Cash</option>
+                {transferOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
 
               <input

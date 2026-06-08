@@ -1,5 +1,6 @@
+import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets } from "@/lib/buckets";
 import { buildPersonProfiles } from "@/lib/lending";
-import type { Bucket, Expense, Income, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, Transfer } from "@/lib/types";
+import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Transfer } from "@/lib/types";
 
 export function toNumber(value: unknown) {
   const number = Number(value);
@@ -216,12 +217,12 @@ function isBankAccount(value: unknown) {
   return value === "Bank" || value === "Usable Balance";
 }
 
-function isBucket(value: unknown, bucket: Bucket) {
+function isBucket(value: unknown, bucket: Bucket | SavingsBucket) {
   if (bucket === "Bank") return isBankAccount(value);
-  return value === bucket;
+  return bucketMatches(value, bucket);
 }
 
-export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, emergencyGoal, debtRepaymentGoal, remittanceGoal, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; emergencyGoal: number; debtRepaymentGoal: number; remittanceGoal: number; monthlyResetDay: number; }) {
+export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; monthlyResetDay: number; }) {
   const personProfiles = buildPersonProfiles({
     people,
     lendingTransactions,
@@ -264,21 +265,33 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     )
     .reduce((sum, item) => sum + item.amount, 0);
 
-  function bucketIn(bucket: Bucket) {
+  function bucketIn(bucket: Bucket | SavingsBucket) {
     return transfers.filter((item) => isBucket(item.to_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
-  function bucketOut(bucket: Bucket) {
+  function bucketOut(bucket: Bucket | SavingsBucket) {
     return transfers.filter((item) => isBucket(item.from_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
+  const activeSavingsBuckets = savingsBuckets.filter((bucket) => bucket.active);
   const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
-  const emergencySaved = bucketIn("Emergency Fund") - bucketOut("Emergency Fund");
-  const debtRepaymentSaved = bucketIn("Debt Repayment") - bucketOut("Debt Repayment");
-  const remittanceSaved = bucketIn("Remittance Fund") - bucketOut("Remittance Fund");
+  const savingsBucketBalances = activeSavingsBuckets.map((bucket) => {
+    const currentBalance =
+      toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket);
+
+    return {
+      ...bucket,
+      currentBalance,
+      progress: getProgress(currentBalance, bucket.targetAmount),
+    };
+  });
+  const totalSavingsBuckets = savingsBucketBalances.reduce(
+    (sum, bucket) => sum + bucket.currentBalance,
+    0
+  );
   const cashBalance = initialCashBalance + totalCashReceivedFromIncome + borrowedToCash - lentFromCash + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
   const usableBalance = bankBalance + cashBalance;
-  const totalMoney = usableBalance + emergencySaved + debtRepaymentSaved + remittanceSaved;
+  const totalMoney = usableBalance + totalSavingsBuckets;
   const netWorth = totalMoney + activeLent - activeBorrowed;
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
@@ -287,9 +300,33 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const spendThisMonth = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
   const spendTransferCount = thisMonthExpenses.length;
   const remaining = monthlyIncome - monthlyExpenses;
-  const emergencyProgress = getProgress(emergencySaved, emergencyGoal);
-  const debtRepaymentProgress = getProgress(debtRepaymentSaved, debtRepaymentGoal);
-  const remittanceProgress = getProgress(remittanceSaved, remittanceGoal);
+  const emergencyBucket = savingsBucketBalances.find(
+    (bucket) => bucket.id === "savings_emergency_fund"
+  );
+  const debtCollectionBucket = savingsBucketBalances.find(
+    (bucket) => bucket.id === "savings_debt_collection"
+  );
+  const remittanceBucket = savingsBucketBalances.find(
+    (bucket) => bucket.id === "savings_remittance"
+  );
+  const activeTrackers = bucketListTrackers.filter((tracker) => tracker.active);
+  const trackerSummaries = activeTrackers.map((tracker) => {
+    const linkedIds = new Set(tracker.linkedCategoryIds);
+    const trackerExpenses = thisMonthExpenses.filter((expense) =>
+      linkedIds.has(categoryIdFromName(expense.category))
+    );
+    const spentThisMonth = trackerExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+
+    return {
+      ...tracker,
+      spentThisMonth,
+      remainingThisMonth: tracker.monthlyBudget - spentThisMonth,
+      progress: getProgress(spentThisMonth, tracker.monthlyBudget),
+    };
+  });
   const recentActivity: RecentActivityItem[] = [
     ...incomes.map((item, index) => ({
       id:
@@ -353,5 +390,32 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       compareActivityIds(b.id, a.id)
   );
 
-  return { activeLent, activeBorrowed, personProfiles, totalMoney, usableBalance, bankBalance, cashBalance, netWorth, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, emergencySaved, emergencyProgress, debtRepaymentSaved, debtRepaymentProgress, remittanceSaved, remittanceProgress, recentActivity };
+  return {
+    activeLent,
+    activeBorrowed,
+    personProfiles,
+    totalMoney,
+    usableBalance,
+    bankBalance,
+    cashBalance,
+    netWorth,
+    monthlyIncome,
+    monthlyHours,
+    monthlyExpenses,
+    remaining,
+    spendThisMonth,
+    spendTransferCount,
+    savingsBucketBalances,
+    trackerSummaries,
+    emergencySaved: emergencyBucket?.currentBalance || 0,
+    emergencyProgress: emergencyBucket?.progress || 0,
+    emergencyGoal: emergencyBucket?.targetAmount || 0,
+    debtRepaymentSaved: debtCollectionBucket?.currentBalance || 0,
+    debtRepaymentProgress: debtCollectionBucket?.progress || 0,
+    debtRepaymentGoal: debtCollectionBucket?.targetAmount || 0,
+    remittanceSaved: remittanceBucket?.currentBalance || 0,
+    remittanceProgress: remittanceBucket?.progress || 0,
+    remittanceGoal: remittanceBucket?.targetAmount || 0,
+    recentActivity,
+  };
 }

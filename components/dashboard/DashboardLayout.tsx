@@ -9,7 +9,7 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 type DashboardLayoutProps = { state: FinanceDashboardState; };
 
 export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, emergencyProgress, emergencySaved, emergencyGoal, debtRepaymentProgress, debtRepaymentSaved, debtRepaymentGoal, remittanceProgress, remittanceSaved, remittanceGoal, activeLent, activeBorrowed, setDetailsView } = state;
+  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
 
   const openIncomeForm = () => setShowIncomeForm(true);
@@ -181,69 +181,46 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
             <Statistics state={state} />
 
-            <section className="rounded-3xl bg-neutral-900 p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-400">Emergency Fund</p>
-                <p className="text-sm text-green-400">
-                  {emergencyProgress.toFixed(0)}%
-                </p>
-              </div>
-
-              <h3 className="mt-2 text-2xl font-bold">
-                {currencySymbol}{emergencySaved.toLocaleString()} / {currencySymbol}
-                {emergencyGoal.toLocaleString()}
-              </h3>
-
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-                <div
-                  className="h-full rounded-full bg-green-500"
-                  style={{ width: `${emergencyProgress}%` }}
-                />
-              </div>
+            <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
+              <h3 className="text-lg font-semibold">Savings Buckets</h3>
+              {savingsBucketBalances.map((bucket) => (
+                <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-neutral-300">{bucket.name}</p>
+                    <p className="text-sm text-blue-400">
+                      {bucket.progress.toFixed(0)}%
+                    </p>
+                  </div>
+                  <h4 className="mt-2 text-xl font-bold">
+                    {currencySymbol}{bucket.currentBalance.toLocaleString()} / {currencySymbol}
+                    {bucket.targetAmount.toLocaleString()}
+                  </h4>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-700">
+                    <div
+                      className="h-full rounded-full bg-blue-500"
+                      style={{ width: `${bucket.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </section>
 
-            <section className="rounded-3xl bg-neutral-900 p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-400">
-                  Debt Repayment Collection
-                </p>
-                <p className="text-sm text-red-400">
-                  {debtRepaymentProgress.toFixed(0)}%
-                </p>
-              </div>
-
-              <h3 className="mt-2 text-2xl font-bold">
-                {currencySymbol}{debtRepaymentSaved.toLocaleString()} / {currencySymbol}
-                {debtRepaymentGoal.toLocaleString()}
-              </h3>
-
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-                <div
-                  className="h-full rounded-full bg-red-500"
-                  style={{ width: `${debtRepaymentProgress}%` }}
-                />
-              </div>
-            </section>
-
-            <section className="rounded-3xl bg-neutral-900 p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-400">Remittance Savings</p>
-                <p className="text-sm text-blue-400">
-                  {remittanceProgress.toFixed(0)}%
-                </p>
-              </div>
-
-              <h3 className="mt-2 text-2xl font-bold">
-                {currencySymbol}{remittanceSaved.toLocaleString()} / {currencySymbol}
-                {remittanceGoal.toLocaleString()}
-              </h3>
-
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-neutral-800">
-                <div
-                  className="h-full rounded-full bg-blue-500"
-                  style={{ width: `${remittanceProgress}%` }}
-                />
-              </div>
+            <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
+              <h3 className="text-lg font-semibold">Bucket List Trackers</h3>
+              {trackerSummaries.map((tracker) => (
+                <div key={tracker.id} className="rounded-2xl bg-neutral-800 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-neutral-300">{tracker.name}</p>
+                    <p className="text-sm text-purple-300">
+                      {tracker.progress.toFixed(0)}%
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm text-neutral-400">
+                    {currencySymbol}{tracker.spentThisMonth.toLocaleString()} spent of {currencySymbol}
+                    {tracker.monthlyBudget.toLocaleString()}
+                  </p>
+                </div>
+              ))}
             </section>
 
             <section className="grid grid-cols-2 gap-3">

@@ -1,12 +1,30 @@
 export type Status = "Pending" | "Partly Paid" | "Fully Settled";
 export type IncomeType = "Hourly" | "Fixed Amount";
 export type ExpenseAccount = "Bank" | "Cash";
-export type Bucket =
-  | "Bank"
-  | "Emergency Fund"
-  | "Debt Repayment"
-  | "Remittance Fund"
-  | "Cash";
+export type AccountBucket = "Bank" | "Cash";
+export type Bucket = AccountBucket | string;
+
+export type SavingsBucket = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentBalance: number;
+  linkedAccount: AccountBucket;
+  storageLabel: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BucketListTracker = {
+  id: string;
+  name: string;
+  monthlyBudget: number;
+  linkedCategoryIds: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type Income = {
   id: string | number;
