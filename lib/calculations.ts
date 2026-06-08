@@ -212,7 +212,16 @@ function compareActivityIds(a: string | number, b: string | number) {
   return String(a).localeCompare(String(b));
 }
 
-export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialCommbankBalance, initialUpBalance, emergencyGoal, debtRepaymentGoal, remittanceGoal, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialCommbankBalance: number; initialUpBalance: number; emergencyGoal: number; debtRepaymentGoal: number; remittanceGoal: number; monthlyResetDay: number; }) {
+function isBankAccount(value: unknown) {
+  return value === "Bank" || value === "Usable Balance";
+}
+
+function isBucket(value: unknown, bucket: Bucket) {
+  if (bucket === "Bank") return isBankAccount(value);
+  return value === bucket;
+}
+
+export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, emergencyGoal, debtRepaymentGoal, remittanceGoal, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; emergencyGoal: number; debtRepaymentGoal: number; remittanceGoal: number; monthlyResetDay: number; }) {
   const personProfiles = buildPersonProfiles({
     people,
     lendingTransactions,
@@ -230,24 +239,24 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const totalIncomeAll = incomes.reduce((sum, item) => sum + item.amount, 0);
   const totalCashReceivedFromIncome = incomes.reduce((sum, item) => sum + item.cash_received, 0);
   const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
-  const expenseFromUsableBalance = expenses.filter((item) => item.account === "Usable Balance").reduce((sum, item) => sum + item.amount, 0);
+  const expenseFromBank = expenses.filter((item) => isBankAccount(item.account)).reduce((sum, item) => sum + item.amount, 0);
   const expenseFromCash = expenses.filter((item) => item.account === "Cash").reduce((sum, item) => sum + item.amount, 0);
 
   function bucketIn(bucket: Bucket) {
-    return transfers.filter((item) => item.to_bucket === bucket).reduce((sum, item) => sum + item.amount, 0);
+    return transfers.filter((item) => isBucket(item.to_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
   function bucketOut(bucket: Bucket) {
-    return transfers.filter((item) => item.from_bucket === bucket).reduce((sum, item) => sum + item.amount, 0);
+    return transfers.filter((item) => isBucket(item.from_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
-  const initialUsableBalance = initialCommbankBalance + initialUpBalance;
-  const usableBalance = initialUsableBalance + totalUsableIncome - expenseFromUsableBalance - bucketOut("Usable Balance") + bucketIn("Usable Balance");
+  const bankBalance = initialBankBalance + totalUsableIncome - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
   const emergencySaved = bucketIn("Emergency Fund") - bucketOut("Emergency Fund");
   const debtRepaymentSaved = bucketIn("Debt Repayment") - bucketOut("Debt Repayment");
   const remittanceSaved = bucketIn("Remittance Fund") - bucketOut("Remittance Fund");
   const cashBalance = initialCashBalance + totalCashReceivedFromIncome + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
-  const totalMoney = usableBalance + emergencySaved + debtRepaymentSaved + remittanceSaved + cashBalance;
+  const usableBalance = bankBalance + cashBalance;
+  const totalMoney = usableBalance + emergencySaved + debtRepaymentSaved + remittanceSaved;
   const netWorth = totalMoney + activeLent - activeBorrowed;
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
@@ -322,5 +331,5 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       compareActivityIds(b.id, a.id)
   );
 
-  return { activeLent, activeBorrowed, personProfiles, totalMoney, usableBalance, cashBalance, netWorth, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, emergencySaved, emergencyProgress, debtRepaymentSaved, debtRepaymentProgress, remittanceSaved, remittanceProgress, recentActivity };
+  return { activeLent, activeBorrowed, personProfiles, totalMoney, usableBalance, bankBalance, cashBalance, netWorth, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, emergencySaved, emergencyProgress, debtRepaymentSaved, debtRepaymentProgress, remittanceSaved, remittanceProgress, recentActivity };
 }

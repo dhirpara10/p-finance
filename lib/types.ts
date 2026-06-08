@@ -1,8 +1,8 @@
 export type Status = "Pending" | "Partly Paid" | "Fully Settled";
 export type IncomeType = "Hourly" | "Fixed Amount";
-export type ExpenseAccount = "Usable Balance" | "Cash";
+export type ExpenseAccount = "Bank" | "Cash";
 export type Bucket =
-  | "Usable Balance"
+  | "Bank"
   | "Emergency Fund"
   | "Debt Repayment"
   | "Remittance Fund"

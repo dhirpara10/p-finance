@@ -71,7 +71,7 @@ export function IncomeForm({ state }: IncomeFormProps) {
   />
 </div>
 <div className="rounded-2xl bg-neutral-800 p-4">
-  <p className="text-sm text-neutral-400">Usable Balance Portion</p>
+  <p className="text-sm text-neutral-400">Bank Portion</p>
   <p className="mt-1 text-xl font-semibold">
     $
     {Math.max(

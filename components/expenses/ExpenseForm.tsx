@@ -60,7 +60,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
                 }
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option value="Usable Balance">Usable Balance</option>
+                <option value="Bank">Bank</option>
                 <option value="Cash">Cash</option>
               </select>
 

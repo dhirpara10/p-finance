@@ -61,7 +61,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-neutral-800 p-4">
-                  <p className="text-xs text-neutral-400">Usable Balance</p>
+                  <p className="text-xs text-neutral-400">Available</p>
                   <p className="mt-1 text-xl font-semibold">
                     {currencySymbol}{usableBalance.toLocaleString()}
                   </p>

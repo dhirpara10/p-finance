@@ -71,8 +71,7 @@ export function useFinanceDashboard() {
   } | null>(null);
 
   const [initialCashBalance, setInitialCashBalance] = useState(200);
-  const [initialCommbankBalance, setInitialCommbankBalance] = useState(1400);
-  const [initialUpBalance, setInitialUpBalance] = useState(300);
+  const [initialBankBalance, setInitialBankBalance] = useState(1400);
   const [emergencyGoal, setEmergencyGoal] = useState(5000);
   const [debtRepaymentGoal, setDebtRepaymentGoal] = useState(3000);
   const [remittanceGoal, setRemittanceGoal] = useState(10000);
@@ -112,14 +111,14 @@ export function useFinanceDashboard() {
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("Spending Transfer");
   const [expenseAccount, setExpenseAccount] =
-    useState<ExpenseAccount>("Usable Balance");
+    useState<ExpenseAccount>("Bank");
   const [expenseDate, setExpenseDate] = useState(today);
   const [expenseNotes, setExpenseNotes] = useState("");
   const [expenseCategories, setExpenseCategories] = useState<string[]>(defaultExpenseCategories);
   const [newExpenseCategory, setNewExpenseCategory] = useState("");
 
 
-  const [fromBucket, setFromBucket] = useState<Bucket>("Usable Balance");
+  const [fromBucket, setFromBucket] = useState<Bucket>("Bank");
   const [toBucket, setToBucket] = useState<Bucket>("Emergency Fund");
   const [transferAmount, setTransferAmount] = useState("");
   const [transferDate, setTransferDate] = useState(today);
@@ -161,13 +160,13 @@ export function useFinanceDashboard() {
   function resetExpenseForm() {
     setExpenseAmount("");
     setExpenseCategory("Spending Transfer");
-    setExpenseAccount("Usable Balance");
+    setExpenseAccount("Bank");
     setExpenseDate(today);
     setExpenseNotes("");
   }
 
   function resetTransferForm() {
-    setFromBucket("Usable Balance");
+    setFromBucket("Bank");
     setToBucket("Emergency Fund");
     setTransferAmount("");
     setTransferDate(today);
@@ -298,9 +297,7 @@ export function useFinanceDashboard() {
         amount: toNumber(amount),
         category: String(category || ""),
         account:
-          account === "Cash" || account === "cash"
-            ? "Cash"
-            : "Usable Balance",
+          account === "Cash" || account === "cash" ? "Cash" : "Bank",
         date: String(date || ""),
         notes: String(notes || ""),
       };
@@ -311,12 +308,19 @@ export function useFinanceDashboard() {
       amount: toNumber(item?.amount),
       category: String(item?.category || ""),
       account:
-        item?.account === "Cash" || item?.account === "cash"
-          ? "Cash"
-          : "Usable Balance",
+        item?.account === "Cash" || item?.account === "cash" ? "Cash" : "Bank",
       date: String(item?.date || ""),
       notes: String(item?.notes || ""),
     };
+  }
+
+  function normalizeBucketName(value: unknown): Bucket {
+    const text = String(value || "").trim();
+    if (text === "Cash") return "Cash";
+    if (text === "Emergency Fund") return "Emergency Fund";
+    if (text === "Debt Repayment") return "Debt Repayment";
+    if (text === "Remittance Fund") return "Remittance Fund";
+    return "Bank";
   }
 
   function parseTransferRow(item: any): Transfer {
@@ -327,8 +331,8 @@ export function useFinanceDashboard() {
 
       return {
         id: normalizeRowId(id),
-        from_bucket: String(from_bucket || "Usable Balance") as Bucket,
-        to_bucket: String(to_bucket || "Emergency Fund") as Bucket,
+        from_bucket: normalizeBucketName(from_bucket || "Bank"),
+        to_bucket: normalizeBucketName(to_bucket || "Emergency Fund"),
         amount: toNumber(amount),
         date: String(date || ""),
         notes: String(notes || ""),
@@ -337,8 +341,8 @@ export function useFinanceDashboard() {
 
     return {
       id: normalizeRowId(item?.id ?? item?.[0]),
-      from_bucket: String(item?.from_bucket || "Usable Balance") as Bucket,
-      to_bucket: String(item?.to_bucket || "Emergency Fund") as Bucket,
+      from_bucket: normalizeBucketName(item?.from_bucket || "Bank"),
+      to_bucket: normalizeBucketName(item?.to_bucket || "Emergency Fund"),
       amount: toNumber(item?.amount),
       date: String(item?.date || ""),
       notes: String(item?.notes || ""),
@@ -567,11 +571,14 @@ export function useFinanceDashboard() {
       setInitialCashBalance(
         toNumber(getSettingValue(settings, "initial_cash_balance", "200"))
       );
-      setInitialCommbankBalance(
-        toNumber(getSettingValue(settings, "initial_commbank_balance", "1400"))
-      );
-      setInitialUpBalance(
-        toNumber(getSettingValue(settings, "initial_up_balance", "300"))
+      setInitialBankBalance(
+        toNumber(
+          getSettingValue(
+            settings,
+            "initial_bank_balance",
+            getSettingValue(settings, "initial_commbank_balance", "1400")
+          )
+        )
       );
       setEmergencyGoal(toNumber(getSettingValue(settings, "emergency_goal", "5000")));
       setDebtRepaymentGoal(
@@ -704,8 +711,7 @@ export function useFinanceDashboard() {
     lentRecords,
     borrowedRecords,
     initialCashBalance,
-    initialCommbankBalance,
-    initialUpBalance,
+    initialBankBalance,
     emergencyGoal,
     debtRepaymentGoal,
     remittanceGoal,
@@ -729,8 +735,7 @@ export function useFinanceDashboard() {
 
     const results = await Promise.all([
       saveSetting("initial_cash_balance", initialCashBalance),
-      saveSetting("initial_commbank_balance", initialCommbankBalance),
-      saveSetting("initial_up_balance", initialUpBalance),
+      saveSetting("initial_bank_balance", initialBankBalance),
       saveSetting("emergency_goal", emergencyGoal),
       saveSetting("debt_repayment_goal", debtRepaymentGoal),
       saveSetting("remittance_goal", remittanceGoal),
@@ -1309,7 +1314,7 @@ export function useFinanceDashboard() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialCommbankBalance, setInitialCommbankBalance, initialUpBalance, setInitialUpBalance, emergencyGoal, setEmergencyGoal, debtRepaymentGoal, setDebtRepaymentGoal, remittanceGoal, setRemittanceGoal, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, showSettingsForm, setShowSettingsForm, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, emergencyGoal, setEmergencyGoal, debtRepaymentGoal, setDebtRepaymentGoal, remittanceGoal, setRemittanceGoal, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

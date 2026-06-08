@@ -10,16 +10,8 @@ export function SettingsForm({ state }: SettingsFormProps) {
   const {
     initialCashBalance,
     setInitialCashBalance,
-    initialCommbankBalance,
-    setInitialCommbankBalance,
-    initialUpBalance,
-    setInitialUpBalance,
-    emergencyGoal,
-    setEmergencyGoal,
-    debtRepaymentGoal,
-    setDebtRepaymentGoal,
-    remittanceGoal,
-    setRemittanceGoal,
+    initialBankBalance,
+    setInitialBankBalance,
     monthlyResetDay,
     setMonthlyResetDay,
     currency,
@@ -92,66 +84,14 @@ export function SettingsForm({ state }: SettingsFormProps) {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-neutral-400">Commbank</label>
+              <label className="mb-2 block text-sm text-neutral-400">Bank</label>
               <input
                 type="number"
-                value={String(initialCommbankBalance)}
+                value={String(initialBankBalance)}
                 onChange={(event) =>
-                  setInitialCommbankBalance(Number(event.target.value))
+                  setInitialBankBalance(Number(event.target.value))
                 }
-                placeholder="Commbank"
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm text-neutral-400">UP</label>
-              <input
-                type="number"
-                value={String(initialUpBalance)}
-                onChange={(event) => setInitialUpBalance(Number(event.target.value))}
-                placeholder="UP"
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-emerald-300">
-              Bucket Targets
-            </h3>
-
-            <div>
-              <label className="mb-2 block text-sm text-neutral-400">Emergency Fund Goal</label>
-              <input
-                type="number"
-                value={String(emergencyGoal)}
-                onChange={(event) => setEmergencyGoal(Number(event.target.value))}
-                placeholder="Emergency Fund Goal"
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm text-neutral-400">Debt Repayment Goal</label>
-              <input
-                type="number"
-                value={String(debtRepaymentGoal)}
-                onChange={(event) =>
-                  setDebtRepaymentGoal(Number(event.target.value))
-                }
-                placeholder="Debt Repayment Goal"
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm text-neutral-400">Remittance Goal</label>
-              <input
-                type="number"
-                value={String(remittanceGoal)}
-                onChange={(event) => setRemittanceGoal(Number(event.target.value))}
-                placeholder="Remittance Goal"
+                placeholder="Bank"
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               />
             </div>

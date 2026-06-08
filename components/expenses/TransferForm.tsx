@@ -21,7 +21,7 @@ export function TransferForm({ state }: TransferFormProps) {
                 onChange={(e) => setFromBucket(e.target.value as Bucket)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Usable Balance</option>
+                <option>Bank</option>
                 <option>Emergency Fund</option>
                 <option>Debt Repayment</option>
                 <option>Remittance Fund</option>
@@ -33,7 +33,7 @@ export function TransferForm({ state }: TransferFormProps) {
                 onChange={(e) => setToBucket(e.target.value as Bucket)}
                 className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
               >
-                <option>Usable Balance</option>
+                <option>Bank</option>
                 <option>Emergency Fund</option>
                 <option>Debt Repayment</option>
                 <option>Remittance Fund</option>
