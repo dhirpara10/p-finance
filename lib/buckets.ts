@@ -157,3 +157,40 @@ export function parseJsonArray<T>(value: string, fallback: T[]) {
 
   return fallback;
 }
+
+export function findDuplicateTrackerCategory(
+  trackers: BucketListTracker[],
+  trackerId: string,
+  linkedCategoryIds: string[]
+) {
+  const activeTrackers = trackers.filter((tracker) => tracker.active);
+
+  for (const categoryId of linkedCategoryIds) {
+    const owner = activeTrackers.find(
+      (tracker) =>
+        tracker.id !== trackerId && tracker.linkedCategoryIds.includes(categoryId)
+    );
+
+    if (owner) {
+      return { categoryId, owner };
+    }
+  }
+
+  return null;
+}
+
+export function normalizeTrackerLinks(trackers: BucketListTracker[]) {
+  const assigned = new Set<string>();
+
+  return trackers.map((tracker) => {
+    if (!tracker.active) return tracker;
+
+    const linkedCategoryIds = tracker.linkedCategoryIds.filter((categoryId) => {
+      if (assigned.has(categoryId)) return false;
+      assigned.add(categoryId);
+      return true;
+    });
+
+    return { ...tracker, linkedCategoryIds };
+  });
+}
