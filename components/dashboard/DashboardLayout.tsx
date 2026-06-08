@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import Statistics from "@/components/dashboard/Statistics";
 import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
-import { ArrowDown, ArrowRightLeft, ArrowUp, BarChart3, Compass, Dumbbell, HandCoins, Home, Laptop, Layers3, List, LockKeyhole, PiggyBank, Settings, Shirt, ShoppingBag, Sparkles, TrendingUp, Wallet, WalletCards } from "lucide-react";
+import { ArrowDown, ArrowRightLeft, ArrowUp, BarChart3, Compass, Dumbbell, HandCoins, Home, Laptop, Layers3, List, LockKeyhole, PiggyBank, Settings, Shirt, ShoppingBag, Sparkles, TrendingUp, Wallet, WalletCards, Clock, CreditCard } from "lucide-react";
 import { SettingsAccountsPage } from "@/components/settings/SettingsAccountsPage";
 import { SettingsAppearancePage } from "@/components/settings/SettingsAppearancePage";
 import { SettingsBucketHistoryPage } from "@/components/settings/SettingsBucketHistoryPage";
@@ -23,7 +22,7 @@ type DashboardLayoutProps = { state: FinanceDashboardState; };
 export function DashboardLayout({ state }: DashboardLayoutProps) {
   const { currencySymbol, usableBalance, netWorth, settingsPage, navigateToSettingsPage, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, effectiveExpenses, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
-  const [activeTab, setActiveTab] = useState<"home" | "buckets" | "activity" | "stats" | "settings">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "buckets" | "activity" | "settings">("home");
   const [bucketHistory, setBucketHistory] = useState<{
     type: "savings" | "tracker";
     id: string;
@@ -38,7 +37,6 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
     { id: "home", label: "Home", icon: Home },
     { id: "buckets", label: "Buckets", icon: Layers3 },
     { id: "activity", label: "Activity", icon: List },
-    { id: "stats", label: "Stats", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: Settings },
   ] as const;
   const selectedSavingsHistory =
@@ -158,8 +156,6 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               setShowAllRecentActivity(!showAllRecentActivity)
             }
           />
-        ) : activeTab === "stats" ? (
-          <Statistics state={state} />
         ) : activeTab === "buckets" ? (
           <div className="space-y-6">
             <BucketsView
@@ -234,19 +230,19 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">Income</span>
+                  <span className="flex items-center gap-2 text-neutral-400"><ArrowDown size={16} className="text-emerald-400" /> Income</span>
                   <span className="text-green-400">
                     +{currencySymbol}{monthlyIncome.toLocaleString()}
                   </span>
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">Hours Worked</span>
+                  <span className="flex items-center gap-2 text-neutral-400"><Clock size={16} className="text-blue-400" /> Hours Worked</span>
                   <span>{monthlyHours.toLocaleString()}h</span>
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">Expenses</span>
+                  <span className="flex items-center gap-2 text-neutral-400"><ArrowUp size={16} className="text-red-400" /> Expenses</span>
                   <span className="text-red-400">
                     -{currencySymbol}{monthlyExpenses.toLocaleString()}
                   </span>
@@ -274,7 +270,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
           <div className="space-y-6">
             <section className="rounded-3xl border border-green-500/30 bg-neutral-900 p-5">
-              <p className="text-sm text-neutral-400">Spend This Month</p>
+              <div className="flex items-center gap-2 text-sm text-neutral-400"><CreditCard size={18} className="text-green-400"/> Spend This Month</div>
               <h3 className="mt-2 text-3xl font-bold text-green-400">
                 {currencySymbol}{spendThisMonth.toLocaleString()}
               </h3>
@@ -283,7 +279,6 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               </p>
             </section>
 
-            <Statistics state={state} />
 
             <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
               <h3 className="text-lg font-semibold">Savings Buckets</h3>
@@ -466,7 +461,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
             <section className="grid grid-cols-2 gap-3">
               <div className="rounded-3xl bg-neutral-900 p-5">
-                <p className="text-sm text-neutral-400">Money I Lent</p>
+                <div className="flex items-center gap-2 text-sm text-neutral-400"><HandCoins size={18} className="text-green-400"/> Money I Lent</div>
                 <p className="mt-2 text-2xl font-bold text-green-400">
                   {currencySymbol}{activeLent.toLocaleString()}
                 </p>
@@ -480,7 +475,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
               </div>
 
               <div className="rounded-3xl bg-neutral-900 p-5">
-                <p className="text-sm text-neutral-400">Money I Borrowed</p>
+                <div className="flex items-center gap-2 text-sm text-neutral-400"><LockKeyhole size={18} className="text-red-400"/> Money I Borrowed</div>
                 <p className="mt-2 text-2xl font-bold text-red-400">
                   {currencySymbol}{activeBorrowed.toLocaleString()}
                 </p>

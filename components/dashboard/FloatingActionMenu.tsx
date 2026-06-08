@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus, X, ArrowDown, ArrowUp, ArrowRightLeft, HandCoins, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 
 type FloatingActionMenuProps = {
@@ -12,11 +12,11 @@ type FloatingActionMenuProps = {
 };
 
 const actions = [
-  { label: "Add Income", accent: "text-emerald-300" },
-  { label: "Add Expense", accent: "text-red-300" },
-  { label: "Transfer", accent: "text-blue-300" },
-  { label: "Lent", accent: "text-green-300" },
-  { label: "Borrowed", accent: "text-rose-300" },
+  { label: "Add Income", accent: "text-emerald-300", icon: ArrowDown },
+  { label: "Add Expense", accent: "text-red-300", icon: ArrowUp },
+  { label: "Transfer", accent: "text-blue-300", icon: ArrowRightLeft },
+  { label: "Lent", accent: "text-green-300", icon: HandCoins },
+  { label: "Borrowed", accent: "text-rose-300", icon: LockKeyhole },
 ];
 
 export function FloatingActionMenu({
@@ -55,7 +55,10 @@ export function FloatingActionMenu({
                 onClick={() => runAction(handlers[index])}
                 className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold text-white hover:bg-neutral-800"
               >
-                <span>{action.label}</span>
+                <div className="flex items-center gap-3">
+                  <action.icon size={18} className={action.accent} />
+                  <span>{action.label}</span>
+                </div>
                 <span className={action.accent}>+</span>
               </button>
             ))}
