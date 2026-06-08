@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus, X } from "lucide-react";
 import { useState } from "react";
 
 type FloatingActionMenuProps = {
@@ -44,9 +45,9 @@ export function FloatingActionMenu({
         />
       )}
 
-      <div className="fixed bottom-5 right-5 z-50 md:hidden">
+      <div className="fixed bottom-28 right-5 z-50 md:hidden">
         {isOpen && (
-          <div className="mb-4 w-56 origin-bottom-right rounded-3xl border border-white/10 bg-neutral-900/95 p-2 shadow-2xl shadow-emerald-950/30 backdrop-blur animate-in fade-in slide-in-from-bottom-2">
+          <div className="mb-4 w-56 origin-bottom-right rounded-3xl border border-white/10 bg-neutral-900/95 p-2 shadow-xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
             {actions.map((action, index) => (
               <button
                 key={action.label}
@@ -65,9 +66,9 @@ export function FloatingActionMenu({
           type="button"
           aria-label="Open actions"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400 text-4xl font-light leading-none text-black shadow-2xl shadow-emerald-500/30 transition active:scale-95"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-xl transition active:scale-95"
         >
-          {isOpen ? "x" : "+"}
+          {isOpen ? <X size={24} /> : <Plus size={26} />}
         </button>
       </div>
     </>
