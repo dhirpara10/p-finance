@@ -9,7 +9,7 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 type DashboardLayoutProps = { state: FinanceDashboardState; };
 
 export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, activeLent, activeBorrowed, setDetailsView } = state;
+  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
 
   const openIncomeForm = () => setShowIncomeForm(true);
@@ -207,6 +207,17 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
             <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
               <h3 className="text-lg font-semibold">Bucket List Trackers</h3>
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
+                <p className="text-sm text-purple-200">Shared Rollover Jar</p>
+                <h4 className="mt-2 text-2xl font-bold">
+                  {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
+                </h4>
+                <p className="mt-2 text-xs text-neutral-400">
+                  {currencySymbol}{sharedRolloverJar.previousBalance.toLocaleString()} previous + {currencySymbol}
+                  {sharedRolloverJar.monthlyAllocation.toLocaleString()} allocated - {currencySymbol}
+                  {sharedRolloverJar.spentThisMonth.toLocaleString()} spent
+                </p>
+              </div>
               {trackerSummaries.map((tracker) => (
                 <div key={tracker.id} className="rounded-2xl bg-neutral-800 p-4">
                   <div className="flex items-center justify-between">

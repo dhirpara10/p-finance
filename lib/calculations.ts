@@ -222,7 +222,7 @@ function isBucket(value: unknown, bucket: Bucket | SavingsBucket) {
   return bucketMatches(value, bucket);
 }
 
-export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; monthlyResetDay: number; }) {
+export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
   const personProfiles = buildPersonProfiles({
     people,
     lendingTransactions,
@@ -310,6 +310,10 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     (bucket) => bucket.id === "savings_remittance"
   );
   const activeTrackers = bucketListTrackers.filter((tracker) => tracker.active);
+  const totalMonthlyTrackerAllocation = activeTrackers.reduce(
+    (sum, tracker) => sum + tracker.monthlyBudget,
+    0
+  );
   const trackerSummaries = activeTrackers.map((tracker) => {
     const linkedIds = new Set(tracker.linkedCategoryIds);
     const trackerExpenses = thisMonthExpenses.filter((expense) =>
@@ -327,6 +331,21 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       progress: getProgress(spentThisMonth, tracker.monthlyBudget),
     };
   });
+  const trackerLinkedCategoryIds = new Set(
+    activeTrackers.flatMap((tracker) => tracker.linkedCategoryIds)
+  );
+  const sharedJarSpentThisMonth = thisMonthExpenses
+    .filter((expense) => trackerLinkedCategoryIds.has(categoryIdFromName(expense.category)))
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const sharedJarMonthlyResult =
+    totalMonthlyTrackerAllocation - sharedJarSpentThisMonth;
+  const sharedRolloverJar = {
+    previousBalance: sharedRolloverJarBalance,
+    monthlyAllocation: totalMonthlyTrackerAllocation,
+    spentThisMonth: sharedJarSpentThisMonth,
+    monthlyResult: sharedJarMonthlyResult,
+    available: sharedRolloverJarBalance + sharedJarMonthlyResult,
+  };
   const recentActivity: RecentActivityItem[] = [
     ...incomes.map((item, index) => ({
       id:
@@ -407,6 +426,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     spendTransferCount,
     savingsBucketBalances,
     trackerSummaries,
+    sharedRolloverJar,
     emergencySaved: emergencyBucket?.currentBalance || 0,
     emergencyProgress: emergencyBucket?.progress || 0,
     emergencyGoal: emergencyBucket?.targetAmount || 0,
