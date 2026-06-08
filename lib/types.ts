@@ -66,6 +66,8 @@ export type LendingTransactionRecord = {
   personId: string | number;
   type: "lent" | "borrowed" | "settlement";
   amount: number;
+  account?: ExpenseAccount;
+  affectsAccountBalance?: boolean;
   date: string;
   note: string;
   createdAt: string;
@@ -76,6 +78,8 @@ export type LendingTransaction = {
   personId?: string | number;
   type: "lent" | "borrowed" | "settlement";
   amount: number;
+  account?: ExpenseAccount;
+  affectsAccountBalance?: boolean;
   date: string;
   note?: string;
   createdAt?: string;

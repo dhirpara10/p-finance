@@ -26,6 +26,10 @@ export function LendingForm({ state }: LendingFormProps) {
     setMoneyPhone,
     moneyNotes,
     setMoneyNotes,
+    moneyAccount,
+    setMoneyAccount,
+    borrowedAffectsAccountBalance,
+    setBorrowedAffectsAccountBalance,
     closeAllForms,
     addLent,
     addBorrowed,
@@ -190,6 +194,38 @@ export function LendingForm({ state }: LendingFormProps) {
             onChange={(event) => setMoneyAmount(event.target.value)}
             className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
           />
+
+          <select
+            value={moneyAccount}
+            onChange={(event) =>
+              setMoneyAccount(event.target.value === "Cash" ? "Cash" : "Bank")
+            }
+            className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
+          >
+            <option value="Bank">Bank</option>
+            <option value="Cash">Cash</option>
+          </select>
+
+          {!showLentForm && (
+            <label className="flex items-start gap-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-300">
+              <input
+                type="checkbox"
+                checked={borrowedAffectsAccountBalance}
+                onChange={(event) =>
+                  setBorrowedAffectsAccountBalance(event.target.checked)
+                }
+                className="mt-1 h-4 w-4 rounded border-neutral-700 bg-neutral-800 text-emerald-400"
+              />
+              <span>
+                <span className="block font-semibold text-white">
+                  Add this money to my balance
+                </span>
+                <span className="mt-1 block text-xs text-neutral-500">
+                  Leave unchecked for money you already spent before tracking it here.
+                </span>
+              </span>
+            </label>
+          )}
 
           <input
             type="date"

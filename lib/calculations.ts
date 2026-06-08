@@ -241,6 +241,28 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
   const expenseFromBank = expenses.filter((item) => isBankAccount(item.account)).reduce((sum, item) => sum + item.amount, 0);
   const expenseFromCash = expenses.filter((item) => item.account === "Cash").reduce((sum, item) => sum + item.amount, 0);
+  const lentFromBank = lendingTransactions
+    .filter((item) => item.type === "lent" && item.account !== "Cash")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const lentFromCash = lendingTransactions
+    .filter((item) => item.type === "lent" && item.account === "Cash")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const borrowedToBank = lendingTransactions
+    .filter(
+      (item) =>
+        item.type === "borrowed" &&
+        item.affectsAccountBalance &&
+        item.account !== "Cash"
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
+  const borrowedToCash = lendingTransactions
+    .filter(
+      (item) =>
+        item.type === "borrowed" &&
+        item.affectsAccountBalance &&
+        item.account === "Cash"
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
 
   function bucketIn(bucket: Bucket) {
     return transfers.filter((item) => isBucket(item.to_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
@@ -250,11 +272,11 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     return transfers.filter((item) => isBucket(item.from_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
-  const bankBalance = initialBankBalance + totalUsableIncome - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
+  const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
   const emergencySaved = bucketIn("Emergency Fund") - bucketOut("Emergency Fund");
   const debtRepaymentSaved = bucketIn("Debt Repayment") - bucketOut("Debt Repayment");
   const remittanceSaved = bucketIn("Remittance Fund") - bucketOut("Remittance Fund");
-  const cashBalance = initialCashBalance + totalCashReceivedFromIncome + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
+  const cashBalance = initialCashBalance + totalCashReceivedFromIncome + borrowedToCash - lentFromCash + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
   const usableBalance = bankBalance + cashBalance;
   const totalMoney = usableBalance + emergencySaved + debtRepaymentSaved + remittanceSaved;
   const netWorth = totalMoney + activeLent - activeBorrowed;

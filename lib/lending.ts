@@ -183,6 +183,8 @@ export function buildPersonProfiles({
       personId: record.personId,
       type: record.type,
       amount: record.amount,
+      account: record.account,
+      affectsAccountBalance: record.affectsAccountBalance,
       date: record.date,
       note: record.note || undefined,
       createdAt: record.createdAt,

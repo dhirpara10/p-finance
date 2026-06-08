@@ -271,6 +271,8 @@ async function addLendingTransaction(transaction: {
   personId: string | number;
   type: LendingTransactionType;
   amount: number;
+  account?: "Bank" | "Cash";
+  affectsAccountBalance?: boolean;
   date: string;
   note?: string;
 }) {
@@ -293,6 +295,8 @@ async function addLendingTransaction(transaction: {
     personId: String(transaction.personId),
     type: transaction.type,
     amount: Number(transaction.amount),
+    account: transaction.account === "Cash" ? "Cash" : "Bank",
+    affectsAccountBalance: Boolean(transaction.affectsAccountBalance),
     date: transaction.date,
     note: transaction.note || "",
     createdAt: new Date().toISOString(),

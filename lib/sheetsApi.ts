@@ -12,6 +12,8 @@ export type AddLendingTransactionPayload = {
   personId: string | number;
   type: LendingTransactionType;
   amount: number;
+  account?: "Bank" | "Cash";
+  affectsAccountBalance?: boolean;
   date: string;
   note?: string;
 };
@@ -169,6 +171,8 @@ export async function addLendingTransaction(
       personId: transaction.personId,
       type: transaction.type,
       amount: Number(transaction.amount),
+      account: transaction.account || "Bank",
+      affectsAccountBalance: Boolean(transaction.affectsAccountBalance),
       date: transaction.date,
       note: transaction.note?.trim() || "",
     },
