@@ -1,93 +1,44 @@
 "use client";
 
+import { DateField } from "@/components/forms/DateField";
+import { FormField } from "@/components/forms/FormField";
+import { ModalContent } from "@/components/forms/ModalContent";
+import { ModalFooter } from "@/components/forms/ModalFooter";
+import { ModalHeader } from "@/components/forms/ModalHeader";
+import { ModalSection } from "@/components/forms/ModalSection";
+import { ModalWrapper } from "@/components/forms/ModalWrapper";
+import { SelectField } from "@/components/forms/SelectField";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { Bucket } from "@/lib/types";
+import { formTokens } from "@/lib/designTokens";
 
-type TransferFormProps = { state: FinanceDashboardState; };
+type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
   const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, closeAllForms, addTransfer, savingsBuckets } = state;
   const transferOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
-    ...savingsBuckets
-      .filter((bucket) => bucket.active)
-      .map((bucket) => ({ value: bucket.id, label: bucket.name })),
+    ...savingsBuckets.filter((bucket) => bucket.active).map((bucket) => ({ value: bucket.id, label: bucket.name })),
   ];
 
   return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
-          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
-            <h2 className="mb-4 text-xl font-bold">
-              {editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"}
-            </h2>
-
-            <div className="space-y-3">
-              <select
-                value={fromBucket}
-                onChange={(e) => setFromBucket(e.target.value as Bucket)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              >
-                {transferOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={toBucket}
-                onChange={(e) => setToBucket(e.target.value as Bucket)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              >
-                {transferOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="number"
-                placeholder="Amount"
-                value={transferAmount}
-                onChange={(e) => setTransferAmount(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-
-              <input
-                type="date"
-                value={transferDate}
-                onChange={(e) => setTransferDate(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-
-              <textarea
-                placeholder="Notes"
-                value={transferNotes}
-                onChange={(e) => setTransferNotes(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={closeAllForms}
-                className="rounded-2xl bg-neutral-800 p-4 font-semibold"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={addTransfer}
-                className="rounded-2xl bg-blue-500 p-4 font-semibold text-black"
-              >
-                Save Transfer
-              </button>
-            </div>
-          </div>
-        </div>
+    <ModalWrapper>
+      <ModalHeader title={editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"} subtitle="Move money between accounts and savings buckets." />
+      <ModalContent>
+        <ModalSection>
+          <SelectField label="From" value={fromBucket} onChange={(event) => setFromBucket(event.target.value as Bucket)} options={transferOptions} />
+          <SelectField label="To" value={toBucket} onChange={(event) => setToBucket(event.target.value as Bucket)} options={transferOptions} />
+          <FormField label="Amount">
+            <input type="number" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} className={formTokens.input} />
+          </FormField>
+          <DateField label="Date" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
+          <FormField label="Notes">
+            <textarea value={transferNotes} onChange={(event) => setTransferNotes(event.target.value)} className={formTokens.input} />
+          </FormField>
+        </ModalSection>
+      </ModalContent>
+      <ModalFooter onCancel={closeAllForms} onSave={addTransfer} saveLabel="Save Transfer" tone="blue" />
+    </ModalWrapper>
   );
 }

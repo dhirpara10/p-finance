@@ -1,102 +1,43 @@
 "use client";
 
+import { DateField } from "@/components/forms/DateField";
+import { FormField } from "@/components/forms/FormField";
+import { ModalContent } from "@/components/forms/ModalContent";
+import { ModalFooter } from "@/components/forms/ModalFooter";
+import { ModalHeader } from "@/components/forms/ModalHeader";
+import { ModalSection } from "@/components/forms/ModalSection";
+import { ModalWrapper } from "@/components/forms/ModalWrapper";
+import { SelectField } from "@/components/forms/SelectField";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { ExpenseAccount } from "@/lib/types";
+import { formTokens } from "@/lib/designTokens";
 
-type ExpenseFormProps = { state: FinanceDashboardState; };
+type ExpenseFormProps = { state: FinanceDashboardState };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
   const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
 
   return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-6">
-          <div className="mx-auto mt-10 w-full max-w-md rounded-3xl bg-neutral-900 p-5">
-            <h2 className="mb-4 text-xl font-bold">
-              {editingItem?.type === "expense" ? "Edit Expense" : "Add Expense"}
-            </h2>
-
-            <div className="space-y-3">
-              <input
-                type="number"
-                placeholder="Amount"
-                value={expenseAmount}
-                onChange={(e) => setExpenseAmount(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-
-              <select
-                value={expenseCategory}
-                onChange={(e) => setExpenseCategory(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              >
-                {expenseCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="New category name"
-                  value={newExpenseCategory}
-                  onChange={(e) => setNewExpenseCategory(e.target.value)}
-                  className="flex-1 rounded-2xl bg-neutral-800 p-4 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={addExpenseCategory}
-                  className="rounded-2xl bg-neutral-700 px-4 py-4 font-semibold hover:bg-neutral-600"
-                >
-                  + Add
-                </button>
-              </div>
-
-              <select
-                value={expenseAccount}
-                onChange={(e) =>
-                  setExpenseAccount(e.target.value as ExpenseAccount)
-                }
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              >
-                <option value="Bank">Bank</option>
-                <option value="Cash">Cash</option>
-              </select>
-
-              <input
-                type="date"
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-
-              <textarea
-                placeholder="Notes"
-                value={expenseNotes}
-                onChange={(e) => setExpenseNotes(e.target.value)}
-                className="w-full rounded-2xl bg-neutral-800 p-4 outline-none"
-              />
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={closeAllForms}
-                className="rounded-2xl bg-neutral-800 p-4 font-semibold"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={addExpense}
-                className="rounded-2xl bg-red-500 p-4 font-semibold text-black"
-              >
-                Save Expense
-              </button>
-            </div>
+    <ModalWrapper>
+      <ModalHeader title={editingItem?.type === "expense" ? "Edit Expense" : "Add Expense"} subtitle="Track spending against Bank or Cash." />
+      <ModalContent>
+        <ModalSection>
+          <FormField label="Amount">
+            <input type="number" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className={formTokens.input} />
+          </FormField>
+          <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={expenseCategories.map((category) => ({ value: category, label: category }))} />
+          <div className="flex gap-2">
+            <input type="text" placeholder="New category name" value={newExpenseCategory} onChange={(event) => setNewExpenseCategory(event.target.value)} className={`${formTokens.input} min-w-0 flex-1`} />
+            <button type="button" onClick={addExpenseCategory} className="rounded-2xl bg-neutral-800 px-4 font-semibold text-emerald-300">Add</button>
           </div>
-        </div>
+          <SelectField label="Account" value={expenseAccount} onChange={(event) => setExpenseAccount(event.target.value as ExpenseAccount)} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
+          <DateField label="Date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
+          <FormField label="Notes">
+            <textarea value={expenseNotes} onChange={(event) => setExpenseNotes(event.target.value)} className={formTokens.input} />
+          </FormField>
+        </ModalSection>
+      </ModalContent>
+      <ModalFooter onCancel={closeAllForms} onSave={addExpense} saveLabel="Save Expense" tone="red" />
+    </ModalWrapper>
   );
 }
