@@ -52,6 +52,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_adventure",
     name: "Adventure",
+    icon: "Compass",
     monthlyBudget: 300,
     linkedCategoryIds: [categoryIdFromName("Adventure")],
     active: true,
@@ -61,6 +62,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_wonders",
     name: "Wonders",
+    icon: "Sparkles",
     monthlyBudget: 300,
     linkedCategoryIds: [categoryIdFromName("Wonders")],
     active: true,
@@ -70,6 +72,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_tech_gadgets",
     name: "Tech Gadgets",
+    icon: "Laptop",
     monthlyBudget: 250,
     linkedCategoryIds: [
       categoryIdFromName("Electronics"),
@@ -83,6 +86,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_online_shopping",
     name: "Online Shopping",
+    icon: "ShoppingBag",
     monthlyBudget: 150,
     linkedCategoryIds: [],
     active: true,
@@ -92,6 +96,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_dressing",
     name: "Dressing",
+    icon: "Shirt",
     monthlyBudget: 150,
     linkedCategoryIds: [categoryIdFromName("Clothing")],
     active: true,
@@ -101,6 +106,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_personal_spends",
     name: "Personal Spends",
+    icon: "WalletCards",
     monthlyBudget: 200,
     linkedCategoryIds: [
       categoryIdFromName("Gym"),
@@ -113,6 +119,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_gym_shoes",
     name: "Gym / Shoes",
+    icon: "Dumbbell",
     monthlyBudget: 120,
     linkedCategoryIds: [],
     active: true,

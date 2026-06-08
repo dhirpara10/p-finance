@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, HandCoins, Pencil, Trash2 } from "lucide-react";
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, HandCoins, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type RecentActivityProps = {
@@ -82,6 +82,11 @@ export function RecentActivity({
                       <span className="rounded-full bg-neutral-700 px-2 py-0.5 text-[10px] uppercase text-neutral-300">
                         {item.type}
                       </span>
+                      {item.isRecurring && (
+                        <span className="flex items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] text-purple-200">
+                          <RefreshCw size={10} /> Recurring
+                        </span>
+                      )}
                     </div>
                     <p className="truncate text-xs text-neutral-400">
                       {item.date || "No date"} - {item.subtitle || "No details"}

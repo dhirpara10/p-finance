@@ -11,6 +11,7 @@ const pages = [
   ["income", "Income", "Income sources and hourly rates"],
   ["security", "Security", "Passcode settings"],
   ["notifications", "Notifications", "Daily reminders"],
+  ["recurring", "Recurring Expenses", "Upcoming rules, pause, edit, or cancel"],
   ["appearance", "Appearance", "Theme preferences"],
 ] as const;
 

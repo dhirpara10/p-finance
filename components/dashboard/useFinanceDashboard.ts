@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, normalizeBucketId, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
+import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, normalizeBucketId, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
 import { findPersonByName } from "@/lib/lending";
 import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
@@ -69,6 +69,7 @@ export function useFinanceDashboard() {
     | "income"
     | "security"
     | "notifications"
+    | "recurring"
     | "appearance"
     | "bucket-history"
     | null
@@ -134,6 +135,10 @@ export function useFinanceDashboard() {
     useState<ExpenseAccount>("Bank");
   const [expenseDate, setExpenseDate] = useState(today);
   const [expenseNotes, setExpenseNotes] = useState("");
+  const [expenseIsRecurring, setExpenseIsRecurring] = useState(false);
+  const [expenseRecurringFrequency, setExpenseRecurringFrequency] =
+    useState<NonNullable<Expense["recurringFrequency"]>>("monthly");
+  const [expenseRecurringEndDate, setExpenseRecurringEndDate] = useState("");
   const [expenseCategories, setExpenseCategories] = useState<string[]>(defaultExpenseCategories);
   const [newExpenseCategory, setNewExpenseCategory] = useState("");
 
@@ -186,6 +191,9 @@ export function useFinanceDashboard() {
     setExpenseAccount("Bank");
     setExpenseDate(today);
     setExpenseNotes("");
+    setExpenseIsRecurring(false);
+    setExpenseRecurringFrequency("monthly");
+    setExpenseRecurringEndDate("");
   }
 
   function resetTransferForm() {
@@ -335,27 +343,46 @@ export function useFinanceDashboard() {
     const row = normalizeSheetRow(item);
 
     if (Array.isArray(row)) {
-      const [id, amount, category, account, date, notes] = row;
+      const [id, amount, category, account, date, notes, metadata] = row;
+      const recurring = metadata && typeof metadata === "object" ? metadata : {};
 
       return {
         id: normalizeRowId(id),
+        type: "expense",
         amount: toNumber(amount),
         category: String(category || ""),
+        categoryId: categoryIdFromName(String(category || "")),
         account:
           account === "Cash" || account === "cash" ? "Cash" : "Bank",
         date: String(date || ""),
         notes: String(notes || ""),
+        isRecurring: Boolean(recurring.isRecurring),
+        recurringFrequency: recurring.recurringFrequency,
+        recurringStartDate: recurring.recurringStartDate,
+        recurringEndDate: recurring.recurringEndDate,
+        recurringStatus: recurring.recurringStatus,
+        createdAt: String(recurring.createdAt || ""),
+        updatedAt: recurring.updatedAt,
       };
     }
 
     return {
       id: normalizeRowId(item?.id ?? item?.[0]),
+      type: "expense",
       amount: toNumber(item?.amount),
       category: String(item?.category || ""),
+      categoryId: String(item?.categoryId || categoryIdFromName(String(item?.category || ""))),
       account:
         item?.account === "Cash" || item?.account === "cash" ? "Cash" : "Bank",
       date: String(item?.date || ""),
       notes: String(item?.notes || ""),
+      isRecurring: Boolean(item?.isRecurring),
+      recurringFrequency: item?.recurringFrequency,
+      recurringStartDate: String(item?.recurringStartDate || item?.date || ""),
+      recurringEndDate: String(item?.recurringEndDate || ""),
+      recurringStatus: item?.recurringStatus || (item?.isRecurring ? "active" : undefined),
+      createdAt: String(item?.createdAt || ""),
+      updatedAt: item?.updatedAt,
     };
   }
 
@@ -918,11 +945,30 @@ export function useFinanceDashboard() {
 
     const newExpense: Expense = {
       id: editingItem?.type === "expense" ? editingItem.id : Date.now(),
+      type: "expense",
       amount: Number(expenseAmount),
       category: expenseCategory,
+      categoryId: categoryIdFromName(expenseCategory),
       account: expenseAccount,
       date: expenseDate || getToday(),
       notes: expenseNotes,
+      isRecurring: expenseIsRecurring,
+      recurringFrequency: expenseIsRecurring
+        ? expenseRecurringFrequency
+        : undefined,
+      recurringStartDate: expenseIsRecurring
+        ? expenseDate || getToday()
+        : undefined,
+      recurringEndDate: expenseIsRecurring
+        ? expenseRecurringEndDate || undefined
+        : undefined,
+      recurringStatus: expenseIsRecurring ? "active" : undefined,
+      createdAt:
+        editingItem?.type === "expense"
+          ? expenses.find((item) => String(item.id) === String(editingItem.id))
+              ?.createdAt || new Date().toISOString()
+          : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     const values = [
@@ -932,6 +978,16 @@ export function useFinanceDashboard() {
       newExpense.account,
       newExpense.date,
       newExpense.notes,
+      {
+        categoryId: newExpense.categoryId,
+        isRecurring: newExpense.isRecurring,
+        recurringFrequency: newExpense.recurringFrequency,
+        recurringStartDate: newExpense.recurringStartDate,
+        recurringEndDate: newExpense.recurringEndDate,
+        recurringStatus: newExpense.recurringStatus,
+        createdAt: newExpense.createdAt,
+        updatedAt: newExpense.updatedAt,
+      },
     ];
 
     const saved =
@@ -1316,6 +1372,9 @@ export function useFinanceDashboard() {
       setExpenseAccount(record.account);
       setExpenseDate(record.date);
       setExpenseNotes(record.notes);
+      setExpenseIsRecurring(record.isRecurring);
+      setExpenseRecurringFrequency(record.recurringFrequency || "monthly");
+      setExpenseRecurringEndDate(record.recurringEndDate || "");
       setShowExpenseForm(true);
     }
 
@@ -1408,6 +1467,43 @@ export function useFinanceDashboard() {
     setNewExpenseCategory("");
   }
 
+  async function updateRecurringExpenseStatus(
+    id: string | number,
+    status: "active" | "paused" | "cancelled"
+  ) {
+    const expense = expenses.find((item) => String(item.id) === String(id));
+    if (!expense || !expense.isRecurring) return;
+    const updated: Expense = {
+      ...expense,
+      recurringStatus: status,
+      updatedAt: new Date().toISOString(),
+    };
+    const saved = await updateSheetRow("expenses", updated.id, [
+      updated.id,
+      updated.amount,
+      updated.category,
+      updated.account,
+      updated.date,
+      updated.notes,
+      {
+        categoryId: updated.categoryId,
+        isRecurring: true,
+        recurringFrequency: updated.recurringFrequency,
+        recurringStartDate: updated.recurringStartDate,
+        recurringEndDate: updated.recurringEndDate,
+        recurringStatus: updated.recurringStatus,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      },
+    ]);
+    if (!saved) return;
+    setExpenses(
+      expenses.map((item) =>
+        String(item.id) === String(id) ? updated : item
+      )
+    );
+  }
+
   function updateBucketListTrackerCategoryLinks(
     trackerId: string,
     linkedCategoryIds: string[]
@@ -1440,7 +1536,7 @@ export function useFinanceDashboard() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); closeSettings(); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); closeSettings(); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

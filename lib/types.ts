@@ -19,6 +19,7 @@ export type SavingsBucket = {
 export type BucketListTracker = {
   id: string;
   name: string;
+  icon: string;
   monthlyBudget: number;
   linkedCategoryIds: string[];
   active: boolean;
@@ -45,11 +46,20 @@ export type IncomeSourceRate = {
 
 export type Expense = {
   id: string | number;
+  type?: "expense";
   amount: number;
   category: string;
+  categoryId: string;
   account: ExpenseAccount;
   date: string;
   notes: string;
+  isRecurring: boolean;
+  recurringFrequency?: "weekly" | "biweekly" | "monthly" | "yearly";
+  recurringStartDate?: string;
+  recurringEndDate?: string;
+  recurringStatus?: "active" | "paused" | "cancelled";
+  createdAt: string;
+  updatedAt?: string;
 };
 
 export type Transfer = {
@@ -130,4 +140,5 @@ export type RecentActivityItem = {
   amount: number;
   date: string;
   source?: "lendingTransaction";
+  isRecurring?: boolean;
 };

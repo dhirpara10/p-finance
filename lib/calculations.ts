@@ -1,5 +1,6 @@
 import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets } from "@/lib/buckets";
 import { buildPersonProfiles } from "@/lib/lending";
+import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
 import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Transfer } from "@/lib/types";
 
 export function toNumber(value: unknown) {
@@ -223,6 +224,15 @@ function isBucket(value: unknown, bucket: Bucket | SavingsBucket) {
 }
 
 export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
+  const expenseRangeStart = new Date();
+  expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
+  const expenseRangeEnd = new Date();
+  expenseRangeEnd.setFullYear(expenseRangeEnd.getFullYear() + 1);
+  const effectiveExpenses = expandExpensesForRange(
+    expenses,
+    expenseRangeStart,
+    expenseRangeEnd
+  );
   const personProfiles = buildPersonProfiles({
     people,
     lendingTransactions,
@@ -240,8 +250,8 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const totalIncomeAll = incomes.reduce((sum, item) => sum + item.amount, 0);
   const totalCashReceivedFromIncome = incomes.reduce((sum, item) => sum + item.cash_received, 0);
   const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
-  const expenseFromBank = expenses.filter((item) => isBankAccount(item.account)).reduce((sum, item) => sum + item.amount, 0);
-  const expenseFromCash = expenses.filter((item) => item.account === "Cash").reduce((sum, item) => sum + item.amount, 0);
+  const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
+  const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
   const lentFromBank = lendingTransactions
     .filter((item) => item.type === "lent" && item.account !== "Cash")
     .reduce((sum, item) => sum + item.amount, 0);
@@ -295,8 +305,8 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const netWorth = totalMoney + activeLent - activeBorrowed;
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
-  const monthlyExpenses = expenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
-  const thisMonthExpenses = expenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay));
+  const monthlyExpenses = effectiveExpenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
+  const thisMonthExpenses = effectiveExpenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay));
   const spendThisMonth = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
   const spendTransferCount = thisMonthExpenses.length;
   const remaining = monthlyIncome - monthlyExpenses;
@@ -329,13 +339,37 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       spentThisMonth,
       remainingThisMonth: tracker.monthlyBudget - spentThisMonth,
       progress: getProgress(spentThisMonth, tracker.monthlyBudget),
+      status:
+        spentThisMonth > tracker.monthlyBudget
+          ? "Overspent"
+          : spentThisMonth >= tracker.monthlyBudget * 0.8
+            ? "Near Limit"
+            : "On Track",
     };
   });
   const trackerLinkedCategoryIds = new Set(
     activeTrackers.flatMap((tracker) => tracker.linkedCategoryIds)
   );
+  const today = new Date();
+  const totalHistoricalAllocations = activeTrackers.reduce((sum, tracker) => {
+    const created = new Date(tracker.createdAt);
+    if (Number.isNaN(created.getTime())) return sum + tracker.monthlyBudget;
+    const months =
+      (today.getFullYear() - created.getFullYear()) * 12 +
+      today.getMonth() -
+      created.getMonth() +
+      1;
+    return sum + Math.max(1, months) * tracker.monthlyBudget;
+  }, 0);
+  const totalTrackedSpending = effectiveExpenses
+    .filter(
+      (expense) =>
+        new Date(expense.date) <= today &&
+        trackerLinkedCategoryIds.has(expense.categoryId || categoryIdFromName(expense.category))
+    )
+    .reduce((sum, expense) => sum + expense.amount, 0);
   const sharedJarSpentThisMonth = thisMonthExpenses
-    .filter((expense) => trackerLinkedCategoryIds.has(categoryIdFromName(expense.category)))
+    .filter((expense) => trackerLinkedCategoryIds.has(expense.categoryId || categoryIdFromName(expense.category)))
     .reduce((sum, expense) => sum + expense.amount, 0);
   const sharedJarMonthlyResult =
     totalMonthlyTrackerAllocation - sharedJarSpentThisMonth;
@@ -344,7 +378,11 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     monthlyAllocation: totalMonthlyTrackerAllocation,
     spentThisMonth: sharedJarSpentThisMonth,
     monthlyResult: sharedJarMonthlyResult,
-    available: sharedRolloverJarBalance + sharedJarMonthlyResult,
+    carried: sharedRolloverJarBalance + totalHistoricalAllocations - totalMonthlyTrackerAllocation - (totalTrackedSpending - sharedJarSpentThisMonth),
+    available:
+      sharedRolloverJarBalance +
+      totalHistoricalAllocations -
+      totalTrackedSpending,
   };
   const recentActivity: RecentActivityItem[] = [
     ...incomes.map((item, index) => ({
@@ -369,6 +407,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       subtitle: item.account,
       amount: item.amount,
       date: item.date,
+      isRecurring: item.isRecurring,
     })),
     ...transfers.map((item, index) => ({
       id:
@@ -437,5 +476,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     remittanceProgress: remittanceBucket?.progress || 0,
     remittanceGoal: remittanceBucket?.targetAmount || 0,
     recentActivity,
+    effectiveExpenses,
+    upcomingRecurringExpenses: getUpcomingRecurringExpenses(expenses),
   };
 }

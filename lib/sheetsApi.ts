@@ -1,6 +1,10 @@
 const API_URL = "/api/sheets";
 
-export type SheetValue = string | number;
+export type SheetValue =
+  | string
+  | number
+  | boolean
+  | Record<string, unknown>;
 export type LendingTransactionType = "lent" | "borrowed" | "settlement";
 
 export type AddPersonPayload = {

@@ -11,11 +11,12 @@ import { SelectField } from "@/components/forms/SelectField";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { ExpenseAccount } from "@/lib/types";
 import { formTokens } from "@/lib/designTokens";
+import { RefreshCw } from "lucide-react";
 
 type ExpenseFormProps = { state: FinanceDashboardState };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
-  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
+  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
 
   return (
     <ModalWrapper>
@@ -32,6 +33,32 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
           </div>
           <SelectField label="Account" value={expenseAccount} onChange={(event) => setExpenseAccount(event.target.value as ExpenseAccount)} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
           <DateField label="Date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
+          <label className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+            <span className="flex items-center gap-3">
+              <RefreshCw size={18} className="text-purple-300" />
+              <span>
+                <span className="block font-semibold">Make this recurring</span>
+                <span className="text-xs text-neutral-500">Track future occurrences automatically.</span>
+              </span>
+            </span>
+            <input type="checkbox" checked={expenseIsRecurring} onChange={(event) => setExpenseIsRecurring(event.target.checked)} className="h-5 w-5" />
+          </label>
+          {expenseIsRecurring && (
+            <>
+              <SelectField
+                label="Frequency"
+                value={expenseRecurringFrequency}
+                onChange={(event) => setExpenseRecurringFrequency(event.target.value as typeof expenseRecurringFrequency)}
+                options={[
+                  { value: "weekly", label: "Weekly" },
+                  { value: "biweekly", label: "Biweekly" },
+                  { value: "monthly", label: "Monthly" },
+                  { value: "yearly", label: "Yearly" },
+                ]}
+              />
+              <DateField label="End date optional" value={expenseRecurringEndDate} onChange={(event) => setExpenseRecurringEndDate(event.target.value)} />
+            </>
+          )}
           <FormField label="Notes">
             <textarea value={expenseNotes} onChange={(event) => setExpenseNotes(event.target.value)} className={formTokens.input} />
           </FormField>
