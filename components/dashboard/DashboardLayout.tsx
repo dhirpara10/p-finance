@@ -4,19 +4,71 @@ import { useState } from "react";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import Statistics from "@/components/dashboard/Statistics";
+import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type DashboardLayoutProps = { state: FinanceDashboardState; };
 
 export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, activeLent, activeBorrowed, setDetailsView } = state;
+  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, expenses, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
+  const [bucketHistory, setBucketHistory] = useState<{
+    type: "savings" | "tracker";
+    id: string;
+  } | null>(null);
 
   const openIncomeForm = () => setShowIncomeForm(true);
   const openExpenseForm = () => setShowExpenseForm(true);
   const openTransferForm = () => setShowTransferForm(true);
   const openLentForm = () => setShowLentForm(true);
   const openBorrowedForm = () => setShowBorrowedForm(true);
+  const selectedSavingsHistory =
+    bucketHistory?.type === "savings"
+      ? savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id)
+      : null;
+  const selectedTrackerHistory =
+    bucketHistory?.type === "tracker"
+      ? trackerSummaries.find((tracker) => tracker.id === bucketHistory.id)
+      : null;
+  const savingsHistoryRows = selectedSavingsHistory
+    ? transfers
+        .filter(
+          (transfer) =>
+            bucketMatches(transfer.from_bucket, selectedSavingsHistory) ||
+            bucketMatches(transfer.to_bucket, selectedSavingsHistory)
+        )
+        .map((transfer) => ({
+          id: transfer.id,
+          date: transfer.date,
+          amount: transfer.amount,
+          title: bucketMatches(transfer.to_bucket, selectedSavingsHistory)
+            ? "Transfer in"
+            : "Transfer out",
+          account: bucketMatches(transfer.from_bucket, selectedSavingsHistory)
+            ? getBucketLabel(transfer.to_bucket, savingsBucketBalances)
+            : getBucketLabel(transfer.from_bucket, savingsBucketBalances),
+          note: transfer.notes,
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
+  const trackerHistoryRows = selectedTrackerHistory
+    ? expenses
+        .filter((expense) =>
+          selectedTrackerHistory.linkedCategoryIds.includes(
+            categoryIdFromName(expense.category)
+          )
+        )
+        .map((expense) => ({
+          id: expense.id,
+          date: expense.date,
+          amount: expense.amount,
+          category: expense.category,
+          account: expense.account,
+          note: expense.notes,
+          title: "Expense",
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
 
   return (
     <main className="min-h-screen bg-neutral-950 pb-24 text-white md:pb-0">
@@ -201,6 +253,15 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                       style={{ width: `${bucket.progress}%` }}
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBucketHistory({ type: "savings", id: bucket.id })
+                    }
+                    className="mt-3 text-sm font-semibold text-blue-300"
+                  >
+                    History
+                  </button>
                 </div>
               ))}
             </section>
@@ -230,9 +291,126 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
                     {currencySymbol}{tracker.spentThisMonth.toLocaleString()} spent of {currencySymbol}
                     {tracker.monthlyBudget.toLocaleString()}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBucketHistory({ type: "tracker", id: tracker.id })
+                    }
+                    className="mt-3 text-sm font-semibold text-purple-300"
+                  >
+                    History
+                  </button>
                 </div>
               ))}
             </section>
+
+            {bucketHistory && (
+              <section className="rounded-3xl bg-neutral-900 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-neutral-400">Bucket History</p>
+                    <h3 className="text-lg font-semibold">
+                      {selectedSavingsHistory?.name || selectedTrackerHistory?.name}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBucketHistory(null)}
+                    className="rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {selectedTrackerHistory && (
+                  <div className="mb-4 grid gap-2 rounded-2xl bg-neutral-800 p-4 text-sm sm:grid-cols-2">
+                    <div>
+                      <p className="text-neutral-500">Monthly cap</p>
+                      <p className="font-semibold">
+                        {currencySymbol}{selectedTrackerHistory.monthlyBudget.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Spent this month</p>
+                      <p className="font-semibold">
+                        {currencySymbol}{selectedTrackerHistory.spentThisMonth.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Shared jar balance</p>
+                      <p className="font-semibold">
+                        {currencySymbol}{sharedRolloverJar.previousBalance.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Available from jar</p>
+                      <p className="font-semibold">
+                        {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-neutral-500">Monthly result</p>
+                      <p className="font-semibold">
+                        {currencySymbol}{sharedRolloverJar.monthlyResult.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {selectedSavingsHistory &&
+                    savingsHistoryRows.map((row) => (
+                      <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{row.title}</p>
+                            <p className="text-xs text-neutral-500">
+                              {row.date} • {row.account}
+                            </p>
+                            {row.note && (
+                              <p className="mt-1 text-xs text-neutral-400">
+                                {row.note}
+                              </p>
+                            )}
+                          </div>
+                          <p className="font-semibold">
+                            {currencySymbol}{row.amount.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                  {selectedTrackerHistory &&
+                    trackerHistoryRows.map((row) => (
+                      <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{row.category}</p>
+                            <p className="text-xs text-neutral-500">
+                              {row.date} • {row.account} • {row.title}
+                            </p>
+                            {row.note && (
+                              <p className="mt-1 text-xs text-neutral-400">
+                                {row.note}
+                              </p>
+                            )}
+                          </div>
+                          <p className="font-semibold text-red-300">
+                            -{currencySymbol}{row.amount.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                  {((selectedSavingsHistory && savingsHistoryRows.length === 0) ||
+                    (selectedTrackerHistory && trackerHistoryRows.length === 0)) && (
+                    <p className="rounded-2xl bg-neutral-800 p-4 text-sm text-neutral-400">
+                      No history yet.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
 
             <section className="grid grid-cols-2 gap-3">
               <div className="rounded-3xl bg-neutral-900 p-5">
