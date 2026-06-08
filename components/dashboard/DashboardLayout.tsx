@@ -6,11 +6,20 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import Statistics from "@/components/dashboard/Statistics";
 import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { SettingsAccountsPage } from "@/components/settings/SettingsAccountsPage";
+import { SettingsAppearancePage } from "@/components/settings/SettingsAppearancePage";
+import { SettingsBucketHistoryPage } from "@/components/settings/SettingsBucketHistoryPage";
+import { SettingsBucketsPage } from "@/components/settings/SettingsBucketsPage";
+import { SettingsCategoriesPage } from "@/components/settings/SettingsCategoriesPage";
+import { SettingsHub } from "@/components/settings/SettingsHub";
+import { SettingsIncomeSourcesPage } from "@/components/settings/SettingsIncomeSourcesPage";
+import { SettingsNotificationsPage } from "@/components/settings/SettingsNotificationsPage";
+import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
 
 type DashboardLayoutProps = { state: FinanceDashboardState; };
 
 export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, setShowSettingsForm, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, expenses, activeLent, activeBorrowed, setDetailsView } = state;
+  const { currencySymbol, totalMoney, usableBalance, cashBalance, netWorth, settingsPage, navigateToSettingsPage, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, expenses, activeLent, activeBorrowed, setDetailsView } = state;
   const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
   const [bucketHistory, setBucketHistory] = useState<{
     type: "savings" | "tracker";
@@ -87,7 +96,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowSettingsForm(true)}
+              onClick={() => navigateToSettingsPage("hub")}
               className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
             >
               Settings
@@ -103,6 +112,9 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
           </div>
         </header>
 
+        {settingsPage ? (
+          <SettingsRouter state={state} />
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
             <section className="rounded-3xl bg-neutral-900 p-5 shadow-lg">
@@ -443,6 +455,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
             </section>
           </div>
         </div>
+        )}
 
         <div className="mt-6 lg:hidden">
           <RecentActivity
@@ -464,4 +477,16 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
       />
     </main>
   );
+}
+
+function SettingsRouter({ state }: DashboardLayoutProps) {
+  if (state.settingsPage === "accounts") return <SettingsAccountsPage state={state} />;
+  if (state.settingsPage === "buckets") return <SettingsBucketsPage state={state} />;
+  if (state.settingsPage === "categories") return <SettingsCategoriesPage state={state} />;
+  if (state.settingsPage === "income") return <SettingsIncomeSourcesPage state={state} />;
+  if (state.settingsPage === "security") return <SettingsSecurityPage state={state} />;
+  if (state.settingsPage === "notifications") return <SettingsNotificationsPage state={state} />;
+  if (state.settingsPage === "appearance") return <SettingsAppearancePage state={state} />;
+  if (state.settingsPage === "bucket-history") return <SettingsBucketHistoryPage state={state} />;
+  return <SettingsHub state={state} />;
 }
