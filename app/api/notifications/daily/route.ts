@@ -1,14 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import webPush from "web-push";
 import { getDailyFinanceNotification } from "@/lib/notificationMessages";
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT;
-
-const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_ROLE_KEY || "");
+import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
 function createJsonResponse(payload: object, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -103,7 +96,7 @@ function isWithinReminderWindow(nowMinutes: number, reminderMinutes: number) {
   return nowMinutes >= reminderMinutes || nowMinutes < endMinutes;
 }
 
-async function upsertSetting(id: string, value: string) {
+async function upsertSetting(supabase: SupabaseClient, id: string, value: string) {
   await supabase
     .from("app_rows")
     .upsert(
@@ -118,7 +111,7 @@ async function upsertSetting(id: string, value: string) {
     );
 }
 
-async function loadReminderSettings() {
+async function loadReminderSettings(supabase: SupabaseClient) {
   const ids = [
     "daily_reminder_enabled",
     "daily_reminder_time",
@@ -157,33 +150,31 @@ async function loadReminderSettings() {
 }
 
 async function sendDailyNotification(request?: Request) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT;
   const missing = [
-    { name: "SUPABASE_URL", value: SUPABASE_URL },
-    { name: "SUPABASE_SERVICE_ROLE_KEY", value: SUPABASE_SERVICE_ROLE_KEY },
-    { name: "NEXT_PUBLIC_VAPID_PUBLIC_KEY", value: VAPID_PUBLIC_KEY },
-    { name: "VAPID_PRIVATE_KEY", value: VAPID_PRIVATE_KEY },
-    { name: "VAPID_SUBJECT", value: VAPID_SUBJECT },
+    { name: "SUPABASE_URL", value: supabaseUrl },
+    { name: "SUPABASE_SERVICE_ROLE_KEY", value: serviceRoleKey },
+    { name: "NEXT_PUBLIC_VAPID_PUBLIC_KEY", value: publicKey },
+    { name: "VAPID_PRIVATE_KEY", value: privateKey },
+    { name: "VAPID_SUBJECT", value: subject },
   ].filter((item) => !item.value);
 
   if (missing.length) {
-    const publicKeyPresent = Boolean(VAPID_PUBLIC_KEY);
-    const privateKeyPresent = Boolean(VAPID_PRIVATE_KEY);
-    const subjectPresent = Boolean(VAPID_SUBJECT);
-
     return createJsonResponse(
       {
         success: false,
-        error: `Missing VAPID configuration. public=${publicKeyPresent}, private=${privateKeyPresent}, subject=${subjectPresent}`,
+        error: `Missing server configuration: ${missing.map((item) => item.name).join(", ")}`,
       },
       500
     );
   }
 
-  webPush.setVapidDetails(
-    VAPID_SUBJECT as string,
-    VAPID_PUBLIC_KEY as string,
-    VAPID_PRIVATE_KEY as string
-  );
+  webPush.setVapidDetails(subject!, publicKey!, privateKey!);
+  const supabase = getSupabaseAdmin();
 
   let force = false;
   if (request) {
@@ -197,7 +188,7 @@ async function sendDailyNotification(request?: Request) {
 
   let settings;
   try {
-    settings = await loadReminderSettings();
+    settings = await loadReminderSettings(supabase);
   } catch (error: any) {
     return createJsonResponse({ success: false, error: error.message || "Failed to load reminder settings" }, 500);
   }
@@ -260,7 +251,7 @@ async function sendDailyNotification(request?: Request) {
   }
 
   if (sent > 0) {
-    await upsertSetting("daily_reminder_last_sent", nowMelbourneDate);
+    await upsertSetting(supabase, "daily_reminder_last_sent", nowMelbourneDate);
   }
 
   return createJsonResponse({

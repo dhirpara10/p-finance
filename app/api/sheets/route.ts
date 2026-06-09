@@ -1,17 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL) {
-  throw new Error("Missing SUPABASE_URL");
-}
-
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
 type LendingTransactionType = "lent" | "borrowed" | "settlement";
 
@@ -97,7 +85,7 @@ function ensureRowHasId(sheet: string, id: string, data: any) {
   };
 }
 
-async function getAllData() {
+async function getAllData(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("app_rows")
     .select("sheet,id,data,created_at,updated_at")
@@ -123,7 +111,7 @@ async function getAllData() {
   return grouped;
 }
 
-async function addRow(sheet: string, rowData: any) {
+async function addRow(supabase: SupabaseClient, sheet: string, rowData: any) {
   const cleanSheet = normalizeSheetName(sheet);
 
   if (!cleanSheet) {
@@ -174,7 +162,12 @@ async function addRow(sheet: string, rowData: any) {
   return data.data;
 }
 
-async function updateRow(sheet: string, id: string | number, rowData: any) {
+async function updateRow(
+  supabase: SupabaseClient,
+  sheet: string,
+  id: string | number,
+  rowData: any
+) {
   const cleanSheet = normalizeSheetName(sheet);
 
   if (!cleanSheet) {
@@ -210,7 +203,7 @@ async function updateRow(sheet: string, id: string | number, rowData: any) {
   return data.data;
 }
 
-async function deleteRow(sheet: string, id: string | number) {
+async function deleteRow(supabase: SupabaseClient, sheet: string, id: string | number) {
   const cleanSheet = normalizeSheetName(sheet);
 
   if (!cleanSheet) {
@@ -234,7 +227,10 @@ async function deleteRow(sheet: string, id: string | number) {
   return true;
 }
 
-async function addPerson(person: { name: string; phone?: string }) {
+async function addPerson(
+  supabase: SupabaseClient,
+  person: { name: string; phone?: string }
+) {
   const name = person?.name?.trim();
 
   if (!name) {
@@ -267,15 +263,18 @@ async function addPerson(person: { name: string; phone?: string }) {
   return data.data;
 }
 
-async function addLendingTransaction(transaction: {
-  personId: string | number;
-  type: LendingTransactionType;
-  amount: number;
-  account?: "Bank" | "Cash";
-  affectsAccountBalance?: boolean;
-  date: string;
-  note?: string;
-}) {
+async function addLendingTransaction(
+  supabase: SupabaseClient,
+  transaction: {
+    personId: string | number;
+    type: LendingTransactionType;
+    amount: number;
+    account?: "Bank" | "Cash";
+    affectsAccountBalance?: boolean;
+    date: string;
+    note?: string;
+  }
+) {
   if (!transaction.personId) {
     throw new Error("personId is required.");
   }
@@ -321,6 +320,7 @@ async function addLendingTransaction(transaction: {
 
 export async function GET(request: Request) {
   try {
+    const supabase = getSupabaseAdmin();
     const action = new URL(request.url).searchParams.get("action");
 
     if (!action) {
@@ -334,7 +334,7 @@ export async function GET(request: Request) {
     }
 
     if (action === "getAllData") {
-      const data = await getAllData();
+      const data = await getAllData(supabase);
 
       return jsonResponse({
         success: true,
@@ -362,6 +362,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const supabase = getSupabaseAdmin();
     const payload = await request.json();
     const action = payload.action;
 
@@ -376,7 +377,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "addRow") {
-      const data = await addRow(payload.sheet, payload.data);
+      const data = await addRow(supabase, payload.sheet, payload.data);
 
       return jsonResponse({
         success: true,
@@ -385,7 +386,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "updateRow") {
-      const data = await updateRow(payload.sheet, payload.id, payload.data);
+      const data = await updateRow(supabase, payload.sheet, payload.id, payload.data);
 
       return jsonResponse({
         success: true,
@@ -394,7 +395,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "deleteRow") {
-      await deleteRow(payload.sheet, payload.id);
+      await deleteRow(supabase, payload.sheet, payload.id);
 
       return jsonResponse({
         success: true,
@@ -403,7 +404,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "addPerson") {
-      const data = await addPerson(payload.person);
+      const data = await addPerson(supabase, payload.person);
 
       return jsonResponse({
         success: true,
@@ -412,7 +413,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "addLendingTransaction") {
-      const data = await addLendingTransaction(payload.transaction);
+      const data = await addLendingTransaction(supabase, payload.transaction);
 
       return jsonResponse({
         success: true,
