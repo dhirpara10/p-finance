@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  applyRepaymentToLiability,
   defaultLiabilitySettings,
   generateRepaymentSchedule,
+  getDueBnplRepayments,
   parseLiabilitySettings,
 } from "@/lib/liabilities";
 import {
@@ -68,6 +70,8 @@ function parseSchedule(item: Record<string, unknown>): RepaymentSchedule {
         ? item.status
         : "upcoming",
     paidDate: String(item.paidDate || ""),
+    processedAt: String(item.processedAt || ""),
+    repaymentTransactionId: String(item.repaymentTransactionId || ""),
     notes: String(item.notes || ""),
     createdAt: String(item.createdAt || ""),
     updatedAt: String(item.updatedAt || ""),
@@ -149,6 +153,7 @@ export function useLiabilities() {
   );
   const [liabilityError, setLiabilityError] = useState("");
   const [liabilitySaving, setLiabilitySaving] = useState(false);
+  const processingScheduleIds = useRef(new Set<string>());
 
   const editingLiability = useMemo(
     () =>
@@ -166,19 +171,123 @@ export function useLiabilities() {
     rawSchedules: unknown[],
     rawSettings: unknown
   ) {
-    setLiabilities(
-      rawLiabilities
-        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-        .map(parseLiability)
-        .filter((item) => item.id)
-    );
-    setRepaymentSchedules(
-      rawSchedules
-        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-        .map(parseSchedule)
-        .filter((item) => item.id && item.liabilityId)
-    );
+    const parsedLiabilities = rawLiabilities
+      .filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object")
+      )
+      .map(parseLiability)
+      .filter((item) => item.id);
+    const parsedSchedules = rawSchedules
+      .filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object")
+      )
+      .map(parseSchedule)
+      .filter((item) => item.id && item.liabilityId);
+
+    setLiabilities(parsedLiabilities);
+    setRepaymentSchedules(parsedSchedules);
     setLiabilitySettings(parseLiabilitySettings(rawSettings));
+    return {
+      liabilities: parsedLiabilities,
+      repaymentSchedules: parsedSchedules,
+    };
+  }
+
+  async function processDueBnplRepayments(
+    sourceLiabilities = liabilities,
+    sourceSchedules = repaymentSchedules
+  ) {
+    const dueSchedules = getDueBnplRepayments({
+      liabilities: sourceLiabilities,
+      schedules: sourceSchedules,
+    });
+    if (!dueSchedules.length) {
+      return {
+        liabilities: sourceLiabilities,
+        repaymentSchedules: sourceSchedules,
+        processedCount: 0,
+      };
+    }
+
+    let nextLiabilities = [...sourceLiabilities];
+    let nextSchedules = [...sourceSchedules];
+    let processedCount = 0;
+
+    for (const schedule of dueSchedules) {
+      if (processingScheduleIds.current.has(schedule.id)) continue;
+      const currentSchedule = nextSchedules.find(
+        (item) => item.id === schedule.id
+      );
+      if (
+        !currentSchedule ||
+        currentSchedule.status === "paid" ||
+        currentSchedule.processedAt
+      ) {
+        continue;
+      }
+
+      const liability = nextLiabilities.find(
+        (item) => item.id === currentSchedule.liabilityId
+      );
+      if (!liability || liability.type !== "bnpl") continue;
+
+      processingScheduleIds.current.add(schedule.id);
+      const now = new Date().toISOString();
+      const paidSchedule: RepaymentSchedule = {
+        ...currentSchedule,
+        status: "paid",
+        paidDate: now.split("T")[0],
+        processedAt: now,
+        repaymentTransactionId:
+          currentSchedule.repaymentTransactionId ||
+          `repayment:${currentSchedule.id}`,
+        updatedAt: now,
+      };
+      const updatedLiability: Liability = {
+        ...applyRepaymentToLiability(liability, paidSchedule),
+        updatedAt: now,
+      };
+
+      try {
+        await updateSheetRecord(
+          "RepaymentSchedules",
+          paidSchedule.id,
+          paidSchedule
+        );
+        try {
+          await updateSheetRecord(
+            "Liabilities",
+            updatedLiability.id,
+            updatedLiability
+          );
+        } catch (error) {
+          await updateSheetRecord(
+            "RepaymentSchedules",
+            currentSchedule.id,
+            currentSchedule
+          );
+          throw error;
+        }
+
+        nextSchedules = nextSchedules.map((item) =>
+          item.id === paidSchedule.id ? paidSchedule : item
+        );
+        nextLiabilities = nextLiabilities.map((item) =>
+          item.id === updatedLiability.id ? updatedLiability : item
+        );
+        processedCount += 1;
+      } finally {
+        processingScheduleIds.current.delete(schedule.id);
+      }
+    }
+
+    setRepaymentSchedules(nextSchedules);
+    setLiabilities(nextLiabilities);
+    return {
+      liabilities: nextLiabilities,
+      repaymentSchedules: nextSchedules,
+      processedCount,
+    };
   }
 
   function openNewLiability(type: LiabilityType) {
@@ -245,12 +354,14 @@ export function useLiabilities() {
       throw error;
     }
 
-    setRepaymentSchedules((current) => [
-      ...current.filter(
+    const nextSchedules = [
+      ...repaymentSchedules.filter(
         (row) => row.liabilityId !== liability.id || row.status === "paid"
       ),
       ...created,
-    ]);
+    ];
+    setRepaymentSchedules(nextSchedules);
+    return nextSchedules;
   }
 
   async function saveLiability(draft: LiabilityDraft) {
@@ -276,10 +387,12 @@ export function useLiabilities() {
           updated
         );
         if (!saved.id) throw new Error("Updated liability is missing an id.");
-        setLiabilities((current) =>
-          current.map((item) => (item.id === saved.id ? saved : item))
+        const nextLiabilities = liabilities.map((item) =>
+          item.id === saved.id ? saved : item
         );
-        await replaceUpcomingSchedule(saved);
+        setLiabilities(nextLiabilities);
+        const nextSchedules = await replaceUpcomingSchedule(saved);
+        await processDueBnplRepayments(nextLiabilities, nextSchedules);
       } else {
         const created = await createSheetRecord<Liability>("Liabilities", {
           ...draft,
@@ -290,8 +403,11 @@ export function useLiabilities() {
         if (!created.id) throw new Error("Created liability is missing an id.");
         try {
           const scheduleRows = await createSchedules(created);
-          setLiabilities((current) => [created, ...current]);
-          setRepaymentSchedules((current) => [...scheduleRows, ...current]);
+          const nextLiabilities = [created, ...liabilities];
+          const nextSchedules = [...scheduleRows, ...repaymentSchedules];
+          setLiabilities(nextLiabilities);
+          setRepaymentSchedules(nextSchedules);
+          await processDueBnplRepayments(nextLiabilities, nextSchedules);
         } catch (scheduleError) {
           await deleteSheetRecord("Liabilities", created.id);
           throw scheduleError;
@@ -329,27 +445,18 @@ export function useLiabilities() {
       const liability = liabilities.find((item) => item.id === schedule.liabilityId);
       if (!liability) throw new Error("Liability record was not found.");
 
-      const principalReduction =
-        liability.type === "loan" ? schedule.principalAmount : schedule.amount;
-      const outstandingBalance = Math.max(
-        liability.outstandingBalance - principalReduction,
-        0
-      );
       const now = new Date().toISOString();
       const updatedSchedule: RepaymentSchedule = {
         ...schedule,
         status: "paid",
         paidDate: now.split("T")[0],
+        processedAt: schedule.processedAt || now,
+        repaymentTransactionId:
+          schedule.repaymentTransactionId || `repayment:${schedule.id}`,
         updatedAt: now,
       };
       const updatedLiability: Liability = {
-        ...liability,
-        outstandingBalance,
-        currentBalance:
-          liability.type === "credit_card" ? outstandingBalance : liability.currentBalance,
-        outstandingPrincipal:
-          liability.type === "loan" ? outstandingBalance : liability.outstandingPrincipal,
-        status: outstandingBalance <= 0 ? "paid" : liability.status,
+        ...applyRepaymentToLiability(liability, updatedSchedule),
         updatedAt: now,
       };
 
@@ -554,6 +661,7 @@ export function useLiabilities() {
     liabilityError,
     liabilitySaving,
     hydrateLiabilities,
+    processDueBnplRepayments,
     openNewLiability,
     openEditLiability,
     closeLiabilityForm,

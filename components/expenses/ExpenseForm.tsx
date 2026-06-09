@@ -17,6 +17,11 @@ type ExpenseFormProps = { state: FinanceDashboardState };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
   const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
+  const categoryOptions = (
+    expenseCategories.includes(expenseCategory)
+      ? expenseCategories
+      : [expenseCategory, ...expenseCategories]
+  ).map((category) => ({ value: category, label: category }));
 
   return (
     <ModalWrapper onClose={closeAllForms}>
@@ -26,7 +31,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
           <FormField label="Amount">
             <input type="number" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className={formTokens.input} />
           </FormField>
-          <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={expenseCategories.map((category) => ({ value: category, label: category }))} />
+          <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={categoryOptions} />
           <div className="flex gap-2">
             <input type="text" placeholder="New category name" value={newExpenseCategory} onChange={(event) => setNewExpenseCategory(event.target.value)} className={`${formTokens.input} min-w-0 flex-1`} />
             <button type="button" onClick={addExpenseCategory} className="rounded-2xl bg-neutral-800 px-4 font-semibold text-emerald-300">Add</button>

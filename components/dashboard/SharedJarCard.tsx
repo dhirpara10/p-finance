@@ -50,7 +50,7 @@ export function SharedJarCard({
           </div>
 
           {!compact && (
-            <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <JarMetric
                 icon={ArrowDown}
                 label="Monthly inflow"
@@ -72,6 +72,7 @@ export function SharedJarCard({
                     ? "text-emerald-300"
                     : "text-orange-300"
                 }
+                className="col-span-2 sm:col-span-1"
               />
             </div>
           )}
@@ -131,17 +132,19 @@ function JarMetric({
   label,
   value,
   tone,
+  className = "",
 }: {
   icon: typeof ArrowDown;
   label: string;
   value: string;
   tone: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-3">
+    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-black/20 p-3 ${className}`}>
       <Icon size={14} className={tone} />
       <p className="mt-3 text-[11px] text-neutral-500">{label}</p>
-      <p className={`mt-1 truncate text-sm font-semibold ${tone}`}>{value}</p>
+      <p className={`mt-1 break-words text-sm font-semibold ${tone}`}>{value}</p>
     </div>
   );
 }

@@ -6,7 +6,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
   {
     id: "savings_emergency_fund",
     name: "Emergency Fund",
-    targetAmount: 5000,
+    targetAmount: 0,
     currentBalance: 0,
     linkedStorageLabel: "Bank",
     active: true,
@@ -16,7 +16,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
   {
     id: "savings_remittance",
     name: "Remittance",
-    targetAmount: 10000,
+    targetAmount: 0,
     currentBalance: 0,
     linkedStorageLabel: "Bank",
     active: true,
@@ -26,7 +26,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
   {
     id: "savings_debt_collection",
     name: "Debt Collection",
-    targetAmount: 3000,
+    targetAmount: 0,
     currentBalance: 0,
     linkedStorageLabel: "Bank",
     active: true,
@@ -45,12 +45,34 @@ export function categoryIdFromName(name: string) {
   return `category_${slug || "uncategorized"}`;
 }
 
+export function normalizeCategoryId(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return categoryIdFromName("Uncategorized");
+  const withoutPrefix = text.replace(/^category_/i, "");
+  return categoryIdFromName(withoutPrefix);
+}
+
+export function expenseCategoryId({
+  categoryId,
+  category,
+}: {
+  categoryId?: string;
+  category: string;
+}) {
+  const normalizedId = normalizeCategoryId(categoryId);
+  const normalizedName = categoryIdFromName(category);
+
+  return normalizedId === categoryIdFromName("Uncategorized")
+    ? normalizedName
+    : normalizedId;
+}
+
 export const defaultBucketListTrackers: BucketListTracker[] = [
   {
     id: "tracker_adventure",
     name: "Adventure",
     icon: "Compass",
-    monthlyBudget: 300,
+    monthlyBudget: 0,
     linkedCategoryIds: [categoryIdFromName("Adventure")],
     active: true,
     createdAt: now,
@@ -60,7 +82,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_wonders",
     name: "Wonders",
     icon: "Sparkles",
-    monthlyBudget: 300,
+    monthlyBudget: 0,
     linkedCategoryIds: [categoryIdFromName("Wonders")],
     active: true,
     createdAt: now,
@@ -70,7 +92,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_tech_gadgets",
     name: "Tech Gadgets",
     icon: "Laptop",
-    monthlyBudget: 250,
+    monthlyBudget: 0,
     linkedCategoryIds: [
       categoryIdFromName("Electronics"),
       categoryIdFromName("Accessories"),
@@ -84,7 +106,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_online_shopping",
     name: "Online Shopping",
     icon: "ShoppingBag",
-    monthlyBudget: 150,
+    monthlyBudget: 0,
     linkedCategoryIds: [],
     active: true,
     createdAt: now,
@@ -94,7 +116,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_dressing",
     name: "Dressing",
     icon: "Shirt",
-    monthlyBudget: 150,
+    monthlyBudget: 0,
     linkedCategoryIds: [categoryIdFromName("Clothing")],
     active: true,
     createdAt: now,
@@ -104,7 +126,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_personal_spends",
     name: "Personal Spends",
     icon: "WalletCards",
-    monthlyBudget: 200,
+    monthlyBudget: 0,
     linkedCategoryIds: [
       categoryIdFromName("Gym"),
       categoryIdFromName("Shoes"),
@@ -117,7 +139,7 @@ export const defaultBucketListTrackers: BucketListTracker[] = [
     id: "tracker_gym_shoes",
     name: "Gym / Shoes",
     icon: "Dumbbell",
-    monthlyBudget: 120,
+    monthlyBudget: 0,
     linkedCategoryIds: [],
     active: true,
     createdAt: now,
@@ -188,10 +210,13 @@ export function findDuplicateTrackerCategory(
 ) {
   const activeTrackers = trackers.filter((tracker) => tracker.active);
 
-  for (const categoryId of linkedCategoryIds) {
+  for (const categoryId of linkedCategoryIds.map(normalizeCategoryId)) {
     const owner = activeTrackers.find(
       (tracker) =>
-        tracker.id !== trackerId && tracker.linkedCategoryIds.includes(categoryId)
+        tracker.id !== trackerId &&
+        tracker.linkedCategoryIds.some(
+          (linkedId) => normalizeCategoryId(linkedId) === categoryId
+        )
     );
 
     if (owner) {
@@ -208,11 +233,13 @@ export function normalizeTrackerLinks(trackers: BucketListTracker[]) {
   return trackers.map((tracker) => {
     if (!tracker.active) return tracker;
 
-    const linkedCategoryIds = tracker.linkedCategoryIds.filter((categoryId) => {
+    const linkedCategoryIds = tracker.linkedCategoryIds
+      .map(normalizeCategoryId)
+      .filter((categoryId) => {
       if (assigned.has(categoryId)) return false;
       assigned.add(categoryId);
       return true;
-    });
+      });
 
     return {
       ...tracker,

@@ -1,4 +1,11 @@
-import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, getBucketLabel } from "@/lib/buckets";
+import {
+  bucketMatches,
+  defaultBucketListTrackers,
+  defaultSavingsBuckets,
+  expenseCategoryId,
+  getBucketLabel,
+  normalizeCategoryId,
+} from "@/lib/buckets";
 import { buildPersonProfiles } from "@/lib/lending";
 import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
 import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
@@ -274,6 +281,166 @@ function getSettlementAccountMovement(
   return totals;
 }
 
+function analyticsMonthKey(dateString: string) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return null;
+  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}`;
+  return {
+    key,
+    label: date.toLocaleString("en-AU", {
+      month: "short",
+      year: "2-digit",
+    }),
+    sort: new Date(date.getFullYear(), date.getMonth(), 1).getTime(),
+  };
+}
+
+export function buildFinancialAnalytics({
+  incomes,
+  expenses,
+  transfers,
+  repaymentSchedules,
+  trackerLinkedCategoryIds,
+  currentNetWorth,
+}: {
+  incomes: Income[];
+  expenses: Expense[];
+  transfers: Transfer[];
+  repaymentSchedules: RepaymentSchedule[];
+  trackerLinkedCategoryIds: Set<string>;
+  currentNetWorth: number;
+}) {
+  const grouped = new Map<
+    string,
+    {
+      key: string;
+      month: string;
+      sort: number;
+      income: number;
+      expenses: number;
+      trackedSpending: number;
+      hours: number;
+      financeCosts: number;
+      jarInflow: number;
+      jarWithdrawals: number;
+    }
+  >();
+
+  function rowFor(dateString: string) {
+    const month = analyticsMonthKey(dateString);
+    if (!month) return null;
+    const existing = grouped.get(month.key);
+    if (existing) return existing;
+    const row = {
+      key: month.key,
+      month: month.label,
+      sort: month.sort,
+      income: 0,
+      expenses: 0,
+      trackedSpending: 0,
+      hours: 0,
+      financeCosts: 0,
+      jarInflow: 0,
+      jarWithdrawals: 0,
+    };
+    grouped.set(month.key, row);
+    return row;
+  }
+
+  incomes.forEach((income) => {
+    const row = rowFor(income.date);
+    if (!row) return;
+    row.income += income.amount;
+    row.hours += income.hours;
+  });
+
+  expenses.forEach((expense) => {
+    const row = rowFor(expense.date);
+    if (!row) return;
+    row.expenses += expense.amount;
+    if (trackerLinkedCategoryIds.has(expenseCategoryId(expense))) {
+      row.trackedSpending += expense.amount;
+    }
+  });
+
+  transfers.forEach((transfer) => {
+    const row = rowFor(transfer.date);
+    if (!row) return;
+    if (transfer.to_bucket === "shared_rollover_jar") {
+      row.jarInflow += transfer.amount;
+    }
+    if (transfer.from_bucket === "shared_rollover_jar") {
+      row.jarWithdrawals += transfer.amount;
+    }
+  });
+
+  repaymentSchedules
+    .filter((schedule) => schedule.status === "paid")
+    .forEach((schedule) => {
+      const row = rowFor(schedule.paidDate || schedule.dueDate);
+      if (!row) return;
+      row.financeCosts += schedule.interestAmount + schedule.feeAmount;
+    });
+
+  const baseRows = [...grouped.values()]
+    .sort((a, b) => a.sort - b.sort)
+    .slice(-12);
+  const rows = baseRows.length
+    ? baseRows
+    : [
+        {
+          key: analyticsMonthKey(getToday())?.key || "current",
+          month: analyticsMonthKey(getToday())?.label || "Current",
+          sort: Date.now(),
+          income: 0,
+          expenses: 0,
+          trackedSpending: 0,
+          hours: 0,
+          financeCosts: 0,
+          jarInflow: 0,
+          jarWithdrawals: 0,
+        },
+      ];
+  const cumulativeMovement = rows.reduce(
+    (sum, row) => sum + row.income - row.expenses - row.financeCosts,
+    0
+  );
+  const openingNetWorth = currentNetWorth - cumulativeMovement;
+  const monthly = rows.map((row, index) => ({
+    ...row,
+    remaining: row.income - row.expenses - row.financeCosts,
+    netWorth:
+      openingNetWorth +
+      rows
+        .slice(0, index + 1)
+        .reduce(
+          (sum, item) =>
+            sum + item.income - item.expenses - item.financeCosts,
+          0
+        ),
+  }));
+
+  const categoryMap = new Map<string, number>();
+  expenses.forEach((expense) => {
+    const category = expense.category.trim() || "Uncategorized";
+    categoryMap.set(
+      category,
+      (categoryMap.get(category) || 0) + expense.amount
+    );
+  });
+
+  return {
+    monthly,
+    categories: [...categoryMap.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6),
+  };
+}
+
 export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
   const expenseRangeStart = new Date();
   expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
@@ -457,9 +624,11 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     0
   );
   const trackerSummaries = activeTrackers.map((tracker) => {
-    const linkedIds = new Set(tracker.linkedCategoryIds);
+    const linkedIds = new Set(
+      tracker.linkedCategoryIds.map(normalizeCategoryId)
+    );
     const trackerExpenses = thisMonthExpenses.filter((expense) =>
-      linkedIds.has(expense.categoryId || categoryIdFromName(expense.category))
+      linkedIds.has(expenseCategoryId(expense))
     );
     const spentThisMonth = trackerExpenses.reduce(
       (sum, expense) => sum + expense.amount,
@@ -481,24 +650,30 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     };
   });
   const trackerLinkedCategoryIds = new Set(
-    activeTrackers.flatMap((tracker) => tracker.linkedCategoryIds)
+    activeTrackers.flatMap((tracker) =>
+      tracker.linkedCategoryIds.map(normalizeCategoryId)
+    )
   );
   const today = new Date();
-  const totalHistoricalAllocations = activeTrackers.reduce((sum, tracker) => {
-    const created = new Date(tracker.createdAt);
-    if (Number.isNaN(created.getTime())) return sum + tracker.monthlyBudget;
-    const months =
-      (today.getFullYear() - created.getFullYear()) * 12 +
-      today.getMonth() -
-      created.getMonth() +
-      1;
-    return sum + Math.max(1, months) * monthlyAllocationForTracker(tracker);
-  }, 0);
   const manualJarAllocations = transfers
     .filter((transfer) => transfer.to_bucket === "shared_rollover_jar")
     .reduce((sum, transfer) => sum + transfer.amount, 0);
+  const monthlyJarAllocations = transfers
+    .filter(
+      (transfer) =>
+        transfer.to_bucket === "shared_rollover_jar" &&
+        isCurrentMonth(transfer.date, monthlyResetDay)
+    )
+    .reduce((sum, transfer) => sum + transfer.amount, 0);
   const manualJarWithdrawals = transfers
     .filter((transfer) => transfer.from_bucket === "shared_rollover_jar")
+    .reduce((sum, transfer) => sum + transfer.amount, 0);
+  const monthlyJarWithdrawals = transfers
+    .filter(
+      (transfer) =>
+        transfer.from_bucket === "shared_rollover_jar" &&
+        isCurrentMonth(transfer.date, monthlyResetDay)
+    )
     .reduce((sum, transfer) => sum + transfer.amount, 0);
   const sharedJarStoredBalance =
     sharedRolloverJarBalance + manualJarAllocations - manualJarWithdrawals;
@@ -510,30 +685,48 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     .filter(
       (expense) =>
         new Date(expense.date) <= today &&
-        trackerLinkedCategoryIds.has(expense.categoryId || categoryIdFromName(expense.category))
+        trackerLinkedCategoryIds.has(expenseCategoryId(expense))
     )
     .reduce((sum, expense) => sum + expense.amount, 0);
   const sharedJarSpentThisMonth = thisMonthExpenses
-    .filter((expense) => trackerLinkedCategoryIds.has(expense.categoryId || categoryIdFromName(expense.category)))
+    .filter((expense) =>
+      trackerLinkedCategoryIds.has(expenseCategoryId(expense))
+    )
     .reduce((sum, expense) => sum + expense.amount, 0);
   const sharedJarMonthlyResult =
-    totalMonthlyTrackerAllocation - sharedJarSpentThisMonth;
+    monthlyJarAllocations -
+    sharedJarSpentThisMonth -
+    monthlyJarWithdrawals;
   const sharedRolloverJar = {
     previousBalance: sharedRolloverJarBalance,
-    monthlyAllocation: totalMonthlyTrackerAllocation,
+    plannedMonthlyAllocation: totalMonthlyTrackerAllocation,
+    monthlyAllocation: monthlyJarAllocations,
     spentThisMonth: sharedJarSpentThisMonth,
+    withdrawalsThisMonth: monthlyJarWithdrawals,
     monthlyResult: sharedJarMonthlyResult,
     manualAllocations: manualJarAllocations,
     manualWithdrawals: manualJarWithdrawals,
     storedBalance: sharedJarStoredBalance,
-    carried: sharedRolloverJarBalance + totalHistoricalAllocations + manualJarAllocations - manualJarWithdrawals - totalMonthlyTrackerAllocation - (totalTrackedSpending - sharedJarSpentThisMonth),
+    carried:
+      sharedRolloverJarBalance +
+      manualJarAllocations -
+      manualJarWithdrawals -
+      totalTrackedSpending -
+      sharedJarMonthlyResult,
     available:
       sharedRolloverJarBalance +
-      totalHistoricalAllocations -
-      totalTrackedSpending +
       manualJarAllocations -
+      totalTrackedSpending -
       manualJarWithdrawals,
   };
+  const financialAnalytics = buildFinancialAnalytics({
+    incomes,
+    expenses: effectiveExpenses,
+    transfers,
+    repaymentSchedules,
+    trackerLinkedCategoryIds,
+    currentNetWorth: netWorth,
+  });
   const recentActivity: RecentActivityItem[] = [
     ...incomes.map((item, index) => ({
       id:
@@ -543,7 +736,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       title: item.source,
       subtitle:
         item.income_type === "Hourly"
-          ? String(item.hours) + "h × $" + String(item.rate) + "/hr"
+          ? String(item.hours) + "h x $" + String(item.rate) + "/hr"
           : "Fixed amount",
       amount: item.amount,
       date: item.date,
@@ -608,7 +801,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           id: item.id,
           type: "liability_repayment" as const,
           title: `${liability?.name || "Liability"} repayment`,
-          subtitle: `${liability?.provider || "Liability"} · principal $${item.principalAmount.toFixed(2)}`,
+          subtitle: `${liability?.provider || "Liability"} / principal $${item.principalAmount.toFixed(2)}`,
           amount: item.amount,
           date: item.paidDate || item.dueDate,
         };
@@ -643,6 +836,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     savingsBucketBalances,
     trackerSummaries,
     sharedRolloverJar,
+    financialAnalytics,
     emergencySaved: emergencyBucket?.currentBalance || 0,
     emergencyProgress: emergencyBucket?.progress || 0,
     emergencyGoal: emergencyBucket?.targetAmount || 0,

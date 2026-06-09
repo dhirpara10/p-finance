@@ -2,7 +2,6 @@
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { categoryIdFromName } from "@/lib/buckets";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import {
@@ -33,12 +32,6 @@ const tooltipStyle = {
   color: "#f5f5f5",
 };
 
-function monthKey(date: string) {
-  const value = new Date(date);
-  if (Number.isNaN(value.getTime())) return "Unknown";
-  return value.toLocaleString("en-AU", { month: "short", year: "2-digit" });
-}
-
 function AnalyticsCard({
   title,
   subtitle,
@@ -55,7 +48,7 @@ function AnalyticsCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32 }}
-      className={`surface-card rounded-[28px] border border-white/[0.055] p-5 sm:p-6 ${className}`}
+      className={`surface-card min-w-0 rounded-[28px] border border-white/[0.055] p-5 sm:p-6 ${className}`}
     >
       <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
       <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
@@ -66,8 +59,6 @@ function AnalyticsCard({
 
 export function Statistics({ state }: Props) {
   const {
-    incomes,
-    effectiveExpenses,
     currencySymbol,
     trackerSummaries,
     sharedRolloverJar,
@@ -75,113 +66,26 @@ export function Statistics({ state }: Props) {
     activeBorrowed,
     monthlyHours,
     savingsBucketBalances,
-    repaymentSchedules,
-    netWorth,
+    financialAnalytics,
   } = state;
-  const trackerCategoryIds = new Set(
-    state.bucketListTrackers
-      .filter((tracker) => tracker.active)
-      .flatMap((tracker) => tracker.linkedCategoryIds)
-  );
-  const grouped = new Map<
-    string,
-    {
-      month: string;
-      sort: number;
-      income: number;
-      expenses: number;
-      trackedSpending: number;
-      hours: number;
-      financeCosts: number;
-    }
-  >();
-
-  function rowFor(date: string) {
-    const parsed = new Date(date);
-    const key = monthKey(date);
-    const sort = Number.isNaN(parsed.getTime())
-      ? 0
-      : new Date(parsed.getFullYear(), parsed.getMonth(), 1).getTime();
-    return (
-      grouped.get(key) || {
-        month: key,
-        sort,
-        income: 0,
-        expenses: 0,
-        trackedSpending: 0,
-        hours: 0,
-        financeCosts: 0,
-      }
-    );
-  }
-
-  incomes.forEach((item) => {
-    const row = rowFor(item.date);
-    row.income += item.amount;
-    row.hours += item.hours;
-    grouped.set(row.month, row);
-  });
-  effectiveExpenses.forEach((item) => {
-    const row = rowFor(item.date);
-    row.expenses += item.amount;
-    if (trackerCategoryIds.has(item.categoryId || categoryIdFromName(item.category))) {
-      row.trackedSpending += item.amount;
-    }
-    grouped.set(row.month, row);
-  });
-  repaymentSchedules
-    .filter((item) => item.status === "paid")
-    .forEach((item) => {
-      const row = rowFor(item.paidDate || item.dueDate);
-      row.financeCosts += item.interestAmount + item.feeAmount;
-      grouped.set(row.month, row);
-    });
-
-  const baseMonthly = [...grouped.values()]
-    .sort((a, b) => a.sort - b.sort)
-    .slice(-12);
-  const baseMonthlyWithFallback = (baseMonthly.length
-    ? baseMonthly
-    : [{ month: monthKey(new Date().toISOString()), sort: Date.now(), income: 0, expenses: 0, trackedSpending: 0, hours: 0, financeCosts: 0 }]
-  );
-  const cumulativeMovement = baseMonthlyWithFallback.reduce(
-    (sum, row) => sum + row.income - row.expenses - row.financeCosts,
-    0
-  );
-  const openingNetWorth = netWorth - cumulativeMovement;
-  const monthly = baseMonthlyWithFallback.map((row, index, rows) => ({
-    ...row,
-    remaining: row.income - row.expenses - row.financeCosts,
-    netWorth: openingNetWorth + rows
-      .slice(0, index + 1)
-      .reduce(
-        (sum, item) =>
-          sum + item.income - item.expenses - item.financeCosts,
-        0
-      ),
-  }));
-
-  const categoryMap = new Map<string, number>();
-  effectiveExpenses.forEach((expense) =>
-    categoryMap.set(
-      expense.category,
-      (categoryMap.get(expense.category) || 0) + expense.amount
-    )
-  );
-  const categories = [...categoryMap.entries()]
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
+  const monthly = financialAnalytics.monthly;
+  const categories = financialAnalytics.categories;
   const jarData = monthly.map((row, index) => ({
     month: row.month,
-    allocation: sharedRolloverJar.monthlyAllocation,
+    allocation: row.jarInflow,
     spending: row.trackedSpending,
     available:
       sharedRolloverJar.previousBalance +
-      sharedRolloverJar.monthlyAllocation * (index + 1) -
       monthly
         .slice(0, index + 1)
-        .reduce((sum, item) => sum + item.trackedSpending, 0),
+        .reduce((sum, item) => sum + item.jarInflow, 0) -
+      monthly
+        .slice(0, index + 1)
+        .reduce(
+          (sum, item) =>
+            sum + item.trackedSpending + item.jarWithdrawals,
+          0
+        ),
   }));
   const moneyTick = (value: number) =>
     `${currencySymbol}${Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`;
@@ -329,7 +233,18 @@ export function Statistics({ state }: Props) {
 }
 
 function ChartFrame({ height, children }: { height: string; children: ReactNode }) {
-  return <div className={`w-full ${height}`}><ResponsiveContainer width="100%" height="100%">{children as never}</ResponsiveContainer></div>;
+  return (
+    <div className={`min-h-px min-w-0 w-full ${height}`}>
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minWidth={0}
+        initialDimension={{ width: 640, height: 288 }}
+      >
+        {children as never}
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
 function MiniStat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {

@@ -28,6 +28,10 @@ require.extensions[".ts"] = function compileTypeScript(module, filename) {
 };
 
 const { calculateDashboardValues } = require("../lib/calculations.ts");
+const {
+  applyRepaymentToLiability,
+  getDueBnplRepayments,
+} = require("../lib/liabilities.ts");
 
 const today = new Date().toISOString().slice(0, 10);
 const empty = {
@@ -169,7 +173,61 @@ run("shared jar transfer debits Bank and remains an asset", () => {
 
   closeTo(result.bankBalance, 300, "bank after jar allocation");
   closeTo(result.sharedRolloverJar.storedBalance, 200, "stored jar balance");
+  closeTo(result.sharedRolloverJar.monthlyAllocation, 200, "jar monthly inflow");
+  closeTo(result.sharedRolloverJar.available, 200, "jar available balance");
   closeTo(result.netWorth, 500, "jar allocation net worth");
+});
+
+run("shared jar uses real transfers and normalized tracker categories", () => {
+  const result = calculate({
+    initialBankBalance: 1000,
+    transfers: [
+      {
+        id: "jar-transfer",
+        from_bucket: "Bank",
+        to_bucket: "shared_rollover_jar",
+        amount: 100,
+        date: today,
+        notes: "",
+      },
+    ],
+    expenses: [
+      {
+        id: "food-expense",
+        amount: 33,
+        category: " Food ",
+        categoryId: "CATEGORY_FOOD",
+        account: "Bank",
+        date: today,
+        notes: "",
+        isRecurring: false,
+        createdAt: today,
+      },
+    ],
+    bucketListTrackers: [
+      {
+        id: "tracker-food",
+        name: "Food",
+        icon: "Compass",
+        monthlyBudget: 10000,
+        linkedCategoryIds: ["category_food"],
+        active: true,
+        createdAt: today,
+        updatedAt: today,
+      },
+    ],
+  });
+
+  closeTo(result.trackerSummaries[0].spentThisMonth, 33, "tracker spend");
+  closeTo(
+    result.trackerSummaries[0].remainingThisMonth,
+    9967,
+    "tracker remaining"
+  );
+  closeTo(result.sharedRolloverJar.monthlyAllocation, 100, "real jar inflow");
+  closeTo(result.sharedRolloverJar.spentThisMonth, 33, "jar tracked spend");
+  closeTo(result.sharedRolloverJar.monthlyResult, 67, "jar month result");
+  closeTo(result.sharedRolloverJar.available, 67, "jar available");
 });
 
 run("BNPL commitment and repayment are not double-counted", () => {
@@ -215,6 +273,65 @@ run("BNPL commitment and repayment are not double-counted", () => {
   });
   closeTo(after.bankBalance, 900, "BNPL repayment bank balance");
   closeTo(after.netWorth, 600, "BNPL repayment net worth");
+});
+
+run("due BNPL repayments are selected once and reduce outstanding balance", () => {
+  const liability = {
+    id: "bnpl-auto",
+    type: "bnpl",
+    name: "Shoes",
+    provider: "Afterpay",
+    originalAmount: 700,
+    outstandingBalance: 700,
+    status: "active",
+    category: "Shopping",
+    notes: "",
+    createdAt: today,
+    updatedAt: today,
+  };
+  const schedules = [0, 1, 2, 3].map((index) => ({
+    id: `auto-${index + 1}`,
+    liabilityId: liability.id,
+    dueDate:
+      index < 2
+        ? today
+        : new Date(Date.now() + (index + 1) * 86400000)
+            .toISOString()
+            .slice(0, 10),
+    amount: 175,
+    principalAmount: 175,
+    interestAmount: 0,
+    feeAmount: 0,
+    status: "upcoming",
+    paidDate: "",
+    notes: "",
+    createdAt: today,
+    updatedAt: today,
+  }));
+
+  const due = getDueBnplRepayments({
+    liabilities: [liability],
+    schedules,
+    today,
+  });
+  assert.equal(due.length, 2);
+  const afterFirst = applyRepaymentToLiability(liability, due[0]);
+  const afterSecond = applyRepaymentToLiability(afterFirst, due[1]);
+  closeTo(afterSecond.outstandingBalance, 350, "two BNPL repayments");
+
+  const processed = {
+    ...due[0],
+    status: "paid",
+    paidDate: today,
+    processedAt: new Date().toISOString(),
+    repaymentTransactionId: `repayment:${due[0].id}`,
+  };
+  const remainingDue = getDueBnplRepayments({
+    liabilities: [afterFirst],
+    schedules: [processed, ...schedules.slice(1)],
+    today,
+  });
+  assert.equal(remainingDue.length, 1);
 });
 
 run("credit card commitment reduces usable balance", () => {

@@ -180,6 +180,8 @@ export type RepaymentSchedule = {
   feeAmount: number;
   status: "upcoming" | "paid" | "missed";
   paidDate: string;
+  processedAt?: string;
+  repaymentTransactionId?: string;
   notes: string;
   createdAt: string;
   updatedAt: string;

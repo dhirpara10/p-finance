@@ -1,6 +1,6 @@
 "use client";
 
-import { categoryIdFromName } from "@/lib/buckets";
+import { categoryIdFromName, normalizeCategoryId } from "@/lib/buckets";
 import { Actions, SettingsPanel } from "@/components/settings/SettingsAccountsPage";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
@@ -20,7 +20,9 @@ export function SettingsCategoriesPage({ state }: Props) {
             <div className="grid gap-2 sm:grid-cols-2">
               {state.expenseCategories.map((category) => {
                 const categoryId = categoryIdFromName(category);
-                const checked = tracker.linkedCategoryIds.includes(categoryId);
+                const checked = tracker.linkedCategoryIds
+                  .map(normalizeCategoryId)
+                  .includes(normalizeCategoryId(categoryId));
                 return (
                   <label key={category} className="flex items-center gap-2 rounded-xl bg-neutral-800 p-3 text-sm">
                     <input
@@ -29,7 +31,11 @@ export function SettingsCategoriesPage({ state }: Props) {
                       onChange={(event) => {
                         const next = event.target.checked
                           ? [...tracker.linkedCategoryIds, categoryId]
-                          : tracker.linkedCategoryIds.filter((id) => id !== categoryId);
+                          : tracker.linkedCategoryIds.filter(
+                              (id) =>
+                                normalizeCategoryId(id) !==
+                                normalizeCategoryId(categoryId)
+                            );
                         state.updateBucketListTrackerCategoryLinks(tracker.id, next);
                       }}
                     />

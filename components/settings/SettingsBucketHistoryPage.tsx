@@ -2,7 +2,12 @@
 
 import { SettingsPanel } from "@/components/settings/SettingsAccountsPage";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
-import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
+import {
+  bucketMatches,
+  expenseCategoryId,
+  getBucketLabel,
+  normalizeCategoryId,
+} from "@/lib/buckets";
 
 type Props = { state: FinanceDashboardState };
 
@@ -28,12 +33,16 @@ export function SettingsBucketHistoryPage({ state }: Props) {
         }))
     : tracker
       ? state.effectiveExpenses
-          .filter((expense) => tracker.linkedCategoryIds.includes(expense.categoryId || categoryIdFromName(expense.category)))
+          .filter((expense) =>
+            tracker.linkedCategoryIds
+              .map(normalizeCategoryId)
+              .includes(expenseCategoryId(expense))
+          )
           .map((expense) => ({
             id: expense.id,
             date: expense.date,
             title: expense.category,
-            detail: `${expense.account} · Expense`,
+            detail: `${expense.account} / Expense`,
             note: expense.notes,
             amount: expense.amount,
           }))

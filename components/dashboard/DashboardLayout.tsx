@@ -8,7 +8,12 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import Statistics from "@/components/dashboard/Statistics";
 import { SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
-import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
+import {
+  bucketMatches,
+  expenseCategoryId,
+  getBucketLabel,
+  normalizeCategoryId,
+} from "@/lib/buckets";
 import {
   ArrowDown,
   ArrowRightLeft,
@@ -563,7 +568,11 @@ function BucketHistoryPanel({
         }))
     : tracker
       ? state.effectiveExpenses
-          .filter((expense) => tracker.linkedCategoryIds.includes(expense.categoryId || categoryIdFromName(expense.category)))
+          .filter((expense) =>
+            tracker.linkedCategoryIds
+              .map(normalizeCategoryId)
+              .includes(expenseCategoryId(expense))
+          )
           .map((expense) => ({ id: expense.id, date: expense.date, title: expense.category, detail: expense.account, amount: expense.amount }))
       : [];
   rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

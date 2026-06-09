@@ -93,11 +93,11 @@ export function useFinanceDashboard() {
     id: string | number;
   } | null>(null);
 
-  const [initialCashBalance, setInitialCashBalance] = useState(200);
-  const [initialBankBalance, setInitialBankBalance] = useState(1400);
-  const [emergencyGoal, setEmergencyGoal] = useState(5000);
-  const [debtRepaymentGoal, setDebtRepaymentGoal] = useState(3000);
-  const [remittanceGoal, setRemittanceGoal] = useState(10000);
+  const [initialCashBalance, setInitialCashBalance] = useState(0);
+  const [initialBankBalance, setInitialBankBalance] = useState(0);
+  const [emergencyGoal, setEmergencyGoal] = useState(0);
+  const [debtRepaymentGoal, setDebtRepaymentGoal] = useState(0);
+  const [remittanceGoal, setRemittanceGoal] = useState(0);
   const [savingsBuckets, setSavingsBuckets] =
     useState<SavingsBucket[]>(defaultSavingsBuckets);
   const [bucketListTrackers, setBucketListTrackers] =
@@ -137,7 +137,7 @@ export function useFinanceDashboard() {
   const [incomeNotes, setIncomeNotes] = useState("");
 
   const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseCategory, setExpenseCategory] = useState("Spending Transfer");
+  const [expenseCategory, setExpenseCategory] = useState("Food");
   const [expenseAccount, setExpenseAccount] =
     useState<ExpenseAccount>("Bank");
   const [expenseDate, setExpenseDate] = useState(today);
@@ -197,7 +197,7 @@ export function useFinanceDashboard() {
 
   function resetExpenseForm() {
     setExpenseAmount("");
-    setExpenseCategory("Spending Transfer");
+    setExpenseCategory(expenseCategories[0] || "Food");
     setExpenseAccount("Bank");
     setExpenseDate(today);
     setExpenseNotes("");
@@ -659,34 +659,34 @@ export function useFinanceDashboard() {
       console.log("loaded settings", settings);
 
       setInitialCashBalance(
-        toNumber(getSettingValue(settings, "initial_cash_balance", "200"))
+        toNumber(getSettingValue(settings, "initial_cash_balance", "0"))
       );
       setInitialBankBalance(
         toNumber(
           getSettingValue(
             settings,
             "initial_bank_balance",
-            getSettingValue(settings, "initial_commbank_balance", "1400")
+            getSettingValue(settings, "initial_commbank_balance", "0")
           )
         )
       );
-      setEmergencyGoal(toNumber(getSettingValue(settings, "emergency_goal", "5000")));
+      setEmergencyGoal(toNumber(getSettingValue(settings, "emergency_goal", "0")));
       setDebtRepaymentGoal(
-        toNumber(getSettingValue(settings, "debt_repayment_goal", "3000"))
+        toNumber(getSettingValue(settings, "debt_repayment_goal", "0"))
       );
-      setRemittanceGoal(toNumber(getSettingValue(settings, "remittance_goal", "10000")));
+      setRemittanceGoal(toNumber(getSettingValue(settings, "remittance_goal", "0")));
       const loadedSavingsBuckets = parseJsonArray<SavingsBucket>(
         getSettingValue(settings, "savings_buckets", "[]"),
         []
       );
       const legacyEmergencyGoal = toNumber(
-        getSettingValue(settings, "emergency_goal", "5000")
+        getSettingValue(settings, "emergency_goal", "0")
       );
       const legacyDebtGoal = toNumber(
-        getSettingValue(settings, "debt_repayment_goal", "3000")
+        getSettingValue(settings, "debt_repayment_goal", "0")
       );
       const legacyRemittanceGoal = toNumber(
-        getSettingValue(settings, "remittance_goal", "10000")
+        getSettingValue(settings, "remittance_goal", "0")
       );
       setSavingsBuckets(
         loadedSavingsBuckets.length
@@ -757,7 +757,7 @@ export function useFinanceDashboard() {
       setDailyReminderTone(
         getSettingValue(settings, "daily_reminder_tone", "mixed") || "mixed"
       );
-      liabilityModule.hydrateLiabilities(
+      const hydratedLiabilities = liabilityModule.hydrateLiabilities(
         sheetData.Liabilities,
         sheetData.RepaymentSchedules,
         getSettingValue(
@@ -765,6 +765,10 @@ export function useFinanceDashboard() {
           "liability_settings",
           JSON.stringify(liabilityModule.liabilitySettings)
         )
+      );
+      await liabilityModule.processDueBnplRepayments(
+        hydratedLiabilities.liabilities,
+        hydratedLiabilities.repaymentSchedules
       );
 
       setIncomes((sheetData.income || []).map(parseIncomeRow));

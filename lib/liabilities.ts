@@ -181,3 +181,76 @@ export function parseLiabilitySettings(value: unknown): LiabilitySettings {
     return defaultLiabilitySettings;
   }
 }
+
+export function isRepaymentDue(
+  schedule: RepaymentSchedule,
+  today = new Date().toISOString().split("T")[0]
+) {
+  return (
+    schedule.status !== "paid" &&
+    !schedule.processedAt &&
+    Boolean(schedule.dueDate) &&
+    schedule.dueDate <= today
+  );
+}
+
+export function getDueBnplRepayments({
+  liabilities,
+  schedules,
+  today,
+}: {
+  liabilities: Liability[];
+  schedules: RepaymentSchedule[];
+  today?: string;
+}) {
+  const bnplIds = new Set(
+    liabilities
+      .filter(
+        (liability) =>
+          liability.type === "bnpl" &&
+          liability.status === "active" &&
+          liability.outstandingBalance > 0
+      )
+      .map((liability) => liability.id)
+  );
+
+  return schedules
+    .filter(
+      (schedule) =>
+        bnplIds.has(schedule.liabilityId) &&
+        isRepaymentDue(schedule, today)
+    )
+    .sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id)
+    );
+}
+
+export function applyRepaymentToLiability(
+  liability: Liability,
+  schedule: RepaymentSchedule
+) {
+  const principalReduction =
+    liability.type === "loan" ? schedule.principalAmount : schedule.amount;
+  const outstandingBalance = Math.max(
+    liability.outstandingBalance - principalReduction,
+    0
+  );
+
+  return {
+    ...liability,
+    outstandingBalance,
+    currentBalance:
+      liability.type === "credit_card"
+        ? outstandingBalance
+        : liability.currentBalance,
+    outstandingPrincipal:
+      liability.type === "loan"
+        ? outstandingBalance
+        : liability.outstandingPrincipal,
+    status:
+      outstandingBalance <= 0
+        ? ("paid" as const)
+        : liability.status,
+  };
+}
