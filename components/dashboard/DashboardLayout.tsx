@@ -74,7 +74,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
     ? effectiveExpenses
         .filter((expense) =>
           selectedTrackerHistory.linkedCategoryIds.includes(
-            categoryIdFromName(expense.category)
+            expense.categoryId || categoryIdFromName(expense.category)
           )
         )
         .map((expense) => ({

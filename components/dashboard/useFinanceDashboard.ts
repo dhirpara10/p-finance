@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, normalizeBucketId, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
+import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, normalizeBucketId, normalizeSavingsBuckets, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
 import { findPersonByName } from "@/lib/lending";
 import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
@@ -663,7 +663,7 @@ export function useFinanceDashboard() {
       );
       setSavingsBuckets(
         loadedSavingsBuckets.length
-          ? loadedSavingsBuckets
+          ? normalizeSavingsBuckets(loadedSavingsBuckets)
           : defaultSavingsBuckets.map((bucket) => {
               if (bucket.id === "savings_emergency_fund") {
                 return { ...bucket, targetAmount: legacyEmergencyGoal };

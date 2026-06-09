@@ -9,8 +9,7 @@ export type SavingsBucket = {
   name: string;
   targetAmount: number;
   currentBalance: number;
-  linkedAccount: AccountBucket;
-  storageLabel: string;
+  linkedStorageLabel: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { categoryIdFromName } from "@/lib/buckets";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import {
@@ -43,18 +44,26 @@ function AnalyticsCard({ title, subtitle, className = "", children }: { title: s
 
 export function Statistics({ state }: Props) {
   const { incomes, effectiveExpenses, currencySymbol, trackerSummaries, sharedRolloverJar, activeLent, activeBorrowed, monthlyHours, savingsBucketBalances } = state;
-  const grouped = new Map<string, { month: string; income: number; expenses: number; hours: number }>();
+  const trackerCategoryIds = new Set(
+    state.bucketListTrackers
+      .filter((tracker) => tracker.active)
+      .flatMap((tracker) => tracker.linkedCategoryIds)
+  );
+  const grouped = new Map<string, { month: string; income: number; expenses: number; trackedSpending: number; hours: number }>();
   incomes.forEach((item) => {
     const key = monthKey(item.date);
-    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, hours: 0 };
+    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, trackedSpending: 0, hours: 0 };
     row.income += item.amount;
     row.hours += item.hours;
     grouped.set(key, row);
   });
   effectiveExpenses.forEach((item) => {
     const key = monthKey(item.date);
-    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, hours: 0 };
+    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, trackedSpending: 0, hours: 0 };
     row.expenses += item.amount;
+    if (trackerCategoryIds.has(item.categoryId || categoryIdFromName(item.category))) {
+      row.trackedSpending += item.amount;
+    }
     grouped.set(key, row);
   });
   const monthly = [...grouped.values()].slice(-12).map((row, index, rows) => ({
@@ -68,8 +77,8 @@ export function Statistics({ state }: Props) {
   const jarData = monthly.map((row, index) => ({
     month: row.month,
     allocation: sharedRolloverJar.monthlyAllocation,
-    spending: row.expenses,
-    available: sharedRolloverJar.previousBalance + sharedRolloverJar.monthlyAllocation * (index + 1) - monthly.slice(0, index + 1).reduce((sum, item) => sum + item.expenses, 0),
+    spending: row.trackedSpending,
+    available: sharedRolloverJar.previousBalance + sharedRolloverJar.monthlyAllocation * (index + 1) - monthly.slice(0, index + 1).reduce((sum, item) => sum + item.trackedSpending, 0),
   }));
   const tooltipStyle = { background: "#171717", border: "1px solid #333", borderRadius: 14 };
 

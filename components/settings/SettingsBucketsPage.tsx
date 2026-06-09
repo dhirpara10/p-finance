@@ -6,7 +6,7 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 type Props = { state: FinanceDashboardState };
 
 export function SettingsBucketsPage({ state }: Props) {
-  function updateSavingsBucket(id: string, field: "targetAmount" | "active", value: number | boolean) {
+  function updateSavingsBucket(id: string, field: "targetAmount" | "linkedStorageLabel" | "active", value: number | string | boolean) {
     state.setSavingsBuckets(state.savingsBuckets.map((bucket) => bucket.id === id ? { ...bucket, [field]: value, updatedAt: new Date().toISOString() } : bucket));
   }
 
@@ -18,6 +18,9 @@ export function SettingsBucketsPage({ state }: Props) {
     <SettingsPanel title="Buckets" onBack={state.goBackSettingsPage}>
       <div className="space-y-3">
         <h3 className="font-semibold text-blue-300">Savings Buckets</h3>
+        <p className="text-sm text-neutral-500">
+          Real money containers funded through transfers. Funding reduces usable balance while net worth stays unchanged.
+        </p>
         {state.savingsBuckets.map((bucket) => (
           <div key={bucket.id} className="rounded-2xl bg-neutral-950 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -27,11 +30,17 @@ export function SettingsBucketsPage({ state }: Props) {
             <Field label="Target amount">
               <input type="number" value={String(bucket.targetAmount)} onChange={(event) => updateSavingsBucket(bucket.id, "targetAmount", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
+            <Field label="Storage label">
+              <input value={bucket.linkedStorageLabel} onChange={(event) => updateSavingsBucket(bucket.id, "linkedStorageLabel", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+            </Field>
           </div>
         ))}
       </div>
       <div className="space-y-3">
         <h3 className="font-semibold text-purple-300">Bucket List Trackers</h3>
+        <p className="text-sm text-neutral-500">
+          Virtual spending planners linked to categories. They never hold money or appear as transfer destinations; all rollover belongs to one shared jar.
+        </p>
         {state.bucketListTrackers.map((tracker) => (
           <div key={tracker.id} className="rounded-2xl bg-neutral-950 p-4">
             <div className="flex items-center justify-between gap-3">

@@ -8,8 +8,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
     name: "Emergency Fund",
     targetAmount: 5000,
     currentBalance: 0,
-    linkedAccount: "Bank",
-    storageLabel: "Bank",
+    linkedStorageLabel: "Bank",
     active: true,
     createdAt: now,
     updatedAt: now,
@@ -19,8 +18,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
     name: "Remittance",
     targetAmount: 10000,
     currentBalance: 0,
-    linkedAccount: "Bank",
-    storageLabel: "Bank",
+    linkedStorageLabel: "Bank",
     active: true,
     createdAt: now,
     updatedAt: now,
@@ -30,8 +28,7 @@ export const defaultSavingsBuckets: SavingsBucket[] = [
     name: "Debt Collection",
     targetAmount: 3000,
     currentBalance: 0,
-    linkedAccount: "Bank",
-    storageLabel: "Bank",
+    linkedStorageLabel: "Bank",
     active: true,
     createdAt: now,
     updatedAt: now,
@@ -163,6 +160,24 @@ export function parseJsonArray<T>(value: string, fallback: T[]) {
   } catch {}
 
   return fallback;
+}
+
+export function normalizeSavingsBuckets(buckets: SavingsBucket[]) {
+  return buckets.map((bucket) => {
+    const legacy = bucket as SavingsBucket & {
+      linkedAccount?: string;
+      storageLabel?: string;
+    };
+
+    return {
+      ...bucket,
+      linkedStorageLabel:
+        legacy.linkedStorageLabel ||
+        legacy.storageLabel ||
+        legacy.linkedAccount ||
+        "Bank",
+    };
+  });
 }
 
 export function findDuplicateTrackerCategory(

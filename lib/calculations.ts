@@ -327,7 +327,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const trackerSummaries = activeTrackers.map((tracker) => {
     const linkedIds = new Set(tracker.linkedCategoryIds);
     const trackerExpenses = thisMonthExpenses.filter((expense) =>
-      linkedIds.has(categoryIdFromName(expense.category))
+      linkedIds.has(expense.categoryId || categoryIdFromName(expense.category))
     );
     const spentThisMonth = trackerExpenses.reduce(
       (sum, expense) => sum + expense.amount,
