@@ -177,6 +177,8 @@ export function useFinanceDashboard() {
     string | number | null
   >(null);
   const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementAccount, setSettlementAccount] =
+    useState<ExpenseAccount>("Bank");
   const [settlementDate, setSettlementDate] = useState(today);
   const [settlementNotes, setSettlementNotes] = useState("");
 
@@ -230,6 +232,7 @@ export function useFinanceDashboard() {
   function resetSettlementForm() {
     setSettlementProfileId(null);
     setSettlementAmount("");
+    setSettlementAccount("Bank");
     setSettlementDate(today);
     setSettlementNotes("");
   }
@@ -1317,6 +1320,7 @@ export function useFinanceDashboard() {
   function openSettlement(profileId: string | number, amount?: number) {
     setSettlementProfileId(profileId);
     setSettlementAmount(amount ? String(amount) : "");
+    setSettlementAccount("Bank");
     setSettlementDate(getToday());
     setSettlementNotes("");
   }
@@ -1342,6 +1346,7 @@ export function useFinanceDashboard() {
       person,
       type: "settlement",
       amount,
+      account: settlementAccount,
       date: settlementDate || getToday(),
       note: settlementNotes,
     });
@@ -1352,6 +1357,7 @@ export function useFinanceDashboard() {
   }
 
   async function deleteSettlement(id: string | number) {
+    if (!window.confirm("Delete this settlement?")) return;
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
@@ -1360,6 +1366,7 @@ export function useFinanceDashboard() {
   }
 
   async function deleteLendingTransaction(id: string | number) {
+    if (!window.confirm("Delete this lending transaction?")) return;
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
@@ -1368,30 +1375,35 @@ export function useFinanceDashboard() {
   }
 
   async function deleteIncome(id: string | number) {
+    if (!window.confirm("Delete this income transaction?")) return;
     const deleted = await deleteFromSheet("income", id);
     if (!deleted) return;
     setIncomes(incomes.filter((item) => String(item.id) !== String(id)));
   }
 
   async function deleteExpense(id: string | number) {
+    if (!window.confirm("Delete this expense transaction?")) return;
     const deleted = await deleteFromSheet("expenses", id);
     if (!deleted) return;
     setExpenses(expenses.filter((item) => String(item.id) !== String(id)));
   }
 
   async function deleteTransfer(id: string | number) {
+    if (!window.confirm("Delete this transfer?")) return;
     const deleted = await deleteFromSheet("transfers", id);
     if (!deleted) return;
     setTransfers(transfers.filter((item) => String(item.id) !== String(id)));
   }
 
   async function deleteLent(id: string | number) {
+    if (!window.confirm("Delete this legacy lending record?")) return;
     const deleted = await deleteFromSheet("lent", id);
     if (!deleted) return;
     setLentRecords(lentRecords.filter((item) => String(item.id) !== String(id)));
   }
 
   async function deleteBorrowed(id: string | number) {
+    if (!window.confirm("Delete this legacy borrowing record?")) return;
     const deleted = await deleteFromSheet("borrowed", id);
     if (!deleted) return;
     setBorrowedRecords(
@@ -1606,7 +1618,7 @@ export function useFinanceDashboard() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

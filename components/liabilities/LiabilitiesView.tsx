@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import type { Liability, LiabilityType } from "@/lib/types";
 import {
   CalendarClock,
@@ -55,28 +56,25 @@ export function LiabilitiesView({ state }: Props) {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="section-kicker text-red-300/70">LIABILITIES</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Money you owe</h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            Repayments reduce Bank and debt, without counting the purchase twice.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(["bnpl", "credit_card", "loan"] as LiabilityType[]).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => state.openNewLiability(type)}
-              className="flex h-11 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 text-sm font-semibold text-neutral-200 transition hover:bg-white/[0.08]"
-            >
-              <Plus size={16} />
-              {type === "bnpl" ? "BNPL" : type === "credit_card" ? "Card" : "Loan"}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Liabilities"
+        description="Track what you owe and repay debt without counting the original purchase twice."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {(["bnpl", "credit_card", "loan"] as LiabilityType[]).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => state.openNewLiability(type)}
+                className="flex h-11 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 text-sm font-semibold text-neutral-200 transition hover:bg-white/[0.08]"
+              >
+                <Plus size={16} />
+                {type === "bnpl" ? "BNPL" : type === "credit_card" ? "Card" : "Loan"}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-6">
         {summaries.map(([label, value, Icon, color]) => (

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import Statistics from "@/components/dashboard/Statistics";
 import { SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
@@ -94,7 +95,7 @@ export function DashboardLayout({ state }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-[#080a0d] pb-28 text-white md:pb-8">
+    <main className="min-h-screen overflow-x-clip bg-[#080a0d] pb-36 text-white md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
         <AppHeader state={state} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
@@ -143,13 +144,15 @@ export function DashboardLayout({ state }: Props) {
         </div>
       </div>
 
-      <FloatingActionMenu
-        onAddIncome={openIncome}
-        onAddExpense={openExpense}
-        onTransfer={openTransfer}
-        onLent={openLent}
-        onBorrowed={openBorrowed}
-      />
+      {activeTab === "home" && (
+        <FloatingActionMenu
+          onAddIncome={openIncome}
+          onAddExpense={openExpense}
+          onTransfer={openTransfer}
+          onLent={openLent}
+          onBorrowed={openBorrowed}
+        />
+      )}
       <MobileNavigation activeTab={activeTab} onSelect={selectTab} />
     </main>
   );
@@ -256,9 +259,8 @@ function HomeView({
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
   return (
     <div className="space-y-8">
-      <section className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scroll-smooth sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
+      <section className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 scroll-smooth sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
         <BalanceCard
-          primary
           icon={Wallet}
           label="Usable balance"
           value={state.usableBalance}
@@ -267,7 +269,6 @@ function HomeView({
           tone="emerald"
         />
         <BalanceCard
-          primary
           icon={Landmark}
           label="Net worth"
           value={state.netWorth}
@@ -398,7 +399,6 @@ function BalanceCard({
   helper,
   currency,
   tone,
-  primary = false,
 }: {
   icon: typeof Wallet;
   label: string;
@@ -406,7 +406,6 @@ function BalanceCard({
   helper: string;
   currency: string;
   tone: "emerald" | "blue" | "purple" | "neutral" | "warning";
-  primary?: boolean;
 }) {
   const tones = {
     emerald: "from-emerald-400/[0.16] border-emerald-300/15 text-emerald-200",
@@ -416,7 +415,7 @@ function BalanceCard({
     warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-200",
   };
   return (
-    <article className={`min-w-[84vw] snap-start rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:min-w-0 ${tones[tone]} ${primary ? "sm:min-h-44" : ""}`}>
+    <article className={`flex min-h-[168px] w-[84vw] shrink-0 snap-start flex-col rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:w-auto sm:min-w-0 ${tones[tone]}`}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-neutral-400">{label}</p>
         <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.07]">
@@ -426,7 +425,7 @@ function BalanceCard({
       <p className="mt-5 truncate text-[clamp(1.55rem,3vw,2.15rem)] font-semibold tracking-tight text-white">
         {value < 0 ? "-" : ""}{currency}{Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
       </p>
-      <p className="mt-3 text-xs leading-5 text-neutral-500">{helper}</p>
+      <p className="mt-auto pt-3 text-xs leading-5 text-neutral-500">{helper}</p>
     </article>
   );
 }
@@ -483,13 +482,10 @@ function BucketsView({
 
   return (
     <div className="space-y-10">
-      <div>
-        <p className="section-kicker text-purple-300">PLANNING & PROTECTION</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Buckets</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-          Protected savings hold real money. Lifestyle trackers organize spending through one shared rollover jar.
-        </p>
-      </div>
+      <PageHeader
+        title="Buckets"
+        description="Protected savings hold real money. Lifestyle trackers organize spending through one shared rollover jar."
+      />
       <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
         <SharedJarCard state={state} onAllocate={onAllocate} />
       </div>
@@ -621,11 +617,10 @@ function ActivityView({
 }) {
   return (
     <div className="space-y-5">
-      <div>
-        <p className="section-kicker text-cyan-300">MONEY MOVEMENT</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Activity</h2>
-        <p className="mt-2 text-sm text-neutral-500">Every transaction, newest first.</p>
-      </div>
+      <PageHeader
+        title="Activity"
+        description="Every transaction, newest first."
+      />
       <div className="grid gap-3 sm:grid-cols-[1fr_190px]">
         <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4">
           <Search size={17} className="text-neutral-500" />
@@ -732,8 +727,8 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
         return (
-          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
-            <Icon size={17} />
+          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
+            <Icon size={16} />
             {tab.mobileLabel}
           </button>
         );

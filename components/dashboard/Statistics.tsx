@@ -1,6 +1,7 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import { categoryIdFromName } from "@/lib/buckets";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
@@ -74,6 +75,8 @@ export function Statistics({ state }: Props) {
     activeBorrowed,
     monthlyHours,
     savingsBucketBalances,
+    repaymentSchedules,
+    netWorth,
   } = state;
   const trackerCategoryIds = new Set(
     state.bucketListTrackers
@@ -89,6 +92,7 @@ export function Statistics({ state }: Props) {
       expenses: number;
       trackedSpending: number;
       hours: number;
+      financeCosts: number;
     }
   >();
 
@@ -106,6 +110,7 @@ export function Statistics({ state }: Props) {
         expenses: 0,
         trackedSpending: 0,
         hours: 0,
+        financeCosts: 0,
       }
     );
   }
@@ -124,19 +129,36 @@ export function Statistics({ state }: Props) {
     }
     grouped.set(row.month, row);
   });
+  repaymentSchedules
+    .filter((item) => item.status === "paid")
+    .forEach((item) => {
+      const row = rowFor(item.paidDate || item.dueDate);
+      row.financeCosts += item.interestAmount + item.feeAmount;
+      grouped.set(row.month, row);
+    });
 
   const baseMonthly = [...grouped.values()]
     .sort((a, b) => a.sort - b.sort)
     .slice(-12);
-  const monthly = (baseMonthly.length
+  const baseMonthlyWithFallback = (baseMonthly.length
     ? baseMonthly
-    : [{ month: monthKey(new Date().toISOString()), sort: Date.now(), income: 0, expenses: 0, trackedSpending: 0, hours: 0 }]
-  ).map((row, index, rows) => ({
+    : [{ month: monthKey(new Date().toISOString()), sort: Date.now(), income: 0, expenses: 0, trackedSpending: 0, hours: 0, financeCosts: 0 }]
+  );
+  const cumulativeMovement = baseMonthlyWithFallback.reduce(
+    (sum, row) => sum + row.income - row.expenses - row.financeCosts,
+    0
+  );
+  const openingNetWorth = netWorth - cumulativeMovement;
+  const monthly = baseMonthlyWithFallback.map((row, index, rows) => ({
     ...row,
-    remaining: row.income - row.expenses,
-    netWorth: rows
+    remaining: row.income - row.expenses - row.financeCosts,
+    netWorth: openingNetWorth + rows
       .slice(0, index + 1)
-      .reduce((sum, item) => sum + item.income - item.expenses, 0),
+      .reduce(
+        (sum, item) =>
+          sum + item.income - item.expenses - item.financeCosts,
+        0
+      ),
   }));
 
   const categoryMap = new Map<string, number>();
@@ -166,19 +188,16 @@ export function Statistics({ state }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p className="section-kicker text-sky-300">FINANCIAL INTELLIGENCE</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Stats & Analytics</h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            Trends and behavior without spreadsheet noise.
-          </p>
-        </div>
-        <div className="flex gap-6 rounded-2xl border border-white/[0.055] bg-white/[0.025] px-5 py-3">
-          <MiniStat label="Hours" value={`${monthlyHours.toLocaleString()}h`} />
-          <MiniStat label="Savings" value={`${currencySymbol}${savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}`} />
-        </div>
-      </div>
+      <PageHeader
+        title="Stats & Analytics"
+        description="Trends and behavior without spreadsheet noise."
+        actions={
+          <div className="flex gap-6 rounded-2xl border border-white/[0.055] bg-white/[0.025] px-5 py-3">
+            <MiniStat label="Hours" value={`${monthlyHours.toLocaleString()}h`} />
+            <MiniStat label="Savings" value={`${currencySymbol}${savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}`} />
+          </div>
+        }
+      />
 
       <div className="grid gap-5 xl:grid-cols-12">
         <AnalyticsCard title="Net Worth Trend" subtitle="Cumulative financial movement" className="xl:col-span-7">
@@ -294,6 +313,11 @@ export function Statistics({ state }: Props) {
                 <span className="font-medium">{row.month}</span>
                 <span className="text-emerald-300">+{currencySymbol}{row.income.toLocaleString()}</span>
                 <span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span>
+                {row.financeCosts > 0 && (
+                  <span className="text-orange-300">
+                    Finance -{currencySymbol}{row.financeCosts.toLocaleString()}
+                  </span>
+                )}
                 <span className="text-neutral-500">{row.hours}h</span>
               </div>
             ))}

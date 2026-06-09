@@ -1,6 +1,7 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { SelectField } from "@/components/forms/SelectField";
 import type { LendingTransaction, PersonProfile } from "@/lib/types";
 
 type LendingDetailsProps = { state: FinanceDashboardState; };
@@ -40,6 +41,8 @@ export function LendingDetails({ state }: LendingDetailsProps) {
     settlementProfileId,
     settlementAmount,
     setSettlementAmount,
+    settlementAccount,
+    setSettlementAccount,
     settlementDate,
     setSettlementDate,
     settlementNotes,
@@ -177,6 +180,18 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                       value={settlementAmount}
                       onChange={(e) => setSettlementAmount(e.target.value)}
                       className="w-full rounded-2xl bg-neutral-900 p-4 outline-none"
+                    />
+
+                    <SelectField
+                      aria-label="Settlement account"
+                      value={settlementAccount}
+                      onChange={(event) =>
+                        setSettlementAccount(event.target.value as "Bank" | "Cash")
+                      }
+                      options={[
+                        { value: "Bank", label: "Bank" },
+                        { value: "Cash", label: "Cash" },
+                      ]}
                     />
 
                     <input

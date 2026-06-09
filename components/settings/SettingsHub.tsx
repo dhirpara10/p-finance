@@ -1,6 +1,7 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type SettingsHubProps = { state: FinanceDashboardState };
 
@@ -20,9 +21,10 @@ export function SettingsHub({ state }: SettingsHubProps) {
   return (
     <section className="surface-card rounded-3xl border border-white/[0.055] p-5 sm:p-7">
       <div className="mb-5">
-        <p className="section-kicker text-neutral-500">SETTINGS</p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Finance preferences</h2>
-        <p className="mt-2 text-sm text-neutral-500">Accounts, planning, reminders, and security in one place.</p>
+        <PageHeader
+          title="Settings"
+          description="Accounts, planning, reminders, and security in one place."
+        />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {pages.map(([page, title, description]) => (

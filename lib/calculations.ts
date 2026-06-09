@@ -223,6 +223,57 @@ function isBucket(value: unknown, bucket: Bucket | SavingsBucket) {
   return bucketMatches(value, bucket);
 }
 
+function getSettlementAccountMovement(
+  lendingTransactions: LendingTransactionRecord[]
+) {
+  const totals = {
+    bankIn: 0,
+    bankOut: 0,
+    cashIn: 0,
+    cashOut: 0,
+  };
+  const transactionsByPerson = new Map<string, LendingTransactionRecord[]>();
+
+  lendingTransactions.forEach((transaction) => {
+    const key = String(transaction.personId);
+    const transactions = transactionsByPerson.get(key) || [];
+    transactions.push(transaction);
+    transactionsByPerson.set(key, transactions);
+  });
+
+  transactionsByPerson.forEach((transactions) => {
+    let balance = 0;
+    [...transactions]
+      .sort(
+        (a, b) =>
+          getActivityTime(a.date) - getActivityTime(b.date) ||
+          compareActivityIds(a.id, b.id)
+      )
+      .forEach((transaction) => {
+        if (transaction.type === "lent") {
+          balance += transaction.amount;
+          return;
+        }
+
+        if (transaction.type === "borrowed") {
+          balance -= transaction.amount;
+          return;
+        }
+
+        const cashAccount = transaction.account === "Cash";
+        if (balance > 0) {
+          totals[cashAccount ? "cashIn" : "bankIn"] += transaction.amount;
+          balance = Math.max(0, balance - transaction.amount);
+        } else if (balance < 0) {
+          totals[cashAccount ? "cashOut" : "bankOut"] += transaction.amount;
+          balance = Math.min(0, balance + transaction.amount);
+        }
+      });
+  });
+
+  return totals;
+}
+
 export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
   const expenseRangeStart = new Date();
   expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
@@ -274,6 +325,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
         item.account === "Cash"
     )
     .reduce((sum, item) => sum + item.amount, 0);
+  const settlementMovement = getSettlementAccountMovement(lendingTransactions);
   const paidLiabilityRepayments = repaymentSchedules
     .filter((item) => item.status === "paid")
     .reduce((sum, item) => sum + item.amount, 0);
@@ -318,27 +370,27 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
 
   function bucketIn(bucket: Bucket | SavingsBucket) {
     return transfers
-      .filter(
-        (item) =>
-          item.to_bucket !== "shared_rollover_jar" &&
-          item.from_bucket !== "shared_rollover_jar" &&
-          isBucket(item.to_bucket, bucket)
-      )
+      .filter((item) => isBucket(item.to_bucket, bucket))
       .reduce((sum, item) => sum + item.amount, 0);
   }
 
   function bucketOut(bucket: Bucket | SavingsBucket) {
     return transfers
-      .filter(
-        (item) =>
-          item.to_bucket !== "shared_rollover_jar" &&
-          item.from_bucket !== "shared_rollover_jar" &&
-          isBucket(item.from_bucket, bucket)
-      )
+      .filter((item) => isBucket(item.from_bucket, bucket))
       .reduce((sum, item) => sum + item.amount, 0);
   }
 
-  const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - paidLiabilityRepayments - bucketOut("Bank") + bucketIn("Bank");
+  const bankBalance =
+    initialBankBalance +
+    totalUsableIncome +
+    borrowedToBank +
+    settlementMovement.bankIn -
+    lentFromBank -
+    expenseFromBank -
+    paidLiabilityRepayments -
+    settlementMovement.bankOut -
+    bucketOut("Bank") +
+    bucketIn("Bank");
   const savingsBucketBalances = savingsBuckets.map((bucket) => {
     const currentBalance =
       toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket);
@@ -353,13 +405,19 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     (sum, bucket) => sum + bucket.currentBalance,
     0
   );
-  const cashBalance = initialCashBalance + totalCashReceivedFromIncome + borrowedToCash - lentFromCash + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
+  const cashBalance =
+    initialCashBalance +
+    totalCashReceivedFromIncome +
+    borrowedToCash +
+    settlementMovement.cashIn -
+    lentFromCash -
+    settlementMovement.cashOut +
+    bucketIn("Cash") -
+    bucketOut("Cash") -
+    expenseFromCash;
   const accountBalance = bankBalance + cashBalance;
   const usableBalance = accountBalance - bnplOwed - creditCardOwed;
   const safeToSpend = usableBalance - upcomingLoanCommitment;
-  const totalMoney = accountBalance + totalSavingsBuckets;
-  const netWorth =
-    totalMoney + activeLent - activeBorrowed - totalLiabilities;
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
   const monthlyExpenses = effectiveExpenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
@@ -442,6 +500,12 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
   const manualJarWithdrawals = transfers
     .filter((transfer) => transfer.from_bucket === "shared_rollover_jar")
     .reduce((sum, transfer) => sum + transfer.amount, 0);
+  const sharedJarStoredBalance =
+    sharedRolloverJarBalance + manualJarAllocations - manualJarWithdrawals;
+  const totalMoney =
+    accountBalance + totalSavingsBuckets + sharedJarStoredBalance;
+  const netWorth =
+    totalMoney + activeLent - activeBorrowed - totalLiabilities;
   const totalTrackedSpending = effectiveExpenses
     .filter(
       (expense) =>
@@ -461,6 +525,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     monthlyResult: sharedJarMonthlyResult,
     manualAllocations: manualJarAllocations,
     manualWithdrawals: manualJarWithdrawals,
+    storedBalance: sharedJarStoredBalance,
     carried: sharedRolloverJarBalance + totalHistoricalAllocations + manualJarAllocations - manualJarWithdrawals - totalMonthlyTrackerAllocation - (totalTrackedSpending - sharedJarSpentThisMonth),
     available:
       sharedRolloverJarBalance +

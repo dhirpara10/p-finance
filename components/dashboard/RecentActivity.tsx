@@ -11,6 +11,25 @@ type RecentActivityProps = {
   typeFilter?: string;
 };
 
+export function formatActivityAmount(
+  type: FinanceDashboardState["recentActivity"][number]["type"],
+  amount: number,
+  currencySymbol: string
+) {
+  const safeAmount = Number.isFinite(amount) ? Math.abs(amount) : 0;
+  const formatted = safeAmount.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
+  const sign =
+    type === "income" || type === "lent"
+      ? "+"
+      : type === "transfer" || type === "settlement"
+        ? "→"
+        : "−";
+
+  return `${sign} ${currencySymbol}${formatted}`;
+}
+
 export function RecentActivity({
   state,
   showAll,
@@ -70,13 +89,6 @@ export function RecentActivity({
                   ? "text-blue-400"
                   : "text-red-400";
 
-            const prefix =
-              item.type === "income" || item.type === "lent"
-                ? "+"
-                : item.type === "transfer" || item.type === "settlement"
-                  ? "->"
-                  : "-";
-
             const safeAmount =
               typeof item.amount === "number" && !Number.isNaN(item.amount)
                 ? item.amount
@@ -87,10 +99,10 @@ export function RecentActivity({
                 key={`${item.source ?? "activity"}-${item.type}-${String(
                   item.id ?? "no-id"
                 )}-${index}`}
-                className="group flex items-center justify-between gap-3 rounded-2xl px-2 py-3 transition hover:bg-white/[0.025] sm:px-3"
+                className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-1.5 py-3 transition hover:bg-white/[0.025] sm:px-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${isJarAllocation ? "bg-purple-500/15 text-purple-300" : item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : item.type === "liability_repayment" ? "bg-orange-500/15 text-orange-300" : "bg-red-500/15 text-red-300"}`}>
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isJarAllocation ? "bg-purple-500/15 text-purple-300" : item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : item.type === "liability_repayment" ? "bg-orange-500/15 text-orange-300" : "bg-red-500/15 text-red-300"}`}>
                     <Icon size={18} />
                   </span>
                   <div className="min-w-0">
@@ -98,8 +110,13 @@ export function RecentActivity({
                       <p className="truncate font-medium">
                         {item.title?.trim() || "Untitled activity"}
                       </p>
+                    </div>
+                    <p className="truncate text-xs text-neutral-400">
+                      {item.date || "No date"} / {item.subtitle || "No details"}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <span className="rounded-full bg-white/[0.055] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-neutral-400">
-                        {item.type}
+                        {item.type.replaceAll("_", " ")}
                       </span>
                       {item.isRecurring && (
                         <span className="flex items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] text-purple-200">
@@ -107,33 +124,32 @@ export function RecentActivity({
                         </span>
                       )}
                     </div>
-                    <p className="truncate text-xs text-neutral-400">
-                      {item.date || "No date"} - {item.subtitle || "No details"}
-                    </p>
                   </div>
                 </div>
 
-                <div className="shrink-0 text-right">
-                  <p className={`font-semibold ${amountClass}`}>
-                    {prefix}${safeAmount.toLocaleString()}
+                <div className="min-w-[92px] shrink-0 text-right">
+                  <p className={`whitespace-nowrap text-sm font-semibold tabular-nums sm:text-base ${amountClass}`}>
+                    {formatActivityAmount(item.type, safeAmount, state.currencySymbol)}
                   </p>
 
-                  <div className="mt-1.5 flex items-center justify-end gap-1 opacity-70 transition group-hover:opacity-100">
+                  <div className="mt-1 flex items-center justify-end gap-1 transition sm:opacity-70 sm:group-hover:opacity-100">
                     <button
                       type="button"
+                      aria-label={`Edit ${item.title}`}
                       onClick={() =>
                         item.type === "liability_repayment"
                           ? setEditingScheduleId(String(item.id))
                           : startEdit(item)
                       }
                       disabled={item.source === "lendingTransaction"}
-                      className="rounded-full p-1 text-blue-400 hover:bg-neutral-700 disabled:text-neutral-600"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-400 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
                     >
                       <Pencil size={15} />
                     </button>
 
                     <button
                       type="button"
+                      aria-label={`Delete ${item.title}`}
                       onClick={() => {
                         if (
                           item.id === undefined ||
@@ -169,7 +185,7 @@ export function RecentActivity({
                           return;
                         }
                       }}
-                      className="rounded-full p-1 text-neutral-500 hover:bg-neutral-700 hover:text-red-300"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-700 hover:text-red-300"
                     >
                       <Trash2 size={15} />
                     </button>
