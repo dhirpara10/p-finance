@@ -28,8 +28,10 @@ import {
   List,
   Lock,
   Menu,
+  Pencil,
   PiggyBank,
   ReceiptText,
+  RotateCcw,
   Search,
   Settings,
   TrendingDown,
@@ -100,8 +102,8 @@ export function DashboardLayout({ state }: Props) {
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#080a0d] pb-36 text-white md:pb-8">
-      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
+    <main className="min-h-screen overflow-x-clip bg-[#080a0d] pb-[calc(9rem+env(safe-area-inset-bottom))] text-white md:pb-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
         <AppHeader state={state} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
 
@@ -285,7 +287,7 @@ function HomeView({
           icon={state.remaining >= 0 ? TrendingUp : TrendingDown}
           label="Month remaining"
           value={state.remaining}
-          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in · ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
+          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in / ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
           currency={state.currencySymbol}
           tone={state.remaining >= 0 ? "neutral" : "warning"}
         />
@@ -482,8 +484,6 @@ function BucketsView({
   onAllocate: () => void;
 }) {
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
-  const selectedSavings = bucketHistory?.type === "savings" ? state.savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id) : null;
-  const selectedTracker = bucketHistory?.type === "tracker" ? state.trackerSummaries.find((tracker) => tracker.id === bucketHistory.id) : null;
 
   return (
     <div className="space-y-10">
@@ -499,21 +499,27 @@ function BucketsView({
         <SectionTitle title="Protected savings" subtitle="Real money held away from your usable balance" />
         <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.map((bucket) => (
-            <SavingsBucketCard
+            <FlipBucketCard
               key={bucket.id}
-              bucket={bucket}
-              currencySymbol={state.currencySymbol}
-              onFund={() => {
-                state.setFromBucket("Bank");
-                state.setToBucket(bucket.id);
-                state.setShowTransferForm(true);
-              }}
-              onWithdraw={() => {
-                state.setFromBucket(bucket.id);
-                state.setToBucket("Bank");
-                state.setShowTransferForm(true);
-              }}
-              onHistory={() => setBucketHistory({ type: "savings", id: bucket.id })}
+              flipped={bucketHistory?.type === "savings" && bucketHistory.id === bucket.id}
+              front={
+                <SavingsBucketCard
+                  bucket={bucket}
+                  currencySymbol={state.currencySymbol}
+                  onFund={() => {
+                    state.setFromBucket("Bank");
+                    state.setToBucket(bucket.id);
+                    state.setShowTransferForm(true);
+                  }}
+                  onWithdraw={() => {
+                    state.setFromBucket(bucket.id);
+                    state.setToBucket("Bank");
+                    state.setShowTransferForm(true);
+                  }}
+                  onHistory={() => setBucketHistory({ type: "savings", id: bucket.id })}
+                />
+              }
+              back={<BucketHistoryBack state={state} savings={bucket} onClose={() => setBucketHistory(null)} />}
             />
           ))}
         </div>
@@ -523,37 +529,66 @@ function BucketsView({
         <SectionTitle title="Lifestyle trackers" subtitle="Virtual monthly plans powered by the shared jar" />
         <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.map((tracker) => (
-            <TrackerCard
+            <FlipBucketCard
               key={tracker.id}
-              tracker={tracker}
-              currencySymbol={state.currencySymbol}
-              onHistory={() => setBucketHistory({ type: "tracker", id: tracker.id })}
+              flipped={bucketHistory?.type === "tracker" && bucketHistory.id === tracker.id}
+              front={
+                <TrackerCard
+                  tracker={tracker}
+                  currencySymbol={state.currencySymbol}
+                  onHistory={() => setBucketHistory({ type: "tracker", id: tracker.id })}
+                />
+              }
+              back={<BucketHistoryBack state={state} tracker={tracker} onClose={() => setBucketHistory(null)} />}
             />
           ))}
         </div>
       </section>
 
-      {bucketHistory && (
-        <BucketHistoryPanel
-          state={state}
-          savings={selectedSavings}
-          tracker={selectedTracker}
-          onClose={() => setBucketHistory(null)}
-        />
-      )}
     </div>
   );
 }
 
-function BucketHistoryPanel({
+function FlipBucketCard({
+  flipped,
+  front,
+  back,
+}: {
+  flipped: boolean;
+  front: React.ReactNode;
+  back: React.ReactNode;
+}) {
+  return (
+    <div className={`bucket-flip ${flipped ? "is-flipped" : ""}`}>
+      <div className="bucket-flip-inner">
+        <div
+          aria-hidden={flipped}
+          inert={flipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-front"
+        >
+          {front}
+        </div>
+        <div
+          aria-hidden={!flipped}
+          inert={!flipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-back"
+        >
+          {back}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BucketHistoryBack({
   state,
   savings,
   tracker,
   onClose,
 }: {
   state: FinanceDashboardState;
-  savings: FinanceDashboardState["savingsBucketBalances"][number] | null | undefined;
-  tracker: FinanceDashboardState["trackerSummaries"][number] | null | undefined;
+  savings?: FinanceDashboardState["savingsBucketBalances"][number] | null;
+  tracker?: FinanceDashboardState["trackerSummaries"][number] | null;
   onClose: () => void;
 }) {
   const rows = savings
@@ -565,6 +600,7 @@ function BucketHistoryPanel({
           title: bucketMatches(transfer.to_bucket, savings) ? "Transfer in" : "Transfer out",
           detail: getBucketLabel(bucketMatches(transfer.from_bucket, savings) ? transfer.to_bucket : transfer.from_bucket, state.savingsBucketBalances),
           amount: transfer.amount,
+          kind: "transfer" as const,
         }))
     : tracker
       ? state.effectiveExpenses
@@ -573,12 +609,12 @@ function BucketHistoryPanel({
               .map(normalizeCategoryId)
               .includes(expenseCategoryId(expense))
           )
-          .map((expense) => ({ id: expense.id, date: expense.date, title: expense.category, detail: expense.account, amount: expense.amount }))
+          .map((expense) => ({ id: expense.id, date: expense.date, title: expense.category, detail: expense.account, amount: expense.amount, kind: "expense" as const }))
       : [];
   rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <section className="surface-card rounded-[28px] border border-white/[0.06] p-5 sm:p-6">
+    <section className={`h-full min-h-[330px] rounded-3xl border p-5 ${savings ? "savings-card border-sky-400/15" : "tracker-card border-purple-400/15"}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">History</p>
@@ -594,11 +630,43 @@ function BucketHistoryPanel({
           <HistoryMetric label="Monthly result" value={`${state.currencySymbol}${state.sharedRolloverJar.monthlyResult.toLocaleString()}`} />
         </div>
       )}
-      <div className="mt-5 divide-y divide-white/[0.05]">
+      <div className="no-scrollbar mt-5 max-h-[220px] divide-y divide-white/[0.05] overflow-y-auto pr-1">
         {rows.map((row) => (
-          <div key={String(row.id)} className="flex items-center justify-between gap-4 py-3.5">
-            <div><p className="text-sm font-medium">{row.title}</p><p className="mt-1 text-xs text-neutral-500">{row.date} · {row.detail}</p></div>
-            <p className="text-sm font-semibold">{state.currencySymbol}{row.amount.toLocaleString()}</p>
+          <div key={String(row.id)} className="flex items-center justify-between gap-3 py-3.5">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.title}</p>
+              <p className="mt-1 truncate text-xs text-neutral-500">{row.date} / {row.detail}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <p className="mr-1 text-sm font-semibold tabular-nums">{state.currencySymbol}{row.amount.toLocaleString()}</p>
+              <button
+                type="button"
+                aria-label={`Edit ${row.title}`}
+                onClick={() =>
+                  state.startEdit({
+                    id: row.id,
+                    type: row.kind,
+                    date: row.date,
+                    title: row.title,
+                    subtitle: row.detail,
+                    amount: row.amount,
+                  })
+                }
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                <Pencil size={14} />
+              </button>
+              {row.kind === "transfer" && (
+                <button
+                  type="button"
+                  aria-label={`Reverse ${row.title}`}
+                  onClick={() => state.reverseTransfer(row.id)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-white/[0.06] hover:text-orange-200"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              )}
+            </div>
           </div>
         ))}
         {!rows.length && <p className="py-6 text-center text-sm text-neutral-500">No activity yet</p>}
@@ -731,13 +799,13 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-2 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
         return (
-          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
-            <Icon size={16} />
+          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-500"}`}>
+            <Icon size={17} />
             {tab.mobileLabel}
           </button>
         );

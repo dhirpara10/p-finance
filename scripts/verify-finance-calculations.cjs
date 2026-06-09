@@ -32,6 +32,13 @@ const {
   applyRepaymentToLiability,
   getDueBnplRepayments,
 } = require("../lib/liabilities.ts");
+const {
+  addAllocationFrequency,
+  advanceRecurringAllocation,
+  getDueAllocationDates,
+  hasAllocationExecution,
+  recurringExecutionId,
+} = require("../lib/recurringAllocations.ts");
 
 const today = new Date().toISOString().slice(0, 10);
 const empty = {
@@ -478,6 +485,52 @@ run("lending, borrowing, and settlements move cash in the right direction", () =
   closeTo(borrowed.bankBalance, 1060, "borrowing settlement bank balance");
   closeTo(borrowed.activeBorrowed, 60, "remaining personal debt");
   closeTo(borrowed.netWorth, 1000, "borrowing settlement net worth");
+});
+
+run("recurring jar allocations handle month ends and execute once", () => {
+  assert.equal(
+    addAllocationFrequency("2026-01-31", "monthly"),
+    "2026-02-28"
+  );
+  assert.equal(
+    addAllocationFrequency("2024-02-29", "yearly"),
+    "2025-02-28"
+  );
+
+  const rule = {
+    id: "rule-1",
+    sourceAccountId: "Bank",
+    allocationAmount: 50,
+    frequency: "weekly",
+    startDate: "2026-05-27",
+    nextExecutionDate: "2026-06-03",
+    active: true,
+    createdAt: today,
+    updatedAt: today,
+  };
+  assert.deepEqual(getDueAllocationDates(rule, "2026-06-10"), [
+    "2026-06-03",
+    "2026-06-10",
+  ]);
+
+  const executionDate = "2026-06-03";
+  const transfer = {
+    id: recurringExecutionId(rule.id, executionDate),
+    from_bucket: "Bank",
+    to_bucket: "shared_rollover_jar",
+    amount: 50,
+    date: executionDate,
+    notes: "",
+    recurringAllocationId: rule.id,
+    executionDate,
+  };
+  assert.equal(
+    hasAllocationExecution([transfer], rule.id, executionDate),
+    true
+  );
+  const advanced = advanceRecurringAllocation(rule, executionDate, today);
+  assert.equal(advanced.lastExecutionDate, executionDate);
+  assert.equal(advanced.nextExecutionDate, "2026-06-10");
 });
 
 console.log("All finance calculation checks passed.");

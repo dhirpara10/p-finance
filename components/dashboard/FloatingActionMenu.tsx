@@ -45,7 +45,7 @@ export function FloatingActionMenu({
         />
       )}
 
-      <div className="fixed bottom-28 right-5 z-50 md:hidden">
+      <div className="fixed bottom-[calc(7.25rem+env(safe-area-inset-bottom))] right-5 z-50 md:hidden">
         {isOpen && (
           <div className="mb-4 w-56 origin-bottom-right rounded-3xl border border-white/10 bg-neutral-900/95 p-2 shadow-xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
             {actions.map((action, index) => (

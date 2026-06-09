@@ -244,19 +244,7 @@ export function normalizeTrackerLinks(trackers: BucketListTracker[]) {
     return {
       ...tracker,
       linkedCategoryIds,
-      recurringAllocation: tracker.recurringAllocation
-        ? {
-            sourceAccountId:
-              tracker.recurringAllocation.sourceAccountId === "Cash"
-                ? ("Cash" as const)
-                : ("Bank" as const),
-            allocationAmount: Number(
-              tracker.recurringAllocation.allocationAmount || 0
-            ),
-            frequency: tracker.recurringAllocation.frequency || "monthly",
-            active: Boolean(tracker.recurringAllocation.active),
-          }
-        : undefined,
+      recurringAllocation: undefined,
     };
   });
 }

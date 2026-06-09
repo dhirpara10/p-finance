@@ -34,7 +34,17 @@ export function SettingsAccountsPage({ state }: Props) {
   );
 }
 
-export function SettingsPanel({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
+export function SettingsPanel({
+  title,
+  description = "Manage this part of your finance workspace.",
+  onBack,
+  children,
+}: {
+  title: string;
+  description?: string;
+  onBack: () => void;
+  children: ReactNode;
+}) {
   return (
     <section className="settings-panel surface-card rounded-3xl border border-white/[0.055] p-5 sm:p-7">
       <div className="mb-7 flex items-center gap-4">
@@ -42,6 +52,7 @@ export function SettingsPanel({ title, onBack, children }: { title: string; onBa
         <div>
           <p className="section-kicker text-neutral-500">SETTINGS</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">{description}</p>
         </div>
       </div>
       <div className="space-y-5">{children}</div>

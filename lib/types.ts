@@ -85,6 +85,26 @@ export type Transfer = {
   date: string;
   notes: string;
   trackerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  recurringAllocationId?: string;
+  executionDate?: string;
+  reversalOf?: string | number;
+};
+
+export type RecurringJarAllocation = {
+  id: string;
+  sourceAccountId: AccountBucket;
+  allocationAmount: number;
+  frequency: AllocationFrequency;
+  trackerId?: string;
+  note?: string;
+  startDate: string;
+  nextExecutionDate: string;
+  lastExecutionDate?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MoneyRecord = {
@@ -211,7 +231,13 @@ export type PersonProfile = {
   status: string;
 };
 
-export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer";
+export type EditingItemType =
+  | "income"
+  | "expense"
+  | "lent"
+  | "borrowed"
+  | "settlement"
+  | "transfer";
 export type RecentActivityType =
   | EditingItemType
   | "settlement"
@@ -224,6 +250,7 @@ export type RecentActivityItem = {
   subtitle: string;
   amount: number;
   date: string;
-  source?: "lendingTransaction";
+  timestamp?: string;
+  source?: "lendingTransaction" | "legacyLent" | "legacyBorrowed";
   isRecurring?: boolean;
 };

@@ -97,7 +97,23 @@ async function getAllData(supabase: SupabaseClient) {
 
   const grouped: Record<string, any[]> = {};
 
-  for (const row of data || []) {
+  const rows = [...(data || [])].sort((a, b) => {
+    const timestamp = (row: typeof a) => {
+      const stored = row.data as Record<string, unknown> | unknown[];
+      const value = Array.isArray(stored)
+        ? stored[7] || stored[6] || stored[5] || stored[4]
+        : stored?.updatedAt ||
+          stored?.createdAt ||
+          stored?.paidDate ||
+          stored?.dueDate ||
+          stored?.date;
+      const time = new Date(String(value || row.updated_at || row.created_at)).getTime();
+      return Number.isFinite(time) ? time : 0;
+    };
+    return timestamp(b) - timestamp(a);
+  });
+
+  for (const row of rows) {
     if (!grouped[row.sheet]) {
       grouped[row.sheet] = [];
     }

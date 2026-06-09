@@ -50,19 +50,6 @@ async function callSheetsApi(body: object) {
   }
 }
 
-async function trySheetsApi(body: object) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  await parseJsonResponse(res);
-  return true;
-}
-
 export async function createSheetRecord<T>(
   sheet: string,
   data: Record<string, unknown>

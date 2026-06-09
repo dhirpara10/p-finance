@@ -20,7 +20,21 @@ export function LendingForm({ state }: LendingFormProps) {
   const filteredPeople = people.filter((person) => searchQuery && (normalizePersonName(person.name).includes(searchQuery) || normalizePersonName(person.phone || "").includes(searchQuery)));
   const selectedPerson = people.find((person) => String(person.id) === String(selectedPersonId));
   const existingName = findPersonByName(people, moneyName);
-  const title = showLentForm ? editingItem?.type === "lent" ? "Edit Lent Money" : "Add Lent Money" : editingItem?.type === "borrowed" ? "Edit Borrowed Money" : "Add Borrowed Money";
+  const transactionType = editingItem?.type === "settlement"
+    ? "settlement"
+    : showLentForm
+      ? "lent"
+      : "borrowed";
+  const title =
+    transactionType === "settlement"
+      ? "Edit Settlement"
+      : transactionType === "lent"
+        ? editingItem
+          ? "Edit Lent Money"
+          : "Add Lent Money"
+        : editingItem
+          ? "Edit Borrowed Money"
+          : "Add Borrowed Money";
 
   function selectExistingPerson(personId: string | number) {
     setSelectedPersonId(personId);
@@ -44,10 +58,10 @@ export function LendingForm({ state }: LendingFormProps) {
     <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={title} subtitle="Attach every lending record to one person profile." />
       <ModalContent>
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-neutral-950 p-1">
+        {!editingItem && <div className="grid grid-cols-2 gap-2 rounded-2xl bg-neutral-950 p-1">
           <button type="button" onClick={switchToExistingPerson} className={`rounded-xl p-3 text-sm font-semibold ${lendingPersonMode === "existing" ? "bg-emerald-500 text-black" : "text-neutral-400"}`}>Existing</button>
           <button type="button" onClick={switchToNewPerson} className={`rounded-xl p-3 text-sm font-semibold ${lendingPersonMode === "new" ? "bg-emerald-500 text-black" : "text-neutral-400"}`}>New Person</button>
-        </div>
+        </div>}
 
         <ModalSection>
           {lendingPersonMode === "existing" ? (
@@ -85,7 +99,7 @@ export function LendingForm({ state }: LendingFormProps) {
             <input type="number" value={moneyAmount} onChange={(event) => setMoneyAmount(event.target.value)} className={formTokens.input} />
           </FormField>
           <SelectField label="Account" value={moneyAccount} onChange={(event) => setMoneyAccount(event.target.value === "Cash" ? "Cash" : "Bank")} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
-          {!showLentForm && (
+          {transactionType === "borrowed" && (
             <label className="flex items-start gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
               <input type="checkbox" checked={borrowedAffectsAccountBalance} onChange={(event) => setBorrowedAffectsAccountBalance(event.target.checked)} className="mt-1 h-4 w-4" />
               <span>
@@ -100,7 +114,12 @@ export function LendingForm({ state }: LendingFormProps) {
           </FormField>
         </ModalSection>
       </ModalContent>
-      <ModalFooter onCancel={closeAllForms} onSave={showLentForm ? addLent : addBorrowed} saveLabel="Save" tone={showLentForm ? "emerald" : "red"} />
+      <ModalFooter
+        onCancel={closeAllForms}
+        onSave={transactionType === "lent" ? addLent : addBorrowed}
+        saveLabel="Save"
+        tone={transactionType === "lent" ? "emerald" : "red"}
+      />
     </ModalWrapper>
   );
 }

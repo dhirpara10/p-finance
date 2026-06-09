@@ -43,7 +43,10 @@ export function RecentActivity({
     deleteIncome,
     deleteExpense,
     deleteTransfer,
+    reverseTransfer,
     deleteLendingTransaction,
+    deleteLent,
+    deleteBorrowed,
     setEditingScheduleId,
     deleteRepaymentSchedule,
   } = state;
@@ -133,6 +136,16 @@ export function RecentActivity({
                   </p>
 
                   <div className="mt-1 flex items-center justify-end gap-1 transition sm:opacity-70 sm:group-hover:opacity-100">
+                    {item.type === "transfer" && (
+                      <button
+                        type="button"
+                        aria-label={`Reverse ${item.title}`}
+                        onClick={() => reverseTransfer(item.id)}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-700 hover:text-orange-200"
+                      >
+                        <RefreshCw size={15} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label={`Edit ${item.title}`}
@@ -141,8 +154,7 @@ export function RecentActivity({
                           ? setEditingScheduleId(String(item.id))
                           : startEdit(item)
                       }
-                      disabled={item.source === "lendingTransaction"}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-400 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-400 hover:bg-neutral-700"
                     >
                       <Pencil size={15} />
                     </button>
@@ -162,6 +174,14 @@ export function RecentActivity({
 
                         if (item.source === "lendingTransaction") {
                           deleteLendingTransaction(item.id);
+                          return;
+                        }
+                        if (item.source === "legacyLent") {
+                          deleteLent(item.id);
+                          return;
+                        }
+                        if (item.source === "legacyBorrowed") {
+                          deleteBorrowed(item.id);
                           return;
                         }
 
