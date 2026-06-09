@@ -41,7 +41,7 @@ export function LendingForm({ state }: LendingFormProps) {
   }
 
   return (
-    <ModalWrapper>
+    <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={title} subtitle="Attach every lending record to one person profile." />
       <ModalContent>
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-neutral-950 p-1">
@@ -56,7 +56,7 @@ export function LendingForm({ state }: LendingFormProps) {
                 <input type="text" placeholder="Search person" value={personSearch} onChange={(event) => { setPersonSearch(event.target.value); setSelectedPersonId(null); }} className={formTokens.input} />
               </FormField>
               {searchQuery && (
-                <div className="max-h-52 space-y-2 overflow-y-auto rounded-2xl bg-neutral-900 p-2">
+                <div className="no-scrollbar max-h-52 space-y-2 overflow-y-auto rounded-2xl bg-neutral-900 p-2">
                   {filteredPeople.length > 0 ? filteredPeople.map((person) => (
                     <button key={String(person.id)} type="button" onClick={() => selectExistingPerson(person.id)} className={`w-full rounded-2xl p-3 text-left ${String(selectedPersonId) === String(person.id) ? "bg-emerald-500 text-black" : "bg-neutral-800 text-white"}`}>
                       <span className="block font-semibold">{person.name}</span>

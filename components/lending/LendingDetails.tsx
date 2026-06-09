@@ -55,7 +55,7 @@ export function LendingDetails({ state }: LendingDetailsProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-950 px-4 py-6 text-white">
+    <div className="no-scrollbar fixed inset-0 z-50 overflow-y-auto bg-neutral-950 px-4 py-6 text-white">
       <div className="mx-auto max-w-md">
         <div className="mb-6 flex items-center justify-between">
           <div>

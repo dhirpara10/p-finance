@@ -27,7 +27,7 @@ export function TransferForm({ state }: TransferFormProps) {
   ];
 
   return (
-    <ModalWrapper>
+    <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"} subtitle="Move money between accounts and savings buckets." />
       <ModalContent>
         <ModalSection>

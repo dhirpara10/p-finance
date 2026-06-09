@@ -21,7 +21,7 @@ export function SharedJarCard({
   );
 
   return (
-    <section className="jar-card relative overflow-hidden rounded-[28px] border border-purple-400/20 p-5 sm:p-6">
+    <section className="jar-card relative min-w-[86vw] snap-start overflow-hidden rounded-[28px] border border-purple-400/20 p-5 sm:min-w-0 sm:p-6">
       <div className="jar-glow pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-purple-500/20 blur-3xl" />
       <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
         <div>

@@ -19,7 +19,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
   const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
 
   return (
-    <ModalWrapper>
+    <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "expense" ? "Edit Expense" : "Add Expense"} subtitle="Track spending against Bank or Cash." />
       <ModalContent>
         <ModalSection>

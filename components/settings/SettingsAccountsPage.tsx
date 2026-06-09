@@ -1,6 +1,7 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { SelectField } from "@/components/forms/SelectField";
 import type { ReactNode } from "react";
 
 type Props = { state: FinanceDashboardState };
@@ -17,14 +18,17 @@ export function SettingsAccountsPage({ state }: Props) {
       <Field label="Monthly reset day">
         <input type="number" min={1} max={28} value={String(state.monthlyResetDay)} onChange={(event) => state.setMonthlyResetDay(Math.min(Math.max(Number(event.target.value), 1), 28))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
       </Field>
-      <Field label="Currency">
-        <select value={state.currency} onChange={(event) => state.setCurrency(event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none">
-          <option value="AUD">AUD</option>
-          <option value="USD">USD</option>
-          <option value="GBP">GBP</option>
-          <option value="EUR">EUR</option>
-        </select>
-      </Field>
+      <SelectField
+        label="Currency"
+        value={state.currency}
+        onChange={(event) => state.setCurrency(event.target.value)}
+        options={[
+          { value: "AUD", label: "AUD" },
+          { value: "USD", label: "USD" },
+          { value: "GBP", label: "GBP" },
+          { value: "EUR", label: "EUR" },
+        ]}
+      />
       <Actions state={state} />
     </SettingsPanel>
   );

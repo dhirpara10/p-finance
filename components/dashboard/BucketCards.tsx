@@ -41,7 +41,7 @@ export function SavingsBucketCard({
       : LockKeyhole;
 
   return (
-    <article className="savings-card rounded-3xl border border-sky-400/15 p-5">
+    <article className="savings-card min-w-[82vw] snap-start rounded-3xl border border-sky-400/15 p-5 sm:min-w-[360px] md:min-w-0">
       <div className="flex items-start justify-between gap-4">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-200 ring-1 ring-sky-300/10">
           <Icon size={20} />
@@ -107,7 +107,7 @@ export function TrackerCard({
     : `${currencySymbol}${tracker.monthlyAllocation.toLocaleString(undefined, { maximumFractionDigits: 0 })} planned`;
 
   return (
-    <article className="tracker-card rounded-3xl border border-purple-400/15 p-5">
+    <article className="tracker-card min-w-[82vw] snap-start rounded-3xl border border-purple-400/15 p-5 sm:min-w-[360px] md:min-w-0">
       <div className="flex items-start justify-between gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400/25 to-pink-400/10 text-purple-100 ring-1 ring-purple-300/15">
           <Icon size={22} />

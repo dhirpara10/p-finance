@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Archive, Plus, Tags } from "lucide-react";
 import { findDuplicateTrackerCategory } from "@/lib/buckets";
 import type { AllocationFrequency } from "@/lib/types";
+import { SelectField } from "@/components/forms/SelectField";
 
 type Props = { state: FinanceDashboardState };
 
@@ -192,21 +193,20 @@ export function SettingsBucketsPage({ state }: Props) {
               </label>
               {tracker.recurringAllocation?.active && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <Field label="Source">
-                    <select
-                      value={tracker.recurringAllocation.sourceAccountId}
-                      onChange={(event) =>
-                        updateRecurringAllocation(tracker.id, {
-                          sourceAccountId:
-                            event.target.value === "Cash" ? "Cash" : "Bank",
-                        })
-                      }
-                      className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
-                    >
-                      <option value="Bank">Bank</option>
-                      <option value="Cash">Cash</option>
-                    </select>
-                  </Field>
+                  <SelectField
+                    label="Source"
+                    value={tracker.recurringAllocation.sourceAccountId}
+                    onChange={(event) =>
+                      updateRecurringAllocation(tracker.id, {
+                        sourceAccountId:
+                          event.target.value === "Cash" ? "Cash" : "Bank",
+                      })
+                    }
+                    options={[
+                      { value: "Bank", label: "Bank" },
+                      { value: "Cash", label: "Cash" },
+                    ]}
+                  />
                   <Field label="Amount">
                     <input
                       type="number"
@@ -219,22 +219,21 @@ export function SettingsBucketsPage({ state }: Props) {
                       className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
                     />
                   </Field>
-                  <Field label="Frequency">
-                    <select
-                      value={tracker.recurringAllocation.frequency}
-                      onChange={(event) =>
-                        updateRecurringAllocation(tracker.id, {
-                          frequency: event.target.value as AllocationFrequency,
-                        })
-                      }
-                      className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
-                    >
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Biweekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
-                  </Field>
+                  <SelectField
+                    label="Frequency"
+                    value={tracker.recurringAllocation.frequency}
+                    onChange={(event) =>
+                      updateRecurringAllocation(tracker.id, {
+                        frequency: event.target.value as AllocationFrequency,
+                      })
+                    }
+                    options={[
+                      { value: "weekly", label: "Weekly" },
+                      { value: "biweekly", label: "Biweekly" },
+                      { value: "monthly", label: "Monthly" },
+                      { value: "yearly", label: "Yearly" },
+                    ]}
+                  />
                 </div>
               )}
               {tracker.recurringAllocation?.active && (

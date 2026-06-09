@@ -22,7 +22,7 @@ export function IncomeForm({ state }: IncomeFormProps) {
   const bankPortion = Math.max(0, calculatedAmount - toNumber(incomeCashReceived));
 
   return (
-    <ModalWrapper>
+    <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "income" ? "Edit Income" : "Add Income"} subtitle="Record pay, cash received, and bank portion." />
       <ModalContent>
         <ModalSection>

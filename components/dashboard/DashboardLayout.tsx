@@ -40,6 +40,7 @@ import { SettingsIncomeSourcesPage } from "@/components/settings/SettingsIncomeS
 import { SettingsNotificationsPage } from "@/components/settings/SettingsNotificationsPage";
 import { SettingsRecurringExpensesPage } from "@/components/settings/SettingsRecurringExpensesPage";
 import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
+import { SelectField } from "@/components/forms/SelectField";
 
 type Props = { state: FinanceDashboardState };
 type Tab = "home" | "buckets" | "activity" | "stats" | "settings";
@@ -91,7 +92,7 @@ export function DashboardLayout({ state }: Props) {
   return (
     <main className="min-h-screen bg-[#080a0d] pb-28 text-white md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
-        <AppHeader state={state} onSettings={() => selectTab("settings")} />
+        <AppHeader state={state} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
 
         <div className="mt-6">
@@ -151,10 +152,8 @@ export function DashboardLayout({ state }: Props) {
 
 function AppHeader({
   state,
-  onSettings,
 }: {
   state: FinanceDashboardState;
-  onSettings: () => void;
 }) {
   return (
     <header className="flex items-center justify-between gap-4">
@@ -173,14 +172,6 @@ function AppHeader({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Settings"
-          onClick={onSettings}
-          className="hidden h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07] sm:flex"
-        >
-          <Settings size={18} />
-        </button>
         <button
           type="button"
           aria-label="Lock app"
@@ -260,7 +251,7 @@ function HomeView({
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
   return (
     <div className="space-y-8">
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scroll-smooth sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
         <BalanceCard
           primary
           icon={Wallet}
@@ -306,7 +297,9 @@ function HomeView({
       />
 
       <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <SharedJarCard state={state} onAllocate={onAllocate} />
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
+          <SharedJarCard state={state} onAllocate={onAllocate} />
+        </div>
         <div className="surface-card rounded-[28px] border border-white/[0.055] p-5">
           <SectionTitle title="Accounts" subtitle="Your usable money" />
           <div className="mt-5 space-y-3">
@@ -333,7 +326,7 @@ function HomeView({
         onToggle={() => setMobileSections({ ...mobileSections, savings: !mobileSections.savings })}
         onViewAll={onBuckets}
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.slice(0, 3).map((bucket) => (
             <SavingsBucketCard
               key={bucket.id}
@@ -365,7 +358,7 @@ function HomeView({
         onToggle={() => setMobileSections({ ...mobileSections, trackers: !mobileSections.trackers })}
         onViewAll={onBuckets}
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.slice(0, 3).map((tracker) => (
             <TrackerCard
               key={tracker.id}
@@ -418,7 +411,7 @@ function BalanceCard({
     warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-200",
   };
   return (
-    <article className={`rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 ${tones[tone]} ${primary ? "sm:min-h-44" : ""}`}>
+    <article className={`min-w-[84vw] snap-start rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:min-w-0 ${tones[tone]} ${primary ? "sm:min-h-44" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-neutral-400">{label}</p>
         <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.07]">
@@ -492,11 +485,13 @@ function BucketsView({
           Protected savings hold real money. Lifestyle trackers organize spending through one shared rollover jar.
         </p>
       </div>
-      <SharedJarCard state={state} onAllocate={onAllocate} />
+      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
+        <SharedJarCard state={state} onAllocate={onAllocate} />
+      </div>
 
       <section>
         <SectionTitle title="Protected savings" subtitle="Real money held away from your usable balance" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.map((bucket) => (
             <SavingsBucketCard
               key={bucket.id}
@@ -520,7 +515,7 @@ function BucketsView({
 
       <section>
         <SectionTitle title="Lifestyle trackers" subtitle="Virtual monthly plans powered by the shared jar" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.map((tracker) => (
             <TrackerCard
               key={tracker.id}
@@ -631,15 +626,20 @@ function ActivityView({
           <Search size={17} className="text-neutral-500" />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search activity" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-600" />
         </label>
-        <select value={type} onChange={(event) => setType(event.target.value)} className="h-12 rounded-2xl border border-white/[0.06] bg-[#111419] px-4 text-sm outline-none">
-          <option value="all">All activity</option>
-          <option value="income">Income</option>
-          <option value="expense">Expenses</option>
-          <option value="transfer">Transfers</option>
-          <option value="lent">Lending</option>
-          <option value="borrowed">Borrowing</option>
-          <option value="settlement">Settlements</option>
-        </select>
+        <SelectField
+          aria-label="Activity type"
+          value={type}
+          onChange={(event) => setType(event.target.value)}
+          options={[
+            { value: "all", label: "All activity" },
+            { value: "income", label: "Income" },
+            { value: "expense", label: "Expenses" },
+            { value: "transfer", label: "Transfers" },
+            { value: "lent", label: "Lending" },
+            { value: "borrowed", label: "Borrowing" },
+            { value: "settlement", label: "Settlements" },
+          ]}
+        />
       </div>
       <RecentActivity state={state} showAll={showAll} onToggleShowAll={onToggle} search={search} typeFilter={type} />
     </div>
@@ -647,7 +647,6 @@ function ActivityView({
 }
 
 const settingsItems = [
-  ["hub", "Overview"],
   ["accounts", "Accounts"],
   ["buckets", "Buckets"],
   ["categories", "Categories"],
@@ -661,14 +660,14 @@ const settingsItems = [
 function SettingsWorkspace({ state }: Props) {
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="surface-card h-fit rounded-3xl border border-white/[0.055] p-3">
+      <aside className="surface-card hidden h-fit rounded-3xl border border-white/[0.055] p-3 lg:block">
         <div className="px-3 pb-3 pt-2">
           <p className="section-kicker text-neutral-500">PREFERENCES</p>
           <h2 className="mt-2 text-xl font-semibold">Settings</h2>
         </div>
-        <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
+        <nav className="grid grid-cols-1 gap-1">
           {settingsItems.map(([page, label]) => {
-            const selected = state.settingsPage === page || (page === "hub" && !state.settingsPage);
+            const selected = state.settingsPage === page;
             return (
               <button
                 key={page}
@@ -687,8 +686,19 @@ function SettingsWorkspace({ state }: Props) {
           })}
         </nav>
       </aside>
-      <div className="min-w-0">
-        <SettingsRouter state={state} />
+      <div className="no-scrollbar min-w-0">
+        {state.settingsPage === "hub" || !state.settingsPage ? (
+          <>
+            <div className="lg:hidden">
+              <SettingsHub state={state} />
+            </div>
+            <div className="hidden lg:block">
+              <SettingsAccountsPage state={state} />
+            </div>
+          </>
+        ) : (
+          <SettingsRouter state={state} />
+        )}
       </div>
     </div>
   );
