@@ -287,7 +287,7 @@ export function DashboardLayout({ state }: DashboardLayoutProps) {
 
             <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
               <h3 className="text-lg font-semibold">Savings Buckets</h3>
-              {savingsBucketBalances.map((bucket) => (
+              {savingsBucketBalances.filter((bucket) => bucket.active).map((bucket) => (
                 <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-neutral-300">{bucket.name}</p>
@@ -571,6 +571,7 @@ function BucketsView({
   trackerHistoryRows: any[];
 }) {
   const { currencySymbol, savingsBucketBalances, trackerSummaries, sharedRolloverJar } = state;
+  const activeSavingsBuckets = savingsBucketBalances.filter((bucket) => bucket.active);
   const trackerIcons = { Compass, Sparkles, Laptop, ShoppingBag, Shirt, WalletCards, Dumbbell } as const;
 
   return (
@@ -587,7 +588,7 @@ function BucketsView({
 
       <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
         <h2 className="text-xl font-bold">Savings Buckets</h2>
-        {savingsBucketBalances.map((bucket) => (
+        {activeSavingsBuckets.map((bucket) => (
           <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
             <div className="flex items-center justify-between">
               <p className="font-semibold">{bucket.name}</p>
@@ -597,7 +598,11 @@ function BucketsView({
               {currencySymbol}{bucket.currentBalance.toLocaleString()} / {currencySymbol}
               {bucket.targetAmount.toLocaleString()}
             </p>
-            <button type="button" onClick={() => setBucketHistory({ type: "savings", id: bucket.id })} className="mt-3 text-sm font-semibold text-blue-300">History</button>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <button type="button" onClick={() => { state.setFromBucket("Bank"); state.setToBucket(bucket.id); state.setShowTransferForm(true); }} className="rounded-xl bg-blue-500/15 p-3 text-sm font-semibold text-blue-200">Fund</button>
+              <button type="button" onClick={() => { state.setFromBucket(bucket.id); state.setToBucket("Bank"); state.setShowTransferForm(true); }} className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold">Withdraw</button>
+              <button type="button" onClick={() => setBucketHistory({ type: "savings", id: bucket.id })} className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold text-blue-300">History</button>
+            </div>
           </div>
         ))}
       </section>

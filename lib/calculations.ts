@@ -283,9 +283,8 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     return transfers.filter((item) => isBucket(item.from_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
   }
 
-  const activeSavingsBuckets = savingsBuckets.filter((bucket) => bucket.active);
   const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
-  const savingsBucketBalances = activeSavingsBuckets.map((bucket) => {
+  const savingsBucketBalances = savingsBuckets.map((bucket) => {
     const currentBalance =
       toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket);
 
