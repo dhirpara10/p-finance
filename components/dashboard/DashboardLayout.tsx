@@ -23,6 +23,7 @@ import {
   Lock,
   Menu,
   PiggyBank,
+  ReceiptText,
   Search,
   Settings,
   TrendingDown,
@@ -40,18 +41,21 @@ import { SettingsIncomeSourcesPage } from "@/components/settings/SettingsIncomeS
 import { SettingsNotificationsPage } from "@/components/settings/SettingsNotificationsPage";
 import { SettingsRecurringExpensesPage } from "@/components/settings/SettingsRecurringExpensesPage";
 import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
+import { SettingsLiabilitiesPage } from "@/components/settings/SettingsLiabilitiesPage";
 import { SelectField } from "@/components/forms/SelectField";
+import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
 
 type Props = { state: FinanceDashboardState };
-type Tab = "home" | "buckets" | "activity" | "stats" | "settings";
+type Tab = "home" | "buckets" | "liabilities" | "activity" | "stats" | "settings";
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
 const tabs = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "buckets", label: "Buckets", icon: Layers3 },
-  { id: "activity", label: "Activity", icon: List },
-  { id: "stats", label: "Stats", icon: BarChart3 },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "home", label: "Home", mobileLabel: "Home", icon: Home },
+  { id: "buckets", label: "Buckets", mobileLabel: "Buckets", icon: Layers3 },
+  { id: "liabilities", label: "Liabilities", mobileLabel: "Debt", icon: ReceiptText },
+  { id: "activity", label: "Activity", mobileLabel: "Activity", icon: List },
+  { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
+  { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings },
 ] as const;
 
 export function DashboardLayout({ state }: Props) {
@@ -122,6 +126,7 @@ export function DashboardLayout({ state }: Props) {
               onAllocate={openJarAllocation}
             />
           )}
+          {activeTab === "liabilities" && <LiabilitiesView state={state} />}
           {activeTab === "activity" && (
             <ActivityView
               state={state}
@@ -193,7 +198,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-5 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-6 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -257,7 +262,7 @@ function HomeView({
           icon={Wallet}
           label="Usable balance"
           value={state.usableBalance}
-          helper="Bank and cash ready to use"
+          helper="After BNPL and card commitments"
           currency={state.currencySymbol}
           tone="emerald"
         />
@@ -312,7 +317,7 @@ function HomeView({
               <p className="mt-1 font-semibold text-emerald-300">{state.currencySymbol}{state.activeLent.toLocaleString()}</p>
             </button>
             <button type="button" onClick={() => state.setDetailsView("borrowed")} className="border-l border-white/[0.06] pl-4 text-left">
-              <p className="text-xs text-neutral-500">Liabilities</p>
+              <p className="text-xs text-neutral-500">Personal borrowing</p>
               <p className="mt-1 font-semibold text-red-300">{state.currencySymbol}{state.activeBorrowed.toLocaleString()}</p>
             </button>
           </div>
@@ -638,6 +643,7 @@ function ActivityView({
             { value: "lent", label: "Lending" },
             { value: "borrowed", label: "Borrowing" },
             { value: "settlement", label: "Settlements" },
+            { value: "liability_repayment", label: "Liability repayments" },
           ]}
         />
       </div>
@@ -652,6 +658,7 @@ const settingsItems = [
   ["categories", "Categories"],
   ["income", "Income sources"],
   ["recurring", "Recurring expenses"],
+  ["liabilities", "Liabilities"],
   ["notifications", "Notifications"],
   ["security", "Security"],
   ["appearance", "Appearance"],
@@ -712,6 +719,7 @@ function SettingsRouter({ state }: Props) {
   if (state.settingsPage === "security") return <SettingsSecurityPage state={state} />;
   if (state.settingsPage === "notifications") return <SettingsNotificationsPage state={state} />;
   if (state.settingsPage === "recurring") return <SettingsRecurringExpensesPage state={state} />;
+  if (state.settingsPage === "liabilities") return <SettingsLiabilitiesPage state={state} />;
   if (state.settingsPage === "appearance") return <SettingsAppearancePage state={state} />;
   if (state.settingsPage === "bucket-history") return <SettingsBucketHistoryPage state={state} />;
   return <SettingsHub state={state} />;
@@ -719,14 +727,14 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
         return (
           <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
             <Icon size={17} />
-            {tab.label}
+            {tab.mobileLabel}
           </button>
         );
       })}

@@ -12,6 +12,7 @@ const pages = [
   ["security", "Security", "Passcode settings"],
   ["notifications", "Notifications", "Daily reminders"],
   ["recurring", "Recurring Expenses", "Upcoming rules, pause, edit, or cancel"],
+  ["liabilities", "Liabilities", "BNPL, cards, loans, and repayment defaults"],
   ["appearance", "Appearance", "Theme preferences"],
 ] as const;
 

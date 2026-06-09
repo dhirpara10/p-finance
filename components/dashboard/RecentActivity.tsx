@@ -25,6 +25,8 @@ export function RecentActivity({
     deleteExpense,
     deleteTransfer,
     deleteLendingTransaction,
+    setEditingScheduleId,
+    deleteRepaymentSchedule,
   } = state;
 
   const filteredActivity = recentActivity.filter((item) => {
@@ -56,8 +58,10 @@ export function RecentActivity({
                 ? ArrowDownLeft
                 : item.type === "expense"
                   ? ArrowUpRight
-                  : item.type === "transfer"
-                    ? ArrowRightLeft
+                    : item.type === "transfer"
+                      ? ArrowRightLeft
+                      : item.type === "liability_repayment"
+                        ? RefreshCw
                     : HandCoins;
             const amountClass =
               item.type === "income" || item.type === "lent"
@@ -86,7 +90,7 @@ export function RecentActivity({
                 className="group flex items-center justify-between gap-3 rounded-2xl px-2 py-3 transition hover:bg-white/[0.025] sm:px-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${isJarAllocation ? "bg-purple-500/15 text-purple-300" : item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : "bg-red-500/15 text-red-300"}`}>
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${isJarAllocation ? "bg-purple-500/15 text-purple-300" : item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : item.type === "liability_repayment" ? "bg-orange-500/15 text-orange-300" : "bg-red-500/15 text-red-300"}`}>
                     <Icon size={18} />
                   </span>
                   <div className="min-w-0">
@@ -117,7 +121,11 @@ export function RecentActivity({
                   <div className="mt-1.5 flex items-center justify-end gap-1 opacity-70 transition group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() => startEdit(item)}
+                      onClick={() =>
+                        item.type === "liability_repayment"
+                          ? setEditingScheduleId(String(item.id))
+                          : startEdit(item)
+                      }
                       disabled={item.source === "lendingTransaction"}
                       className="rounded-full p-1 text-blue-400 hover:bg-neutral-700 disabled:text-neutral-600"
                     >
@@ -138,6 +146,11 @@ export function RecentActivity({
 
                         if (item.source === "lendingTransaction") {
                           deleteLendingTransaction(item.id);
+                          return;
+                        }
+
+                        if (item.type === "liability_repayment") {
+                          deleteRepaymentSchedule(String(item.id));
                           return;
                         }
 

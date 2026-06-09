@@ -6,6 +6,7 @@ import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations
 import { findPersonByName } from "@/lib/lending";
 import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
 import type { Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
+import { useLiabilities } from "@/components/liabilities/useLiabilities";
 
 const defaultIncomeSources = [
   { name: "Hawthorn Pizza", rate: 20 },
@@ -34,6 +35,7 @@ const defaultExpenseCategories = [
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const hasLoadedData = useRef(false);
+  const liabilityModule = useLiabilities();
 
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -70,6 +72,7 @@ export function useFinanceDashboard() {
     | "security"
     | "notifications"
     | "recurring"
+    | "liabilities"
     | "appearance"
     | "bucket-history"
     | null
@@ -243,6 +246,8 @@ export function useFinanceDashboard() {
     setShowTransferForm(false);
     setShowLentForm(false);
     setShowBorrowedForm(false);
+    liabilityModule.closeLiabilityForm();
+    liabilityModule.setEditingScheduleId(null);
   }
 
   function navigateToSettingsPage(page: NonNullable<typeof settingsPage>) {
@@ -632,6 +637,14 @@ export function useFinanceDashboard() {
           sheetDataRaw.Lendingtransactions ||
           sheetDataRaw.lendingtransactions ||
           [],
+        Liabilities:
+          sheetDataRaw.Liabilities ||
+          sheetDataRaw.liabilities ||
+          [],
+        RepaymentSchedules:
+          sheetDataRaw.RepaymentSchedules ||
+          sheetDataRaw.repaymentSchedules ||
+          [],
       };
 
       console.log("sheetData keys", Object.keys(sheetDataRaw));
@@ -741,6 +754,15 @@ export function useFinanceDashboard() {
       setDailyReminderTone(
         getSettingValue(settings, "daily_reminder_tone", "mixed") || "mixed"
       );
+      liabilityModule.hydrateLiabilities(
+        sheetData.Liabilities,
+        sheetData.RepaymentSchedules,
+        getSettingValue(
+          settings,
+          "liability_settings",
+          JSON.stringify(liabilityModule.liabilitySettings)
+        )
+      );
 
       setIncomes((sheetData.income || []).map(parseIncomeRow));
 
@@ -829,6 +851,8 @@ export function useFinanceDashboard() {
     lendingTransactions,
     lentRecords,
     borrowedRecords,
+    liabilities: liabilityModule.liabilities,
+    repaymentSchedules: liabilityModule.repaymentSchedules,
     initialCashBalance,
     initialBankBalance,
     savingsBuckets,
@@ -1376,6 +1400,11 @@ export function useFinanceDashboard() {
   }
 
   function startEdit(item: RecentActivityItem) {
+    if (item.type === "liability_repayment") {
+      liabilityModule.setEditingScheduleId(String(item.id));
+      return;
+    }
+
     if (item.type === "settlement" || item.source === "lendingTransaction") {
       return;
     }
@@ -1577,7 +1606,7 @@ export function useFinanceDashboard() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

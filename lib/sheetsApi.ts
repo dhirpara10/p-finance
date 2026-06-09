@@ -63,6 +63,43 @@ async function trySheetsApi(body: object) {
   return true;
 }
 
+export async function createSheetRecord<T>(
+  sheet: string,
+  data: Record<string, unknown>
+): Promise<T> {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "addRow", sheet, data }),
+  });
+
+  return parseJsonResponse(res) as Promise<T>;
+}
+
+export async function updateSheetRecord<T>(
+  sheet: string,
+  id: string | number,
+  data: Record<string, unknown>
+): Promise<T> {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "updateRow", sheet, id, data }),
+  });
+
+  return parseJsonResponse(res) as Promise<T>;
+}
+
+export async function deleteSheetRecord(sheet: string, id: string | number) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "deleteRow", sheet, id }),
+  });
+
+  await parseJsonResponse(res);
+}
+
 async function postSheetsApi<T>(body: object): Promise<T | null> {
   try {
     console.log("[sheetsApi] request payload", body);

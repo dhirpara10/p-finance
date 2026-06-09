@@ -1,7 +1,7 @@
 import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, getBucketLabel } from "@/lib/buckets";
 import { buildPersonProfiles } from "@/lib/lending";
 import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
-import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Transfer } from "@/lib/types";
+import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
 
 export function toNumber(value: unknown) {
   const number = Number(value);
@@ -223,7 +223,7 @@ function isBucket(value: unknown, bucket: Bucket | SavingsBucket) {
   return bucketMatches(value, bucket);
 }
 
-export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
+export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
   const expenseRangeStart = new Date();
   expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
   const expenseRangeEnd = new Date();
@@ -274,6 +274,47 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
         item.account === "Cash"
     )
     .reduce((sum, item) => sum + item.amount, 0);
+  const paidLiabilityRepayments = repaymentSchedules
+    .filter((item) => item.status === "paid")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const activeLiabilities = liabilities.filter(
+    (item) => item.status === "active" && item.outstandingBalance > 0
+  );
+  const totalLiabilities = activeLiabilities.reduce(
+    (sum, item) => sum + item.outstandingBalance,
+    0
+  );
+  const bnplOwed = activeLiabilities
+    .filter((item) => item.type === "bnpl")
+    .reduce((sum, item) => sum + item.outstandingBalance, 0);
+  const creditCardOwed = activeLiabilities
+    .filter((item) => item.type === "credit_card")
+    .reduce((sum, item) => sum + item.outstandingBalance, 0);
+  const loanOwed = activeLiabilities
+    .filter((item) => item.type === "loan")
+    .reduce((sum, item) => sum + item.outstandingBalance, 0);
+  const unpaidSchedules = repaymentSchedules.filter(
+    (item) => item.status !== "paid"
+  );
+  const upcomingRepayments = unpaidSchedules.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
+  const obligationCutoff = new Date();
+  obligationCutoff.setDate(obligationCutoff.getDate() + 30);
+  const upcomingLoanCommitment = unpaidSchedules
+    .filter((schedule) => {
+      const liability = activeLiabilities.find(
+        (item) => item.id === schedule.liabilityId
+      );
+      const dueDate = new Date(`${schedule.dueDate}T23:59:59`);
+      return (
+        liability?.type === "loan" &&
+        !Number.isNaN(dueDate.getTime()) &&
+        dueDate <= obligationCutoff
+      );
+    })
+    .reduce((sum, item) => sum + item.amount, 0);
 
   function bucketIn(bucket: Bucket | SavingsBucket) {
     return transfers
@@ -297,7 +338,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       .reduce((sum, item) => sum + item.amount, 0);
   }
 
-  const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
+  const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - paidLiabilityRepayments - bucketOut("Bank") + bucketIn("Bank");
   const savingsBucketBalances = savingsBuckets.map((bucket) => {
     const currentBalance =
       toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket);
@@ -313,9 +354,12 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     0
   );
   const cashBalance = initialCashBalance + totalCashReceivedFromIncome + borrowedToCash - lentFromCash + bucketIn("Cash") - bucketOut("Cash") - expenseFromCash;
-  const usableBalance = bankBalance + cashBalance;
-  const totalMoney = usableBalance + totalSavingsBuckets;
-  const netWorth = totalMoney + activeLent - activeBorrowed;
+  const accountBalance = bankBalance + cashBalance;
+  const usableBalance = accountBalance - bnplOwed - creditCardOwed;
+  const safeToSpend = usableBalance - upcomingLoanCommitment;
+  const totalMoney = accountBalance + totalSavingsBuckets;
+  const netWorth =
+    totalMoney + activeLent - activeBorrowed - totalLiabilities;
   const monthlyIncome = incomes.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
   const monthlyHours = incomes.filter((item) => item.income_type === "Hourly" && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.hours, 0);
   const monthlyExpenses = effectiveExpenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
@@ -489,6 +533,21 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
         source: "lendingTransaction" as const,
       };
     }),
+    ...repaymentSchedules
+      .filter((item) => item.status === "paid")
+      .map((item) => {
+        const liability = liabilities.find(
+          (record) => record.id === item.liabilityId
+        );
+        return {
+          id: item.id,
+          type: "liability_repayment" as const,
+          title: `${liability?.name || "Liability"} repayment`,
+          subtitle: `${liability?.provider || "Liability"} · principal $${item.principalAmount.toFixed(2)}`,
+          amount: item.amount,
+          date: item.paidDate || item.dueDate,
+        };
+      }),
   ].sort(
     (a, b) =>
       getActivityTime(b.date) - getActivityTime(a.date) ||
@@ -503,7 +562,13 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     usableBalance,
     bankBalance,
     cashBalance,
+    safeToSpend,
     netWorth,
+    totalLiabilities,
+    upcomingRepayments,
+    bnplOwed,
+    creditCardOwed,
+    loanOwed,
     monthlyIncome,
     monthlyHours,
     monthlyExpenses,

@@ -9,6 +9,8 @@ import { FinanceLoadingScreen } from "@/components/layout/FinanceLoadingScreen";
 import { LendingDetails } from "@/components/lending/LendingDetails";
 import { LendingForm } from "@/components/lending/LendingForm";
 import { PasscodeLock } from "@/components/settings/PasscodeLock";
+import { LiabilityForm } from "@/components/liabilities/LiabilityForm";
+import { RepaymentForm } from "@/components/liabilities/RepaymentForm";
 
 export default function Home() {
   const dashboard = useFinanceDashboard();
@@ -33,6 +35,8 @@ export default function Home() {
       {dashboard.showTransferForm && <TransferForm state={dashboard} />}
       {(dashboard.showLentForm || dashboard.showBorrowedForm) && <LendingForm state={dashboard} />}
       {dashboard.detailsView && <LendingDetails state={dashboard} />}
+      {dashboard.showLiabilityForm && <LiabilityForm state={dashboard} />}
+      {dashboard.editingSchedule && <RepaymentForm state={dashboard} />}
     </>
   );
 }

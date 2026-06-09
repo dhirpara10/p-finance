@@ -4,6 +4,15 @@ export type ExpenseAccount = "Bank" | "Cash";
 export type AccountBucket = "Bank" | "Cash";
 export type Bucket = AccountBucket | string;
 export type AllocationFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
+export type LiabilityType = "bnpl" | "credit_card" | "loan";
+export type LiabilityStatus = "active" | "paid" | "closed";
+export type LiabilityPaymentFrequency =
+  | "weekly"
+  | "fortnightly"
+  | "monthly"
+  | "yearly";
+export type LiabilityInterestType = "simple" | "compound";
+export type LiabilityCompoundingFrequency = "monthly" | "yearly";
 
 export type SavingsBucket = {
   id: string;
@@ -121,6 +130,70 @@ export type LendingTransaction = {
   legacy?: boolean;
 };
 
+export type Liability = {
+  id: string;
+  type: LiabilityType;
+  name: string;
+  provider: string;
+  originalAmount: number;
+  outstandingBalance: number;
+  status: LiabilityStatus;
+  category: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  purchaseAmount?: number;
+  firstPaymentDate?: string;
+  numberOfPayments?: number;
+  paymentFrequency?: Exclude<LiabilityPaymentFrequency, "yearly">;
+  installmentAmount?: number;
+  purchaseDate?: string;
+  creditLimit?: number;
+  currentBalance?: number;
+  statementDate?: string;
+  dueDate?: string;
+  minimumPayment?: number;
+  interestRate?: number;
+  annualFee?: number;
+  charges?: number;
+  principalAmount?: number;
+  outstandingPrincipal?: number;
+  interestType?: LiabilityInterestType;
+  compoundingFrequency?: LiabilityCompoundingFrequency;
+  repaymentAmount?: number;
+  repaymentFrequency?: LiabilityPaymentFrequency;
+  startDate?: string;
+  endDate?: string;
+  termMonths?: number;
+  fees?: number;
+  discount?: number;
+  loanType?: string;
+};
+
+export type RepaymentSchedule = {
+  id: string;
+  liabilityId: string;
+  dueDate: string;
+  amount: number;
+  principalAmount: number;
+  interestAmount: number;
+  feeAmount: number;
+  status: "upcoming" | "paid" | "missed";
+  paidDate: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LiabilitySettings = {
+  bnplProviders: string[];
+  creditCardProviders: string[];
+  loanTypes: string[];
+  repaymentFrequencies: LiabilityPaymentFrequency[];
+  defaultInterestType: LiabilityInterestType;
+  defaultCompoundingFrequency: LiabilityCompoundingFrequency;
+};
+
 export type PersonProfile = {
   id: string | number;
   personId?: string | number;
@@ -137,7 +210,10 @@ export type PersonProfile = {
 };
 
 export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer";
-export type RecentActivityType = EditingItemType | "settlement";
+export type RecentActivityType =
+  | EditingItemType
+  | "settlement"
+  | "liability_repayment";
 
 export type RecentActivityItem = {
   id: string | number;
