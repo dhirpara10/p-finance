@@ -17,10 +17,11 @@ const pages = [
 
 export function SettingsHub({ state }: SettingsHubProps) {
   return (
-    <section className="rounded-3xl bg-neutral-900 p-5">
+    <section className="surface-card rounded-3xl border border-white/[0.055] p-5 sm:p-7">
       <div className="mb-5">
-        <p className="text-sm text-emerald-300">Settings</p>
-        <h2 className="text-2xl font-bold">Finance App Settings</h2>
+        <p className="section-kicker text-neutral-500">SETTINGS</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Finance preferences</h2>
+        <p className="mt-2 text-sm text-neutral-500">Accounts, planning, reminders, and security in one place.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {pages.map(([page, title, description]) => (
@@ -28,7 +29,7 @@ export function SettingsHub({ state }: SettingsHubProps) {
             key={page}
             type="button"
             onClick={() => state.navigateToSettingsPage(page)}
-            className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4 text-left hover:border-emerald-500/50"
+            className="rounded-2xl border border-white/[0.055] bg-white/[0.025] p-4 text-left transition hover:border-white/[0.12] hover:bg-white/[0.04]"
           >
             <span className="block font-semibold">{title}</span>
             <span className="mt-1 block text-sm text-neutral-500">

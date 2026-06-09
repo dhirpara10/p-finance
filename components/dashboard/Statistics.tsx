@@ -23,102 +23,293 @@ import {
 } from "recharts";
 
 type Props = { state: FinanceDashboardState };
-const colors = ["#34d399", "#38bdf8", "#a78bfa", "#fb923c", "#f472b6", "#22d3ee", "#facc15"];
+const categoryColors = ["#34d399", "#38bdf8", "#a78bfa", "#fb923c", "#f472b6", "#22d3ee"];
+const tooltipStyle = {
+  background: "#111419",
+  border: "1px solid rgba(255,255,255,.09)",
+  borderRadius: 14,
+  boxShadow: "0 18px 50px rgba(0,0,0,.35)",
+  color: "#f5f5f5",
+};
 
 function monthKey(date: string) {
   const value = new Date(date);
-  return Number.isNaN(value.getTime())
-    ? "Unknown"
-    : value.toLocaleString("en-AU", { month: "short", year: "2-digit" });
+  if (Number.isNaN(value.getTime())) return "Unknown";
+  return value.toLocaleString("en-AU", { month: "short", year: "2-digit" });
 }
 
-function AnalyticsCard({ title, subtitle, className = "", children }: { title: string; subtitle: string; className?: string; children: ReactNode }) {
+function AnalyticsCard({
+  title,
+  subtitle,
+  className = "",
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className={`rounded-3xl border border-neutral-800 bg-neutral-900 p-5 ${className}`}>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="mb-4 text-sm text-neutral-500">{subtitle}</p>
-      {children}
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32 }}
+      className={`surface-card rounded-[28px] border border-white/[0.055] p-5 sm:p-6 ${className}`}
+    >
+      <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+      <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
+      <div className="mt-6">{children}</div>
     </motion.section>
   );
 }
 
 export function Statistics({ state }: Props) {
-  const { incomes, effectiveExpenses, currencySymbol, trackerSummaries, sharedRolloverJar, activeLent, activeBorrowed, monthlyHours, savingsBucketBalances } = state;
+  const {
+    incomes,
+    effectiveExpenses,
+    currencySymbol,
+    trackerSummaries,
+    sharedRolloverJar,
+    activeLent,
+    activeBorrowed,
+    monthlyHours,
+    savingsBucketBalances,
+  } = state;
   const trackerCategoryIds = new Set(
     state.bucketListTrackers
       .filter((tracker) => tracker.active)
       .flatMap((tracker) => tracker.linkedCategoryIds)
   );
-  const grouped = new Map<string, { month: string; income: number; expenses: number; trackedSpending: number; hours: number }>();
+  const grouped = new Map<
+    string,
+    {
+      month: string;
+      sort: number;
+      income: number;
+      expenses: number;
+      trackedSpending: number;
+      hours: number;
+    }
+  >();
+
+  function rowFor(date: string) {
+    const parsed = new Date(date);
+    const key = monthKey(date);
+    const sort = Number.isNaN(parsed.getTime())
+      ? 0
+      : new Date(parsed.getFullYear(), parsed.getMonth(), 1).getTime();
+    return (
+      grouped.get(key) || {
+        month: key,
+        sort,
+        income: 0,
+        expenses: 0,
+        trackedSpending: 0,
+        hours: 0,
+      }
+    );
+  }
+
   incomes.forEach((item) => {
-    const key = monthKey(item.date);
-    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, trackedSpending: 0, hours: 0 };
+    const row = rowFor(item.date);
     row.income += item.amount;
     row.hours += item.hours;
-    grouped.set(key, row);
+    grouped.set(row.month, row);
   });
   effectiveExpenses.forEach((item) => {
-    const key = monthKey(item.date);
-    const row = grouped.get(key) || { month: key, income: 0, expenses: 0, trackedSpending: 0, hours: 0 };
+    const row = rowFor(item.date);
     row.expenses += item.amount;
     if (trackerCategoryIds.has(item.categoryId || categoryIdFromName(item.category))) {
       row.trackedSpending += item.amount;
     }
-    grouped.set(key, row);
+    grouped.set(row.month, row);
   });
-  const monthly = [...grouped.values()].slice(-12).map((row, index, rows) => ({
+
+  const baseMonthly = [...grouped.values()]
+    .sort((a, b) => a.sort - b.sort)
+    .slice(-12);
+  const monthly = (baseMonthly.length
+    ? baseMonthly
+    : [{ month: monthKey(new Date().toISOString()), sort: Date.now(), income: 0, expenses: 0, trackedSpending: 0, hours: 0 }]
+  ).map((row, index, rows) => ({
     ...row,
     remaining: row.income - row.expenses,
-    netWorth: rows.slice(0, index + 1).reduce((sum, item) => sum + item.income - item.expenses, 0),
+    netWorth: rows
+      .slice(0, index + 1)
+      .reduce((sum, item) => sum + item.income - item.expenses, 0),
   }));
+
   const categoryMap = new Map<string, number>();
-  effectiveExpenses.forEach((expense) => categoryMap.set(expense.category, (categoryMap.get(expense.category) || 0) + expense.amount));
-  const categories = [...categoryMap.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+  effectiveExpenses.forEach((expense) =>
+    categoryMap.set(
+      expense.category,
+      (categoryMap.get(expense.category) || 0) + expense.amount
+    )
+  );
+  const categories = [...categoryMap.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
   const jarData = monthly.map((row, index) => ({
     month: row.month,
     allocation: sharedRolloverJar.monthlyAllocation,
     spending: row.trackedSpending,
-    available: sharedRolloverJar.previousBalance + sharedRolloverJar.monthlyAllocation * (index + 1) - monthly.slice(0, index + 1).reduce((sum, item) => sum + item.trackedSpending, 0),
+    available:
+      sharedRolloverJar.previousBalance +
+      sharedRolloverJar.monthlyAllocation * (index + 1) -
+      monthly
+        .slice(0, index + 1)
+        .reduce((sum, item) => sum + item.trackedSpending, 0),
   }));
-  const tooltipStyle = { background: "#171717", border: "1px solid #333", borderRadius: 14 };
+  const moneyTick = (value: number) =>
+    `${currencySymbol}${Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`;
 
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold text-emerald-300">FINANCIAL INTELLIGENCE</p>
-        <h2 className="mt-1 text-3xl font-bold">Stats & Analytics</h2>
-        <p className="mt-1 text-neutral-500">Patterns, momentum, and the story behind your money.</p>
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="section-kicker text-sky-300">FINANCIAL INTELLIGENCE</p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Stats & Analytics</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Trends and behavior without spreadsheet noise.
+          </p>
+        </div>
+        <div className="flex gap-6 rounded-2xl border border-white/[0.055] bg-white/[0.025] px-5 py-3">
+          <MiniStat label="Hours" value={`${monthlyHours.toLocaleString()}h`} />
+          <MiniStat label="Savings" value={`${currencySymbol}${savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}`} />
+        </div>
       </div>
-      <div className="grid gap-5 xl:grid-cols-2">
-        <AnalyticsCard title="Net Worth Trend" subtitle="Financial movement across recorded months">
-          <div className="h-72"><ResponsiveContainer width="100%" height="100%"><AreaChart data={monthly}><defs><linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#38bdf8" stopOpacity={0.45}/><stop offset="100%" stopColor="#34d399" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#262626" vertical={false}/><XAxis dataKey="month" stroke="#737373" tickLine={false}/><YAxis hide/><Tooltip contentStyle={tooltipStyle}/><Area type="monotone" dataKey="netWorth" stroke="#38bdf8" strokeWidth={3} fill="url(#netWorthFill)"/></AreaChart></ResponsiveContainer></div>
+
+      <div className="grid gap-5 xl:grid-cols-12">
+        <AnalyticsCard title="Net Worth Trend" subtitle="Cumulative financial movement" className="xl:col-span-7">
+          <ChartFrame height="h-80">
+            <AreaChart data={monthly} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+              <defs>
+                <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
+              <YAxis stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} tickFormatter={moneyTick} width={48} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area type="monotone" dataKey="netWorth" stroke="#38bdf8" strokeWidth={2.5} fill="url(#netWorthFill)" />
+            </AreaChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Income vs Expense" subtitle="How much arrived, left, and remained">
-          <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={monthly}><CartesianGrid stroke="#262626" vertical={false}/><XAxis dataKey="month" stroke="#737373" tickLine={false}/><YAxis hide/><Tooltip contentStyle={tooltipStyle}/><Legend/><Line type="monotone" dataKey="income" stroke="#34d399" strokeWidth={3} dot={false}/><Line type="monotone" dataKey="expenses" stroke="#fb7185" strokeWidth={3} dot={false}/><Line type="monotone" dataKey="remaining" stroke="#38bdf8" strokeWidth={2} dot={false}/></LineChart></ResponsiveContainer></div>
+
+        <AnalyticsCard title="Category Mix" subtitle="Where spending concentrates" className="xl:col-span-5">
+          <ChartFrame height="h-80">
+            <PieChart>
+              <Pie data={categories.length ? categories : [{ name: "No spending", value: 1 }]} dataKey="value" nameKey="name" innerRadius={70} outerRadius={104} paddingAngle={4} cornerRadius={6}>
+                {(categories.length ? categories : [{ name: "No spending", value: 1 }]).map((item, index) => (
+                  <Cell key={item.name} fill={categories.length ? categoryColors[index % categoryColors.length] : "#26292f"} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} />
+              {categories.length > 0 && <Legend iconType="circle" wrapperStyle={{ fontSize: 11, color: "#a3a3a3" }} />}
+            </PieChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Monthly Spending" subtitle="Compare spending intensity month by month">
-          <div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={monthly}><CartesianGrid stroke="#262626" vertical={false}/><XAxis dataKey="month" stroke="#737373" tickLine={false}/><YAxis hide/><Tooltip contentStyle={tooltipStyle}/><Bar dataKey="expenses" fill="#fb7185" radius={[10,10,3,3]}/></BarChart></ResponsiveContainer></div>
+
+        <AnalyticsCard title="Income vs Expense" subtitle="Cash flow by recorded month" className="xl:col-span-7">
+          <ChartFrame height="h-72">
+            <LineChart data={monthly} margin={{ left: 0, right: 8, top: 8 }}>
+              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
+              <YAxis stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} tickFormatter={moneyTick} width={48} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="expenses" stroke="#fb7185" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="remaining" stroke="#38bdf8" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Category Breakdown" subtitle="Where discretionary and essential spending goes">
-          <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={categories} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>{categories.map((item, index) => <Cell key={item.name} fill={colors[index % colors.length]}/>)}</Pie><Tooltip contentStyle={tooltipStyle}/><Legend/></PieChart></ResponsiveContainer></div>
+
+        <AnalyticsCard title="Monthly Spending" subtitle="Outgoing intensity over time" className="xl:col-span-5">
+          <ChartFrame height="h-72">
+            <BarChart data={monthly} margin={{ left: 0, right: 6, top: 8 }}>
+              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
+              <YAxis hide />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="expenses" fill="#fb7185" radius={[8, 8, 3, 3]} maxBarSize={34} />
+            </BarChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Shared Rollover Jar Analytics" subtitle="One lifestyle pool: allocations, spending, and carry-forward" className="border-purple-500/25 bg-purple-500/[0.06]">
-          <div className="mb-4 grid grid-cols-3 gap-2 text-sm"><div className="rounded-2xl bg-neutral-950 p-3"><p className="text-neutral-500">Available</p><p className="font-bold text-purple-200">{currencySymbol}{sharedRolloverJar.available.toLocaleString()}</p></div><div className="rounded-2xl bg-neutral-950 p-3"><p className="text-neutral-500">Allocated</p><p className="font-bold">{currencySymbol}{sharedRolloverJar.monthlyAllocation.toLocaleString()}</p></div><div className="rounded-2xl bg-neutral-950 p-3"><p className="text-neutral-500">Result</p><p className="font-bold text-purple-300">{currencySymbol}{sharedRolloverJar.monthlyResult.toLocaleString()}</p></div></div>
-          <div className="h-56"><ResponsiveContainer width="100%" height="100%"><AreaChart data={jarData}><XAxis dataKey="month" stroke="#737373" tickLine={false}/><YAxis hide/><Tooltip contentStyle={tooltipStyle}/><Area type="monotone" dataKey="available" stroke="#a78bfa" strokeWidth={3} fill="#a78bfa22"/></AreaChart></ResponsiveContainer></div>
+
+        <AnalyticsCard title="Shared Jar Growth" subtitle="Allocation, tracked spend, and rollover" className="border-purple-400/15 xl:col-span-7">
+          <div className="mb-5 grid grid-cols-3 gap-3">
+            <MiniStat label="Available" value={`${currencySymbol}${sharedRolloverJar.available.toLocaleString()}`} tone="text-purple-200" />
+            <MiniStat label="Monthly" value={`${currencySymbol}${sharedRolloverJar.monthlyAllocation.toLocaleString()}`} />
+            <MiniStat label="Result" value={`${currencySymbol}${sharedRolloverJar.monthlyResult.toLocaleString()}`} tone={sharedRolloverJar.monthlyResult >= 0 ? "text-emerald-300" : "text-orange-300"} />
+          </div>
+          <ChartFrame height="h-64">
+            <AreaChart data={jarData} margin={{ left: 0, right: 8, top: 8 }}>
+              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
+              <YAxis hide />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area type="monotone" dataKey="available" stroke="#c084fc" strokeWidth={2.5} fill="#a855f722" />
+            </AreaChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Bucket Usage Progress" subtitle="Virtual tracker health, not separate balances">
-          <div className="space-y-4">{trackerSummaries.map((tracker) => { const width = Math.min(100, tracker.progress); const statusColor = tracker.status === "Overspent" ? "text-red-300 bg-red-500/15" : tracker.status === "Near Limit" ? "text-orange-300 bg-orange-500/15" : "text-green-300 bg-green-500/15"; return <div key={tracker.id}><div className="mb-2 flex items-center justify-between gap-2"><span className="font-medium">{tracker.name}</span><span className={`rounded-full px-2 py-1 text-xs ${statusColor}`}>{tracker.status}</span></div><div className="h-2 overflow-hidden rounded-full bg-neutral-800"><motion.div initial={{ width: 0 }} animate={{ width: `${width}%` }} className="h-full rounded-full bg-purple-500"/></div><p className="mt-1 text-xs text-neutral-500">{currencySymbol}{tracker.spentThisMonth.toLocaleString()} of {currencySymbol}{tracker.monthlyBudget.toLocaleString()}</p></div>; })}</div>
+
+        <AnalyticsCard title="Tracker Health" subtitle="Monthly cap usage" className="xl:col-span-5">
+          <div className="space-y-5">
+            {trackerSummaries.slice(0, 6).map((tracker) => (
+              <div key={tracker.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{tracker.name}</span>
+                  <span className={`text-xs ${tracker.status === "Overspent" ? "text-red-300" : tracker.status === "Near Limit" ? "text-orange-300" : "text-emerald-300"}`}>{tracker.status}</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, tracker.progress)}%` }} className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-400" />
+                </div>
+                <p className="mt-1.5 text-xs text-neutral-500">{currencySymbol}{tracker.spentThisMonth.toLocaleString()} of {currencySymbol}{tracker.monthlyBudget.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
         </AnalyticsCard>
-        <AnalyticsCard title="Lending vs Borrowing" subtitle="Receivables compared with liabilities">
-          <div className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ name: "Outstanding", lent: activeLent, borrowed: activeBorrowed }]} layout="vertical"><XAxis type="number" hide/><YAxis dataKey="name" type="category" hide/><Tooltip contentStyle={tooltipStyle}/><Legend/><Bar dataKey="lent" fill="#34d399" radius={[0,10,10,0]}/><Bar dataKey="borrowed" fill="#fb7185" radius={[0,10,10,0]}/></BarChart></ResponsiveContainer></div>
+
+        <AnalyticsCard title="Lending Position" subtitle="Receivables compared with liabilities" className="xl:col-span-5">
+          <ChartFrame height="h-56">
+            <BarChart data={[{ name: "Outstanding", lent: activeLent, borrowed: activeBorrowed }]} layout="vertical" margin={{ left: 0, right: 12 }}>
+              <XAxis type="number" hide />
+              <YAxis dataKey="name" type="category" hide />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend iconType="circle" />
+              <Bar dataKey="lent" fill="#34d399" radius={[0, 8, 8, 0]} />
+              <Bar dataKey="borrowed" fill="#fb7185" radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ChartFrame>
         </AnalyticsCard>
-        <AnalyticsCard title="Monthly Financial Summary" subtitle="Historical totals stay intact across monthly resets">
-          <div className="space-y-2">{monthly.slice(-6).reverse().map((row) => <div key={row.month} className="grid grid-cols-[1fr_repeat(3,auto)] items-center gap-4 rounded-2xl bg-neutral-950 p-3 text-sm"><span className="font-semibold">{row.month}</span><span className="text-green-300">+{currencySymbol}{row.income.toLocaleString()}</span><span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span><span className="text-blue-300">{row.hours || monthlyHours}h</span></div>)}</div>
-          <p className="mt-4 text-xs text-neutral-500">Savings buckets total {currencySymbol}{savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}.</p>
+
+        <AnalyticsCard title="Monthly Summary" subtitle="Income, spending, and work history" className="xl:col-span-7">
+          <div className="divide-y divide-white/[0.05]">
+            {monthly.slice(-6).reverse().map((row) => (
+              <div key={row.month} className="grid grid-cols-[1fr_repeat(3,auto)] items-center gap-4 py-3 text-sm">
+                <span className="font-medium">{row.month}</span>
+                <span className="text-emerald-300">+{currencySymbol}{row.income.toLocaleString()}</span>
+                <span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span>
+                <span className="text-neutral-500">{row.hours}h</span>
+              </div>
+            ))}
+          </div>
         </AnalyticsCard>
       </div>
     </div>
   );
+}
+
+function ChartFrame({ height, children }: { height: string; children: ReactNode }) {
+  return <div className={`w-full ${height}`}><ResponsiveContainer width="100%" height="100%">{children as never}</ResponsiveContainer></div>;
+}
+
+function MiniStat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {
+  return <div><p className="text-[11px] text-neutral-500">{label}</p><p className={`mt-1 text-sm font-semibold ${tone}`}>{value}</p></div>;
 }
 
 export default Statistics;

@@ -1,4 +1,4 @@
-import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets } from "@/lib/buckets";
+import { bucketMatches, categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, getBucketLabel } from "@/lib/buckets";
 import { buildPersonProfiles } from "@/lib/lending";
 import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
 import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Transfer } from "@/lib/types";
@@ -276,11 +276,25 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     .reduce((sum, item) => sum + item.amount, 0);
 
   function bucketIn(bucket: Bucket | SavingsBucket) {
-    return transfers.filter((item) => isBucket(item.to_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
+    return transfers
+      .filter(
+        (item) =>
+          item.to_bucket !== "shared_rollover_jar" &&
+          item.from_bucket !== "shared_rollover_jar" &&
+          isBucket(item.to_bucket, bucket)
+      )
+      .reduce((sum, item) => sum + item.amount, 0);
   }
 
   function bucketOut(bucket: Bucket | SavingsBucket) {
-    return transfers.filter((item) => isBucket(item.from_bucket, bucket)).reduce((sum, item) => sum + item.amount, 0);
+    return transfers
+      .filter(
+        (item) =>
+          item.to_bucket !== "shared_rollover_jar" &&
+          item.from_bucket !== "shared_rollover_jar" &&
+          isBucket(item.from_bucket, bucket)
+      )
+      .reduce((sum, item) => sum + item.amount, 0);
   }
 
   const bankBalance = initialBankBalance + totalUsableIncome + borrowedToBank - lentFromBank - expenseFromBank - bucketOut("Bank") + bucketIn("Bank");
@@ -319,8 +333,25 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     (bucket) => bucket.id === "savings_remittance"
   );
   const activeTrackers = bucketListTrackers.filter((tracker) => tracker.active);
+  function monthlyAllocationForTracker(tracker: BucketListTracker) {
+    const allocation = tracker.recurringAllocation;
+    if (!allocation?.active || allocation.allocationAmount <= 0) {
+      return tracker.monthlyBudget;
+    }
+
+    if (allocation.frequency === "weekly") {
+      return allocation.allocationAmount * 52 / 12;
+    }
+    if (allocation.frequency === "biweekly") {
+      return allocation.allocationAmount * 26 / 12;
+    }
+    if (allocation.frequency === "yearly") {
+      return allocation.allocationAmount / 12;
+    }
+    return allocation.allocationAmount;
+  }
   const totalMonthlyTrackerAllocation = activeTrackers.reduce(
-    (sum, tracker) => sum + tracker.monthlyBudget,
+    (sum, tracker) => sum + monthlyAllocationForTracker(tracker),
     0
   );
   const trackerSummaries = activeTrackers.map((tracker) => {
@@ -344,6 +375,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           : spentThisMonth >= tracker.monthlyBudget * 0.8
             ? "Near Limit"
             : "On Track",
+      monthlyAllocation: monthlyAllocationForTracker(tracker),
     };
   });
   const trackerLinkedCategoryIds = new Set(
@@ -358,8 +390,14 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       today.getMonth() -
       created.getMonth() +
       1;
-    return sum + Math.max(1, months) * tracker.monthlyBudget;
+    return sum + Math.max(1, months) * monthlyAllocationForTracker(tracker);
   }, 0);
+  const manualJarAllocations = transfers
+    .filter((transfer) => transfer.to_bucket === "shared_rollover_jar")
+    .reduce((sum, transfer) => sum + transfer.amount, 0);
+  const manualJarWithdrawals = transfers
+    .filter((transfer) => transfer.from_bucket === "shared_rollover_jar")
+    .reduce((sum, transfer) => sum + transfer.amount, 0);
   const totalTrackedSpending = effectiveExpenses
     .filter(
       (expense) =>
@@ -377,11 +415,15 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     monthlyAllocation: totalMonthlyTrackerAllocation,
     spentThisMonth: sharedJarSpentThisMonth,
     monthlyResult: sharedJarMonthlyResult,
-    carried: sharedRolloverJarBalance + totalHistoricalAllocations - totalMonthlyTrackerAllocation - (totalTrackedSpending - sharedJarSpentThisMonth),
+    manualAllocations: manualJarAllocations,
+    manualWithdrawals: manualJarWithdrawals,
+    carried: sharedRolloverJarBalance + totalHistoricalAllocations + manualJarAllocations - manualJarWithdrawals - totalMonthlyTrackerAllocation - (totalTrackedSpending - sharedJarSpentThisMonth),
     available:
       sharedRolloverJarBalance +
       totalHistoricalAllocations -
-      totalTrackedSpending,
+      totalTrackedSpending +
+      manualJarAllocations -
+      manualJarWithdrawals,
   };
   const recentActivity: RecentActivityItem[] = [
     ...incomes.map((item, index) => ({
@@ -413,8 +455,14 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
         item.id ||
         `transfer-${item.date || "no-date"}-${item.amount || 0}-${index}`,
       type: "transfer" as const,
-      title: item.from_bucket + " → " + item.to_bucket,
-      subtitle: item.notes || "Bucket transfer",
+      title:
+        getBucketLabel(item.from_bucket, savingsBuckets) +
+        " to " +
+        getBucketLabel(item.to_bucket, savingsBuckets),
+      subtitle:
+        item.to_bucket === "shared_rollover_jar"
+          ? item.notes || "Shared jar allocation"
+          : item.notes || "Money transfer",
       amount: item.amount,
       date: item.date,
     })),

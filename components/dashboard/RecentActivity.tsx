@@ -7,12 +7,16 @@ type RecentActivityProps = {
   state: FinanceDashboardState;
   showAll: boolean;
   onToggleShowAll: () => void;
+  search?: string;
+  typeFilter?: string;
 };
 
 export function RecentActivity({
   state,
   showAll,
   onToggleShowAll,
+  search = "",
+  typeFilter = "all",
 }: RecentActivityProps) {
   const {
     recentActivity,
@@ -23,19 +27,30 @@ export function RecentActivity({
     deleteLendingTransaction,
   } = state;
 
+  const filteredActivity = recentActivity.filter((item) => {
+    const matchesType = typeFilter === "all" || item.type === typeFilter;
+    const query = search.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      item.title.toLowerCase().includes(query) ||
+      item.subtitle.toLowerCase().includes(query);
+    return matchesType && matchesSearch;
+  });
   const displayedRecentActivity = showAll
-    ? recentActivity
-    : recentActivity.slice(0, 5);
+    ? filteredActivity
+    : filteredActivity.slice(0, 5);
 
   return (
-    <section className="rounded-3xl bg-neutral-900 p-5">
-      <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
+    <section className="surface-card rounded-[28px] border border-white/[0.055] p-4 sm:p-5">
 
       <div className="space-y-3">
-        {recentActivity.length === 0 ? (
-          <p className="text-sm text-neutral-500">No recent activity</p>
+        {filteredActivity.length === 0 ? (
+          <p className="py-8 text-center text-sm text-neutral-500">No recent activity</p>
         ) : (
           displayedRecentActivity.map((item, index) => {
+            const isJarAllocation =
+              item.type === "transfer" &&
+              item.subtitle.toLowerCase().includes("shared jar");
             const Icon =
               item.type === "income"
                 ? ArrowDownLeft
@@ -68,10 +83,10 @@ export function RecentActivity({
                 key={`${item.source ?? "activity"}-${item.type}-${String(
                   item.id ?? "no-id"
                 )}-${index}`}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-800 p-3"
+                className="group flex items-center justify-between gap-3 rounded-2xl px-2 py-3 transition hover:bg-white/[0.025] sm:px-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : "bg-red-500/15 text-red-300"}`}>
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${isJarAllocation ? "bg-purple-500/15 text-purple-300" : item.type === "income" || item.type === "lent" ? "bg-green-500/15 text-green-300" : item.type === "transfer" || item.type === "settlement" ? "bg-cyan-500/15 text-cyan-300" : "bg-red-500/15 text-red-300"}`}>
                     <Icon size={18} />
                   </span>
                   <div className="min-w-0">
@@ -79,7 +94,7 @@ export function RecentActivity({
                       <p className="truncate font-medium">
                         {item.title?.trim() || "Untitled activity"}
                       </p>
-                      <span className="rounded-full bg-neutral-700 px-2 py-0.5 text-[10px] uppercase text-neutral-300">
+                      <span className="rounded-full bg-white/[0.055] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-neutral-400">
                         {item.type}
                       </span>
                       {item.isRecurring && (
@@ -99,7 +114,7 @@ export function RecentActivity({
                     {prefix}${safeAmount.toLocaleString()}
                   </p>
 
-                  <div className="mt-2 flex items-center justify-end gap-2">
+                  <div className="mt-1.5 flex items-center justify-end gap-1 opacity-70 transition group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={() => startEdit(item)}
@@ -153,11 +168,11 @@ export function RecentActivity({
         )}
       </div>
 
-      {recentActivity.length > 5 && (
+      {filteredActivity.length > 5 && (
         <button
           type="button"
           onClick={onToggleShowAll}
-          className="mt-4 w-full rounded-2xl bg-neutral-800 p-3 text-sm font-semibold text-neutral-300"
+          className="mt-4 w-full rounded-xl border border-white/[0.055] bg-white/[0.025] p-2.5 text-sm font-medium text-neutral-400 transition hover:text-white"
         >
           {showAll ? "Show Less" : "Show More"}
         </button>

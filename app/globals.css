@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #080a0d;
+  --foreground: #f5f5f5;
 }
 
 @theme inline {
@@ -19,10 +19,87 @@
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.surface-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.018)),
+    #0e1115;
+}
+
+.savings-card {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(56,189,248,.10), transparent 34%),
+    linear-gradient(160deg, #111a22, #0e1217 64%);
+}
+
+.tracker-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(217,70,239,.12), transparent 35%),
+    linear-gradient(160deg, #181222, #111016 68%);
+}
+
+.jar-card {
+  background:
+    radial-gradient(circle at 80% 15%, rgba(192,132,252,.16), transparent 35%),
+    linear-gradient(135deg, #21142e 0%, #15101d 52%, #101116 100%);
+}
+
+.section-kicker {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+}
+
+.settings-panel input:not([type="checkbox"]),
+.settings-panel select,
+.settings-panel textarea {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  background: rgba(255,255,255,.045);
+  padding: 12px 14px;
+  color: #f5f5f5;
+  outline: none;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.settings-panel input:not([type="checkbox"]):focus,
+.settings-panel select:focus,
+.settings-panel textarea:focus {
+  border-color: rgba(110,231,183,.42);
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 0 0 3px rgba(52,211,153,.08);
+}
+
+::selection {
+  background: rgba(52, 211, 153, .25);
 }
 
 @keyframes shimmer {

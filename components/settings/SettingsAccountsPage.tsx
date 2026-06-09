@@ -32,10 +32,15 @@ export function SettingsAccountsPage({ state }: Props) {
 
 export function SettingsPanel({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
-    <section className="rounded-3xl bg-neutral-900 p-5">
-      <button type="button" onClick={onBack} className="mb-4 text-sm text-emerald-300">Back</button>
-      <h2 className="mb-5 text-2xl font-bold">{title}</h2>
-      <div className="space-y-4">{children}</div>
+    <section className="settings-panel surface-card rounded-3xl border border-white/[0.055] p-5 sm:p-7">
+      <div className="mb-7 flex items-center gap-4">
+        <button type="button" onClick={onBack} className="rounded-xl bg-white/[0.04] px-3 py-2 text-sm text-neutral-400 transition hover:text-white lg:hidden">Back</button>
+        <div>
+          <p className="section-kicker text-neutral-500">SETTINGS</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
+        </div>
+      </div>
+      <div className="space-y-5">{children}</div>
     </section>
   );
 }
@@ -43,7 +48,7 @@ export function SettingsPanel({ title, onBack, children }: { title: string; onBa
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-neutral-400">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-neutral-300">{label}</span>
       {children}
     </label>
   );
@@ -51,9 +56,9 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export function Actions({ state }: Props) {
   return (
-    <div className="grid grid-cols-2 gap-3 pt-2">
-      <button type="button" onClick={state.goBackSettingsPage} className="rounded-2xl bg-neutral-800 p-4 font-semibold">Back</button>
-      <button type="button" onClick={state.saveSettings} className="rounded-2xl bg-emerald-500 p-4 font-semibold text-black">Save</button>
+    <div className="sticky bottom-3 grid grid-cols-2 gap-3 rounded-2xl border border-white/[0.06] bg-[#111419]/95 p-3 pt-3 shadow-2xl backdrop-blur">
+      <button type="button" onClick={state.goBackSettingsPage} className="rounded-xl bg-white/[0.05] p-3 text-sm font-semibold text-neutral-300">Cancel</button>
+      <button type="button" onClick={state.saveSettings} className="rounded-xl bg-white p-3 text-sm font-semibold text-neutral-950">Save changes</button>
     </div>
   );
 }

@@ -144,6 +144,7 @@ export function normalizeBucketId(value: unknown): Bucket {
 export function getBucketLabel(value: unknown, savingsBuckets = defaultSavingsBuckets) {
   const id = normalizeBucketId(value);
   if (id === "Bank" || id === "Cash") return id;
+  if (id === "shared_rollover_jar") return "Shared Rollover Jar";
   return savingsBuckets.find((bucket) => bucket.id === id)?.name || String(value);
 }
 
@@ -213,6 +214,22 @@ export function normalizeTrackerLinks(trackers: BucketListTracker[]) {
       return true;
     });
 
-    return { ...tracker, linkedCategoryIds };
+    return {
+      ...tracker,
+      linkedCategoryIds,
+      recurringAllocation: tracker.recurringAllocation
+        ? {
+            sourceAccountId:
+              tracker.recurringAllocation.sourceAccountId === "Cash"
+                ? ("Cash" as const)
+                : ("Bank" as const),
+            allocationAmount: Number(
+              tracker.recurringAllocation.allocationAmount || 0
+            ),
+            frequency: tracker.recurringAllocation.frequency || "monthly",
+            active: Boolean(tracker.recurringAllocation.active),
+          }
+        : undefined,
+    };
   });
 }

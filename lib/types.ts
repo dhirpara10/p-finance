@@ -3,6 +3,7 @@ export type IncomeType = "Hourly" | "Fixed Amount";
 export type ExpenseAccount = "Bank" | "Cash";
 export type AccountBucket = "Bank" | "Cash";
 export type Bucket = AccountBucket | string;
+export type AllocationFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
 
 export type SavingsBucket = {
   id: string;
@@ -21,6 +22,12 @@ export type BucketListTracker = {
   icon: string;
   monthlyBudget: number;
   linkedCategoryIds: string[];
+  recurringAllocation?: {
+    sourceAccountId: AccountBucket;
+    allocationAmount: number;
+    frequency: AllocationFrequency;
+    active: boolean;
+  };
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -68,6 +75,7 @@ export type Transfer = {
   amount: number;
   date: string;
   notes: string;
+  trackerId?: string;
 };
 
 export type MoneyRecord = {

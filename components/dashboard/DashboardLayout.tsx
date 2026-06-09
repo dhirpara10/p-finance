@@ -1,12 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import Statistics from "@/components/dashboard/Statistics";
+import { SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
+import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
 import { bucketMatches, categoryIdFromName, getBucketLabel } from "@/lib/buckets";
-import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
-import { ArrowDown, ArrowRightLeft, ArrowUp, BarChart3, Compass, Dumbbell, HandCoins, Home, Laptop, Layers3, List, LockKeyhole, PiggyBank, Settings, Shirt, ShoppingBag, Sparkles, TrendingUp, Wallet, WalletCards } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRightLeft,
+  ArrowUp,
+  BarChart3,
+  ChevronRight,
+  CircleDollarSign,
+  HandCoins,
+  Home,
+  Landmark,
+  Layers3,
+  List,
+  Lock,
+  Menu,
+  PiggyBank,
+  Search,
+  Settings,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
+} from "lucide-react";
 import { SettingsAccountsPage } from "@/components/settings/SettingsAccountsPage";
 import { SettingsAppearancePage } from "@/components/settings/SettingsAppearancePage";
 import { SettingsBucketHistoryPage } from "@/components/settings/SettingsBucketHistoryPage";
@@ -15,532 +38,663 @@ import { SettingsCategoriesPage } from "@/components/settings/SettingsCategories
 import { SettingsHub } from "@/components/settings/SettingsHub";
 import { SettingsIncomeSourcesPage } from "@/components/settings/SettingsIncomeSourcesPage";
 import { SettingsNotificationsPage } from "@/components/settings/SettingsNotificationsPage";
-import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
 import { SettingsRecurringExpensesPage } from "@/components/settings/SettingsRecurringExpensesPage";
+import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
 
-type DashboardLayoutProps = { state: FinanceDashboardState; };
+type Props = { state: FinanceDashboardState };
+type Tab = "home" | "buckets" | "activity" | "stats" | "settings";
+type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
-export function DashboardLayout({ state }: DashboardLayoutProps) {
-  const { currencySymbol, usableBalance, netWorth, settingsPage, navigateToSettingsPage, lockApp, setShowIncomeForm, setShowExpenseForm, setShowTransferForm, setShowLentForm, setShowBorrowedForm, monthlyIncome, monthlyHours, monthlyExpenses, remaining, spendThisMonth, spendTransferCount, savingsBucketBalances, trackerSummaries, sharedRolloverJar, transfers, effectiveExpenses, activeLent, activeBorrowed, setDetailsView } = state;
-  const [showAllRecentActivity, setShowAllRecentActivity] = useState(false);
-  const [activeTab, setActiveTab] = useState<"home" | "buckets" | "activity" | "stats" | "settings">("home");
-  const [bucketHistory, setBucketHistory] = useState<{
-    type: "savings" | "tracker";
-    id: string;
-  } | null>(null);
+const tabs = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "buckets", label: "Buckets", icon: Layers3 },
+  { id: "activity", label: "Activity", icon: List },
+  { id: "stats", label: "Stats", icon: BarChart3 },
+  { id: "settings", label: "Settings", icon: Settings },
+] as const;
 
-  const openIncomeForm = () => setShowIncomeForm(true);
-  const openExpenseForm = () => setShowExpenseForm(true);
-  const openTransferForm = () => setShowTransferForm(true);
-  const openLentForm = () => setShowLentForm(true);
-  const openBorrowedForm = () => setShowBorrowedForm(true);
-  const tabs = [
-    { id: "home", label: "Home", icon: Home },
-    { id: "buckets", label: "Buckets", icon: Layers3 },
-    { id: "activity", label: "Activity", icon: List },
-    { id: "stats", label: "Stats", icon: BarChart3 },
-    { id: "settings", label: "Settings", icon: Settings },
-  ] as const;
-  const selectedSavingsHistory =
-    bucketHistory?.type === "savings"
-      ? savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id)
-      : null;
-  const selectedTrackerHistory =
-    bucketHistory?.type === "tracker"
-      ? trackerSummaries.find((tracker) => tracker.id === bucketHistory.id)
-      : null;
-  const savingsHistoryRows = selectedSavingsHistory
-    ? transfers
-        .filter(
-          (transfer) =>
-            bucketMatches(transfer.from_bucket, selectedSavingsHistory) ||
-            bucketMatches(transfer.to_bucket, selectedSavingsHistory)
-        )
-        .map((transfer) => ({
-          id: transfer.id,
-          date: transfer.date,
-          amount: transfer.amount,
-          title: bucketMatches(transfer.to_bucket, selectedSavingsHistory)
-            ? "Transfer in"
-            : "Transfer out",
-          account: bucketMatches(transfer.from_bucket, selectedSavingsHistory)
-            ? getBucketLabel(transfer.to_bucket, savingsBucketBalances)
-            : getBucketLabel(transfer.from_bucket, savingsBucketBalances),
-          note: transfer.notes,
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    : [];
-  const trackerHistoryRows = selectedTrackerHistory
-    ? effectiveExpenses
-        .filter((expense) =>
-          selectedTrackerHistory.linkedCategoryIds.includes(
-            expense.categoryId || categoryIdFromName(expense.category)
-          )
-        )
-        .map((expense) => ({
-          id: expense.id,
-          date: expense.date,
-          amount: expense.amount,
-          category: expense.category,
-          account: expense.account,
-          note: expense.notes,
-          title: "Expense",
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    : [];
+export function DashboardLayout({ state }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityType, setActivityType] = useState("all");
+  const [bucketHistory, setBucketHistory] = useState<BucketHistory>(null);
+  const [mobileSections, setMobileSections] = useState({
+    savings: true,
+    trackers: false,
+    accounts: false,
+  });
+
+  const openIncome = () => state.setShowIncomeForm(true);
+  const openExpense = () => state.setShowExpenseForm(true);
+  const openTransfer = () => state.setShowTransferForm(true);
+  const openLent = () => state.setShowLentForm(true);
+  const openBorrowed = () => state.setShowBorrowedForm(true);
+
+  function selectTab(tab: Tab) {
+    setActiveTab(tab);
+    setBucketHistory(null);
+    if (tab === "settings") {
+      state.closeSettings();
+      state.navigateToSettingsPage("hub");
+    } else {
+      state.closeSettings();
+    }
+  }
+
+  function openJarAllocation() {
+    state.setFromBucket("Bank");
+    state.setToBucket("shared_rollover_jar");
+    state.setShowTransferForm(true);
+  }
 
   return (
-    <main className="min-h-screen bg-neutral-950 pb-24 text-white md:pb-0">
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
-        <header className="mb-6 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold text-emerald-300">PERSONAL FINANCE</p>
-            <h1 className="text-2xl font-bold">Money Control</h1>
-            <p className="text-sm text-neutral-400">
-              {new Date().toLocaleString(undefined, {
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-          </div>
+    <main className="min-h-screen bg-[#080a0d] pb-28 text-white md:pb-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
+        <AppHeader state={state} onSettings={() => selectTab("settings")} />
+        <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("settings");
-                navigateToSettingsPage("hub");
-              }}
-              className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
-            >
-              Settings
-            </button>
-
-            <button
-              type="button"
-              onClick={lockApp}
-              className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-neutral-300"
-            >
-              Lock
-            </button>
-          </div>
-        </header>
-
-        <nav className="mb-6 hidden grid-cols-5 gap-2 rounded-3xl bg-neutral-900 p-2 md:grid">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const selected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  if (tab.id === "settings") navigateToSettingsPage("hub");
-                  if (tab.id !== "settings") state.closeSettings();
-                }}
-                className={`flex items-center justify-center gap-2 rounded-2xl p-3 text-sm font-semibold ${selected ? "bg-emerald-500 text-black" : "text-neutral-400"}`}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {activeTab === "settings" && settingsPage ? (
-          <SettingsRouter state={state} />
-        ) : activeTab === "activity" ? (
-          <RecentActivity
-            state={state}
-            showAll={showAllRecentActivity}
-            onToggleShowAll={() =>
-              setShowAllRecentActivity(!showAllRecentActivity)
-            }
-          />
-        ) : activeTab === "stats" ? (
-          <Statistics state={state} />
-        ) : activeTab === "buckets" ? (
-          <div className="space-y-6">
+        <div className="mt-6">
+          {activeTab === "home" && (
+            <HomeView
+              state={state}
+              onIncome={openIncome}
+              onExpense={openExpense}
+              onTransfer={openTransfer}
+              onLent={openLent}
+              onBorrowed={openBorrowed}
+              onAllocate={openJarAllocation}
+              onBuckets={() => selectTab("buckets")}
+              onActivity={() => selectTab("activity")}
+              showAllActivity={showAllActivity}
+              onToggleActivity={() => setShowAllActivity(!showAllActivity)}
+              mobileSections={mobileSections}
+              setMobileSections={setMobileSections}
+              setBucketHistory={setBucketHistory}
+            />
+          )}
+          {activeTab === "buckets" && (
             <BucketsView
               state={state}
               bucketHistory={bucketHistory}
               setBucketHistory={setBucketHistory}
-              selectedSavingsHistory={selectedSavingsHistory}
-              selectedTrackerHistory={selectedTrackerHistory}
-              savingsHistoryRows={savingsHistoryRows}
-              trackerHistoryRows={trackerHistoryRows}
+              onAllocate={openJarAllocation}
             />
-          </div>
-        ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-6">
-            <section className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Usable Balance", value: usableBalance, helper: "Bank + cash", icon: Wallet, style: "border-emerald-500/25 bg-gradient-to-br from-emerald-500/25 to-neutral-900" },
-                { label: "Net Worth", value: netWorth, helper: "Assets minus debt", icon: BarChart3, style: "border-sky-500/25 bg-gradient-to-br from-sky-500/25 to-neutral-900" },
-                { label: "Month Remaining", value: remaining, helper: "Income minus spend", icon: TrendingUp, style: "border-lime-500/25 bg-gradient-to-br from-lime-500/25 to-neutral-900" },
-                { label: "Jar Available", value: sharedRolloverJar.available, helper: "Shared rollover jar", icon: PiggyBank, style: "border-purple-500/25 bg-gradient-to-br from-purple-500/30 to-neutral-900" },
-              ].map((card) => {
-                const Icon = card.icon;
-                return <div key={card.label} className={`min-h-40 rounded-3xl border p-4 ${card.style}`}><div className="flex items-start justify-between gap-2"><div><p className="text-sm text-neutral-300">{card.label}</p><p className="mt-2 text-2xl font-bold md:text-3xl">{currencySymbol}{card.value.toLocaleString()}</p></div><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10"><Icon size={21}/></span></div><p className="mt-8 text-sm text-neutral-400">{card.helper}</p></div>;
-              })}
-            </section>
-
-            <section className="hidden gap-3 md:grid md:grid-cols-3 lg:grid-cols-5">
-              <button
-                type="button"
-                onClick={openIncomeForm}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 p-4 text-left font-semibold text-black"
-              >
-                <ArrowDown size={20}/> Add Income
-              </button>
-
-              <button
-                type="button"
-                onClick={openExpenseForm}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 p-4 text-left font-semibold text-black"
-              >
-                <ArrowUp size={20}/> Add Expense
-              </button>
-
-              <button
-                type="button"
-                onClick={openTransferForm}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 p-4 text-left font-semibold text-black"
-              >
-                <ArrowRightLeft size={20}/> Transfer
-              </button>
-
-              <button
-                type="button"
-                onClick={openLentForm}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-lime-500 to-emerald-400 p-4 text-left font-semibold text-black"
-              >
-                <HandCoins size={20}/> Lent
-              </button>
-
-              <button
-                type="button"
-                onClick={openBorrowedForm}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-purple-500 to-fuchsia-500 p-4 text-left font-semibold text-black"
-              >
-                <LockKeyhole size={20}/> Borrowed
-              </button>
-            </section>
-
-            <section className="rounded-3xl bg-neutral-900 p-5">
-              <h3 className="mb-4 text-lg font-semibold">This Month</h3>
-
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Income</span>
-                  <span className="text-green-400">
-                    +{currencySymbol}{monthlyIncome.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Hours Worked</span>
-                  <span>{monthlyHours.toLocaleString()}h</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Expenses</span>
-                  <span className="text-red-400">
-                    -{currencySymbol}{monthlyExpenses.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="flex justify-between border-t border-neutral-800 pt-3">
-                  <span className="font-medium">Remaining</span>
-                  <span className="font-semibold">
-                    {currencySymbol}{remaining.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </section>
-
-            <div className="hidden lg:block">
-              <RecentActivity
-                state={state}
-                showAll={showAllRecentActivity}
-                onToggleShowAll={() =>
-                  setShowAllRecentActivity(!showAllRecentActivity)
-                }
-              />
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-green-500/30 bg-neutral-900 p-5">
-              <p className="text-sm text-neutral-400">Spend This Month</p>
-              <h3 className="mt-2 text-3xl font-bold text-green-400">
-                {currencySymbol}{spendThisMonth.toLocaleString()}
-              </h3>
-              <p className="mt-2 text-sm text-neutral-500">
-                {spendTransferCount} expense{spendTransferCount === 1 ? "" : "s"} this month
-              </p>
-            </section>
-
-            <Statistics state={state} />
-
-            <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
-              <h3 className="text-lg font-semibold">Savings Buckets</h3>
-              {savingsBucketBalances.filter((bucket) => bucket.active).map((bucket) => (
-                <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-neutral-300">{bucket.name}</p>
-                    <p className="text-sm text-blue-400">
-                      {bucket.progress.toFixed(0)}%
-                    </p>
-                  </div>
-                  <h4 className="mt-2 text-xl font-bold">
-                    {currencySymbol}{bucket.currentBalance.toLocaleString()} / {currencySymbol}
-                    {bucket.targetAmount.toLocaleString()}
-                  </h4>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-700">
-                    <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${bucket.progress}%` }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBucketHistory({ type: "savings", id: bucket.id })
-                    }
-                    className="mt-3 text-sm font-semibold text-blue-300"
-                  >
-                    History
-                  </button>
-                </div>
-              ))}
-            </section>
-
-            <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
-              <h3 className="text-lg font-semibold">Bucket List Trackers</h3>
-              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4">
-                <p className="text-sm text-purple-200">Shared Rollover Jar</p>
-                <h4 className="mt-2 text-2xl font-bold">
-                  {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
-                </h4>
-                <p className="mt-2 text-xs text-neutral-400">
-                  {currencySymbol}{sharedRolloverJar.previousBalance.toLocaleString()} previous + {currencySymbol}
-                  {sharedRolloverJar.monthlyAllocation.toLocaleString()} allocated - {currencySymbol}
-                  {sharedRolloverJar.spentThisMonth.toLocaleString()} spent
-                </p>
-              </div>
-              {trackerSummaries.map((tracker) => (
-                <div key={tracker.id} className="rounded-2xl bg-neutral-800 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-neutral-300">{tracker.name}</p>
-                    <p className="text-sm text-purple-300">
-                      {tracker.progress.toFixed(0)}%
-                    </p>
-                  </div>
-                  <p className="mt-2 text-sm text-neutral-400">
-                    {currencySymbol}{tracker.spentThisMonth.toLocaleString()} spent of {currencySymbol}
-                    {tracker.monthlyBudget.toLocaleString()}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBucketHistory({ type: "tracker", id: tracker.id })
-                    }
-                    className="mt-3 text-sm font-semibold text-purple-300"
-                  >
-                    History
-                  </button>
-                </div>
-              ))}
-            </section>
-
-            {bucketHistory && (
-              <section className="rounded-3xl bg-neutral-900 p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-neutral-400">Bucket History</p>
-                    <h3 className="text-lg font-semibold">
-                      {selectedSavingsHistory?.name || selectedTrackerHistory?.name}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBucketHistory(null)}
-                    className="rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {selectedTrackerHistory && (
-                  <div className="mb-4 grid gap-2 rounded-2xl bg-neutral-800 p-4 text-sm sm:grid-cols-2">
-                    <div>
-                      <p className="text-neutral-500">Monthly cap</p>
-                      <p className="font-semibold">
-                        {currencySymbol}{selectedTrackerHistory.monthlyBudget.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Spent this month</p>
-                      <p className="font-semibold">
-                        {currencySymbol}{selectedTrackerHistory.spentThisMonth.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Shared jar balance</p>
-                      <p className="font-semibold">
-                        {currencySymbol}{sharedRolloverJar.previousBalance.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Available from jar</p>
-                      <p className="font-semibold">
-                        {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <p className="text-neutral-500">Monthly result</p>
-                      <p className="font-semibold">
-                        {currencySymbol}{sharedRolloverJar.monthlyResult.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {selectedSavingsHistory &&
-                    savingsHistoryRows.map((row) => (
-                      <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{row.title}</p>
-                            <p className="text-xs text-neutral-500">
-                              {row.date} • {row.account}
-                            </p>
-                            {row.note && (
-                              <p className="mt-1 text-xs text-neutral-400">
-                                {row.note}
-                              </p>
-                            )}
-                          </div>
-                          <p className="font-semibold">
-                            {currencySymbol}{row.amount.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-
-                  {selectedTrackerHistory &&
-                    trackerHistoryRows.map((row) => (
-                      <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{row.category}</p>
-                            <p className="text-xs text-neutral-500">
-                              {row.date} • {row.account} • {row.title}
-                            </p>
-                            {row.note && (
-                              <p className="mt-1 text-xs text-neutral-400">
-                                {row.note}
-                              </p>
-                            )}
-                          </div>
-                          <p className="font-semibold text-red-300">
-                            -{currencySymbol}{row.amount.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-
-                  {((selectedSavingsHistory && savingsHistoryRows.length === 0) ||
-                    (selectedTrackerHistory && trackerHistoryRows.length === 0)) && (
-                    <p className="rounded-2xl bg-neutral-800 p-4 text-sm text-neutral-400">
-                      No history yet.
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
-
-            <section className="grid grid-cols-2 gap-3">
-              <div className="rounded-3xl bg-neutral-900 p-5">
-                <p className="text-sm text-neutral-400">Money I Lent</p>
-                <p className="mt-2 text-2xl font-bold text-green-400">
-                  {currencySymbol}{activeLent.toLocaleString()}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDetailsView("lent")}
-                  className="mt-3 text-sm text-green-400"
-                >
-                  See More
-                </button>
-              </div>
-
-              <div className="rounded-3xl bg-neutral-900 p-5">
-                <p className="text-sm text-neutral-400">Money I Borrowed</p>
-                <p className="mt-2 text-2xl font-bold text-red-400">
-                  {currencySymbol}{activeBorrowed.toLocaleString()}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDetailsView("borrowed")}
-                  className="mt-3 text-sm text-red-400"
-                >
-                  See More
-                </button>
-              </div>
-            </section>
-          </div>
-        </div>
-        )}
-
-        <div className="mt-6 lg:hidden">
-          <RecentActivity
-            state={state}
-            showAll={showAllRecentActivity}
-            onToggleShowAll={() =>
-              setShowAllRecentActivity(!showAllRecentActivity)
-            }
-          />
+          )}
+          {activeTab === "activity" && (
+            <ActivityView
+              state={state}
+              search={activitySearch}
+              setSearch={setActivitySearch}
+              type={activityType}
+              setType={setActivityType}
+              showAll={showAllActivity}
+              onToggle={() => setShowAllActivity(!showAllActivity)}
+            />
+          )}
+          {activeTab === "stats" && <Statistics state={state} />}
+          {activeTab === "settings" && <SettingsWorkspace state={state} />}
         </div>
       </div>
 
       <FloatingActionMenu
-        onAddIncome={openIncomeForm}
-        onAddExpense={openExpenseForm}
-        onTransfer={openTransferForm}
-        onLent={openLentForm}
-        onBorrowed={openBorrowedForm}
+        onAddIncome={openIncome}
+        onAddExpense={openExpense}
+        onTransfer={openTransfer}
+        onLent={openLent}
+        onBorrowed={openBorrowed}
       />
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 gap-1 rounded-3xl border border-neutral-800 bg-neutral-950/95 p-2 shadow-2xl md:hidden">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const selected = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.id);
-                if (tab.id === "settings") navigateToSettingsPage("hub");
-                if (tab.id !== "settings") state.closeSettings();
-              }}
-              className={`flex flex-col items-center gap-1 rounded-2xl p-2 text-[11px] font-semibold ${selected ? "bg-emerald-500 text-black" : "text-neutral-400"}`}
-            >
-              <Icon size={18} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </nav>
+      <MobileNavigation activeTab={activeTab} onSelect={selectTab} />
     </main>
   );
 }
 
-function SettingsRouter({ state }: DashboardLayoutProps) {
+function AppHeader({
+  state,
+  onSettings,
+}: {
+  state: FinanceDashboardState;
+  onSettings: () => void;
+}) {
+  return (
+    <header className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300/80">
+          Personal Finance
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Money Control
+        </h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          {new Date().toLocaleString("en-AU", {
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Settings"
+          onClick={onSettings}
+          className="hidden h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07] sm:flex"
+        >
+          <Settings size={18} />
+        </button>
+        <button
+          type="button"
+          aria-label="Lock app"
+          onClick={state.lockApp}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07]"
+        >
+          <Lock size={18} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function DesktopNavigation({
+  activeTab,
+  onSelect,
+}: {
+  activeTab: Tab;
+  onSelect: (tab: Tab) => void;
+}) {
+  return (
+    <nav className="mt-7 hidden grid-cols-5 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const selected = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onSelect(tab.id)}
+            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition ${
+              selected
+                ? "bg-white text-neutral-950 shadow-sm"
+                : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+            }`}
+          >
+            <Icon size={17} />
+            {tab.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function HomeView({
+  state,
+  onIncome,
+  onExpense,
+  onTransfer,
+  onLent,
+  onBorrowed,
+  onAllocate,
+  onBuckets,
+  onActivity,
+  showAllActivity,
+  onToggleActivity,
+  mobileSections,
+  setMobileSections,
+  setBucketHistory,
+}: {
+  state: FinanceDashboardState;
+  onIncome: () => void;
+  onExpense: () => void;
+  onTransfer: () => void;
+  onLent: () => void;
+  onBorrowed: () => void;
+  onAllocate: () => void;
+  onBuckets: () => void;
+  onActivity: () => void;
+  showAllActivity: boolean;
+  onToggleActivity: () => void;
+  mobileSections: { savings: boolean; trackers: boolean; accounts: boolean };
+  setMobileSections: (value: { savings: boolean; trackers: boolean; accounts: boolean }) => void;
+  setBucketHistory: (value: BucketHistory) => void;
+}) {
+  const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
+  return (
+    <div className="space-y-8">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <BalanceCard
+          primary
+          icon={Wallet}
+          label="Usable balance"
+          value={state.usableBalance}
+          helper="Bank and cash ready to use"
+          currency={state.currencySymbol}
+          tone="emerald"
+        />
+        <BalanceCard
+          primary
+          icon={Landmark}
+          label="Net worth"
+          value={state.netWorth}
+          helper="Assets minus outstanding debt"
+          currency={state.currencySymbol}
+          tone="blue"
+        />
+        <BalanceCard
+          icon={state.remaining >= 0 ? TrendingUp : TrendingDown}
+          label="Month remaining"
+          value={state.remaining}
+          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in · ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
+          currency={state.currencySymbol}
+          tone={state.remaining >= 0 ? "neutral" : "warning"}
+        />
+        <BalanceCard
+          icon={PiggyBank}
+          label="Jar available"
+          value={state.sharedRolloverJar.available}
+          helper="Shared lifestyle rollover"
+          currency={state.currencySymbol}
+          tone="purple"
+        />
+      </section>
+
+      <QuickActions
+        onIncome={onIncome}
+        onExpense={onExpense}
+        onTransfer={onTransfer}
+        onLent={onLent}
+        onBorrowed={onBorrowed}
+      />
+
+      <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+        <SharedJarCard state={state} onAllocate={onAllocate} />
+        <div className="surface-card rounded-[28px] border border-white/[0.055] p-5">
+          <SectionTitle title="Accounts" subtitle="Your usable money" />
+          <div className="mt-5 space-y-3">
+            <AccountRow icon={Landmark} label="Bank" value={state.bankBalance} currency={state.currencySymbol} tone="blue" />
+            <AccountRow icon={CircleDollarSign} label="Cash" value={state.cashBalance} currency={state.currencySymbol} tone="orange" />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-5">
+            <button type="button" onClick={() => state.setDetailsView("lent")} className="text-left">
+              <p className="text-xs text-neutral-500">Receivables</p>
+              <p className="mt-1 font-semibold text-emerald-300">{state.currencySymbol}{state.activeLent.toLocaleString()}</p>
+            </button>
+            <button type="button" onClick={() => state.setDetailsView("borrowed")} className="border-l border-white/[0.06] pl-4 text-left">
+              <p className="text-xs text-neutral-500">Liabilities</p>
+              <p className="mt-1 font-semibold text-red-300">{state.currencySymbol}{state.activeBorrowed.toLocaleString()}</p>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <CollapsibleSection
+        title="Protected savings"
+        subtitle={`${activeSavings.length} real-money goals`}
+        open={mobileSections.savings}
+        onToggle={() => setMobileSections({ ...mobileSections, savings: !mobileSections.savings })}
+        onViewAll={onBuckets}
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {activeSavings.slice(0, 3).map((bucket) => (
+            <SavingsBucketCard
+              key={bucket.id}
+              bucket={bucket}
+              currencySymbol={state.currencySymbol}
+              onFund={() => {
+                state.setFromBucket("Bank");
+                state.setToBucket(bucket.id);
+                state.setShowTransferForm(true);
+              }}
+              onWithdraw={() => {
+                state.setFromBucket(bucket.id);
+                state.setToBucket("Bank");
+                state.setShowTransferForm(true);
+              }}
+              onHistory={() => {
+                setBucketHistory({ type: "savings", id: bucket.id });
+                onBuckets();
+              }}
+            />
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Lifestyle trackers"
+        subtitle={`${state.trackerSummaries.length} virtual spending plans`}
+        open={mobileSections.trackers}
+        onToggle={() => setMobileSections({ ...mobileSections, trackers: !mobileSections.trackers })}
+        onViewAll={onBuckets}
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {state.trackerSummaries.slice(0, 3).map((tracker) => (
+            <TrackerCard
+              key={tracker.id}
+              tracker={tracker}
+              currencySymbol={state.currencySymbol}
+              onHistory={() => {
+                setBucketHistory({ type: "tracker", id: tracker.id });
+                onBuckets();
+              }}
+            />
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <SectionTitle title="Recent activity" subtitle="Latest money movement" />
+          <button type="button" onClick={onActivity} className="text-sm font-medium text-neutral-400 hover:text-white">
+            View all
+          </button>
+        </div>
+        <RecentActivity state={state} showAll={showAllActivity} onToggleShowAll={onToggleActivity} />
+      </section>
+    </div>
+  );
+}
+
+function BalanceCard({
+  icon: Icon,
+  label,
+  value,
+  helper,
+  currency,
+  tone,
+  primary = false,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: number;
+  helper: string;
+  currency: string;
+  tone: "emerald" | "blue" | "purple" | "neutral" | "warning";
+  primary?: boolean;
+}) {
+  const tones = {
+    emerald: "from-emerald-400/[0.16] border-emerald-300/15 text-emerald-200",
+    blue: "from-sky-400/[0.16] border-sky-300/15 text-sky-200",
+    purple: "from-purple-400/[0.16] border-purple-300/15 text-purple-200",
+    neutral: "from-white/[0.07] border-white/[0.06] text-neutral-200",
+    warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-200",
+  };
+  return (
+    <article className={`rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 ${tones[tone]} ${primary ? "sm:min-h-44" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-neutral-400">{label}</p>
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.07]">
+          <Icon size={18} />
+        </span>
+      </div>
+      <p className="mt-5 truncate text-[clamp(1.55rem,3vw,2.15rem)] font-semibold tracking-tight text-white">
+        {value < 0 ? "-" : ""}{currency}{Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      </p>
+      <p className="mt-3 text-xs leading-5 text-neutral-500">{helper}</p>
+    </article>
+  );
+}
+
+function QuickActions({
+  onIncome,
+  onExpense,
+  onTransfer,
+  onLent,
+  onBorrowed,
+}: {
+  onIncome: () => void;
+  onExpense: () => void;
+  onTransfer: () => void;
+  onLent: () => void;
+  onBorrowed: () => void;
+}) {
+  const actions = [
+    { label: "Income", icon: ArrowDown, onClick: onIncome, tone: "text-emerald-300 bg-emerald-400/10" },
+    { label: "Expense", icon: ArrowUp, onClick: onExpense, tone: "text-red-300 bg-red-400/10" },
+    { label: "Transfer", icon: ArrowRightLeft, onClick: onTransfer, tone: "text-cyan-300 bg-cyan-400/10" },
+    { label: "Lent", icon: HandCoins, onClick: onLent, tone: "text-emerald-200 bg-emerald-400/10" },
+    { label: "Borrowed", icon: CircleDollarSign, onClick: onBorrowed, tone: "text-orange-200 bg-orange-400/10" },
+  ];
+  return (
+    <section className="hidden grid-cols-5 gap-3 md:grid">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <button key={action.label} type="button" onClick={action.onClick} className="surface-card flex items-center gap-3 rounded-2xl border border-white/[0.05] p-3.5 text-left text-sm font-medium text-neutral-200 transition hover:-translate-y-0.5 hover:border-white/[0.1]">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${action.tone}`}><Icon size={17} /></span>
+            {action.label}
+          </button>
+        );
+      })}
+    </section>
+  );
+}
+
+function BucketsView({
+  state,
+  bucketHistory,
+  setBucketHistory,
+  onAllocate,
+}: {
+  state: FinanceDashboardState;
+  bucketHistory: BucketHistory;
+  setBucketHistory: (value: BucketHistory) => void;
+  onAllocate: () => void;
+}) {
+  const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
+  const selectedSavings = bucketHistory?.type === "savings" ? state.savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id) : null;
+  const selectedTracker = bucketHistory?.type === "tracker" ? state.trackerSummaries.find((tracker) => tracker.id === bucketHistory.id) : null;
+
+  return (
+    <div className="space-y-10">
+      <div>
+        <p className="section-kicker text-purple-300">PLANNING & PROTECTION</p>
+        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Buckets</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+          Protected savings hold real money. Lifestyle trackers organize spending through one shared rollover jar.
+        </p>
+      </div>
+      <SharedJarCard state={state} onAllocate={onAllocate} />
+
+      <section>
+        <SectionTitle title="Protected savings" subtitle="Real money held away from your usable balance" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {activeSavings.map((bucket) => (
+            <SavingsBucketCard
+              key={bucket.id}
+              bucket={bucket}
+              currencySymbol={state.currencySymbol}
+              onFund={() => {
+                state.setFromBucket("Bank");
+                state.setToBucket(bucket.id);
+                state.setShowTransferForm(true);
+              }}
+              onWithdraw={() => {
+                state.setFromBucket(bucket.id);
+                state.setToBucket("Bank");
+                state.setShowTransferForm(true);
+              }}
+              onHistory={() => setBucketHistory({ type: "savings", id: bucket.id })}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle title="Lifestyle trackers" subtitle="Virtual monthly plans powered by the shared jar" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {state.trackerSummaries.map((tracker) => (
+            <TrackerCard
+              key={tracker.id}
+              tracker={tracker}
+              currencySymbol={state.currencySymbol}
+              onHistory={() => setBucketHistory({ type: "tracker", id: tracker.id })}
+            />
+          ))}
+        </div>
+      </section>
+
+      {bucketHistory && (
+        <BucketHistoryPanel
+          state={state}
+          savings={selectedSavings}
+          tracker={selectedTracker}
+          onClose={() => setBucketHistory(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BucketHistoryPanel({
+  state,
+  savings,
+  tracker,
+  onClose,
+}: {
+  state: FinanceDashboardState;
+  savings: FinanceDashboardState["savingsBucketBalances"][number] | null | undefined;
+  tracker: FinanceDashboardState["trackerSummaries"][number] | null | undefined;
+  onClose: () => void;
+}) {
+  const rows = savings
+    ? state.transfers
+        .filter((transfer) => bucketMatches(transfer.from_bucket, savings) || bucketMatches(transfer.to_bucket, savings))
+        .map((transfer) => ({
+          id: transfer.id,
+          date: transfer.date,
+          title: bucketMatches(transfer.to_bucket, savings) ? "Transfer in" : "Transfer out",
+          detail: getBucketLabel(bucketMatches(transfer.from_bucket, savings) ? transfer.to_bucket : transfer.from_bucket, state.savingsBucketBalances),
+          amount: transfer.amount,
+        }))
+    : tracker
+      ? state.effectiveExpenses
+          .filter((expense) => tracker.linkedCategoryIds.includes(expense.categoryId || categoryIdFromName(expense.category)))
+          .map((expense) => ({ id: expense.id, date: expense.date, title: expense.category, detail: expense.account, amount: expense.amount }))
+      : [];
+  rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return (
+    <section className="surface-card rounded-[28px] border border-white/[0.06] p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">History</p>
+          <h3 className="mt-2 text-xl font-semibold">{savings?.name || tracker?.name}</h3>
+        </div>
+        <button type="button" aria-label="Close history" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.05] text-neutral-400"><X size={16} /></button>
+      </div>
+      {tracker && (
+        <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-purple-400/10 bg-purple-400/[0.05] p-4 sm:grid-cols-4">
+          <HistoryMetric label="Monthly cap" value={`${state.currencySymbol}${tracker.monthlyBudget.toLocaleString()}`} />
+          <HistoryMetric label="Tracker spend" value={`${state.currencySymbol}${tracker.spentThisMonth.toLocaleString()}`} />
+          <HistoryMetric label="Shared available" value={`${state.currencySymbol}${state.sharedRolloverJar.available.toLocaleString()}`} />
+          <HistoryMetric label="Monthly result" value={`${state.currencySymbol}${state.sharedRolloverJar.monthlyResult.toLocaleString()}`} />
+        </div>
+      )}
+      <div className="mt-5 divide-y divide-white/[0.05]">
+        {rows.map((row) => (
+          <div key={String(row.id)} className="flex items-center justify-between gap-4 py-3.5">
+            <div><p className="text-sm font-medium">{row.title}</p><p className="mt-1 text-xs text-neutral-500">{row.date} · {row.detail}</p></div>
+            <p className="text-sm font-semibold">{state.currencySymbol}{row.amount.toLocaleString()}</p>
+          </div>
+        ))}
+        {!rows.length && <p className="py-6 text-center text-sm text-neutral-500">No activity yet</p>}
+      </div>
+    </section>
+  );
+}
+
+function ActivityView({
+  state,
+  search,
+  setSearch,
+  type,
+  setType,
+  showAll,
+  onToggle,
+}: {
+  state: FinanceDashboardState;
+  search: string;
+  setSearch: (value: string) => void;
+  type: string;
+  setType: (value: string) => void;
+  showAll: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="section-kicker text-cyan-300">MONEY MOVEMENT</p>
+        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Activity</h2>
+        <p className="mt-2 text-sm text-neutral-500">Every transaction, newest first.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_190px]">
+        <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4">
+          <Search size={17} className="text-neutral-500" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search activity" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-600" />
+        </label>
+        <select value={type} onChange={(event) => setType(event.target.value)} className="h-12 rounded-2xl border border-white/[0.06] bg-[#111419] px-4 text-sm outline-none">
+          <option value="all">All activity</option>
+          <option value="income">Income</option>
+          <option value="expense">Expenses</option>
+          <option value="transfer">Transfers</option>
+          <option value="lent">Lending</option>
+          <option value="borrowed">Borrowing</option>
+          <option value="settlement">Settlements</option>
+        </select>
+      </div>
+      <RecentActivity state={state} showAll={showAll} onToggleShowAll={onToggle} search={search} typeFilter={type} />
+    </div>
+  );
+}
+
+const settingsItems = [
+  ["hub", "Overview"],
+  ["accounts", "Accounts"],
+  ["buckets", "Buckets"],
+  ["categories", "Categories"],
+  ["income", "Income sources"],
+  ["recurring", "Recurring expenses"],
+  ["notifications", "Notifications"],
+  ["security", "Security"],
+  ["appearance", "Appearance"],
+] as const;
+
+function SettingsWorkspace({ state }: Props) {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <aside className="surface-card h-fit rounded-3xl border border-white/[0.055] p-3">
+        <div className="px-3 pb-3 pt-2">
+          <p className="section-kicker text-neutral-500">PREFERENCES</p>
+          <h2 className="mt-2 text-xl font-semibold">Settings</h2>
+        </div>
+        <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
+          {settingsItems.map(([page, label]) => {
+            const selected = state.settingsPage === page || (page === "hub" && !state.settingsPage);
+            return (
+              <button
+                key={page}
+                type="button"
+                onClick={() => {
+                  state.closeSettings();
+                  state.navigateToSettingsPage(page);
+                }}
+                className={`rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                  selected ? "bg-white text-neutral-950" : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+      <div className="min-w-0">
+        <SettingsRouter state={state} />
+      </div>
+    </div>
+  );
+}
+
+function SettingsRouter({ state }: Props) {
   if (state.settingsPage === "accounts") return <SettingsAccountsPage state={state} />;
   if (state.settingsPage === "buckets") return <SettingsBucketsPage state={state} />;
   if (state.settingsPage === "categories") return <SettingsCategoriesPage state={state} />;
@@ -553,116 +707,60 @@ function SettingsRouter({ state }: DashboardLayoutProps) {
   return <SettingsHub state={state} />;
 }
 
-function BucketsView({
-  state,
-  bucketHistory,
-  setBucketHistory,
-  selectedSavingsHistory,
-  selectedTrackerHistory,
-  savingsHistoryRows,
-  trackerHistoryRows,
-}: {
-  state: FinanceDashboardState;
-  bucketHistory: { type: "savings" | "tracker"; id: string } | null;
-  setBucketHistory: (value: { type: "savings" | "tracker"; id: string } | null) => void;
-  selectedSavingsHistory: any;
-  selectedTrackerHistory: any;
-  savingsHistoryRows: any[];
-  trackerHistoryRows: any[];
-}) {
-  const { currencySymbol, savingsBucketBalances, trackerSummaries, sharedRolloverJar } = state;
-  const activeSavingsBuckets = savingsBucketBalances.filter((bucket) => bucket.active);
-  const trackerIcons = { Compass, Sparkles, Laptop, ShoppingBag, Shirt, WalletCards, Dumbbell } as const;
-
+function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <>
-      <section className="rounded-3xl border border-purple-500/20 bg-neutral-900 p-5">
-        <p className="text-sm text-purple-200">Featured Shared Rollover Jar</p>
-        <h2 className="mt-2 text-3xl font-bold">
-          {currencySymbol}{sharedRolloverJar.available.toLocaleString()}
-        </h2>
-        <p className="mt-2 text-sm text-neutral-400">
-          One shared jar for all bucket-list trackers.
-        </p>
-      </section>
-
-      <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
-        <h2 className="text-xl font-bold">Savings Buckets</h2>
-        {activeSavingsBuckets.map((bucket) => (
-          <div key={bucket.id} className="rounded-2xl bg-neutral-800 p-4">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold">{bucket.name}</p>
-              <p className="text-sm text-blue-300">{bucket.progress.toFixed(0)}%</p>
-            </div>
-            <p className="mt-2 text-sm text-neutral-400">
-              {currencySymbol}{bucket.currentBalance.toLocaleString()} / {currencySymbol}
-              {bucket.targetAmount.toLocaleString()}
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => { state.setFromBucket("Bank"); state.setToBucket(bucket.id); state.setShowTransferForm(true); }} className="rounded-xl bg-blue-500/15 p-3 text-sm font-semibold text-blue-200">Fund</button>
-              <button type="button" onClick={() => { state.setFromBucket(bucket.id); state.setToBucket("Bank"); state.setShowTransferForm(true); }} className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold">Withdraw</button>
-              <button type="button" onClick={() => setBucketHistory({ type: "savings", id: bucket.id })} className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold text-blue-300">History</button>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="space-y-3 rounded-3xl bg-neutral-900 p-5">
-        <h2 className="text-xl font-bold">Bucket List Trackers</h2>
-        {trackerSummaries.map((tracker) => (
-          <div key={tracker.id} className="rounded-2xl bg-neutral-800 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex gap-3">
-                {(() => { const Icon = trackerIcons[(tracker.icon || "Compass") as keyof typeof trackerIcons] || Compass; return <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-500/15 text-purple-300"><Icon size={20}/></span>; })()}
-                <div>
-                  <p className="font-semibold">{tracker.name}</p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {tracker.linkedCategoryIds.map((id) => id.replace("category_", "").replaceAll("_", " ")).join(", ") || "No linked categories"}
-                  </p>
-                </div>
-              </div>
-              <span className={`rounded-full px-2 py-1 text-xs ${tracker.status === "Overspent" ? "bg-red-500/15 text-red-300" : tracker.status === "Near Limit" ? "bg-orange-500/15 text-orange-300" : "bg-green-500/15 text-green-300"}`}>{tracker.status}</span>
-            </div>
-            <p className="mt-2 text-sm text-neutral-400">
-              {currencySymbol}{tracker.spentThisMonth.toLocaleString()} spent of {currencySymbol}
-              {tracker.monthlyBudget.toLocaleString()}
-            </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-700"><div className="h-full rounded-full bg-purple-500" style={{ width: `${Math.min(100, tracker.progress)}%` }}/></div>
-            <div className="mt-3 flex items-center justify-between text-xs text-neutral-400"><span>Remaining</span><span className="font-semibold text-white">{currencySymbol}{tracker.remainingThisMonth.toLocaleString()}</span></div>
-            <button type="button" onClick={() => setBucketHistory({ type: "tracker", id: tracker.id })} className="mt-3 w-full rounded-xl bg-neutral-700 p-3 text-sm font-semibold text-purple-200">History</button>
-          </div>
-        ))}
-      </section>
-
-      {bucketHistory && (
-        <section className="rounded-3xl bg-neutral-900 p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold">
-              {selectedSavingsHistory?.name || selectedTrackerHistory?.name}
-            </h2>
-            <button type="button" onClick={() => setBucketHistory(null)} className="rounded-full bg-neutral-800 px-3 py-1 text-sm">Close</button>
-          </div>
-          {selectedTrackerHistory && (
-            <div className="mb-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4 text-sm text-neutral-300">
-              <p className="mb-2 font-semibold text-purple-200">View Budget Math</p>
-              Monthly allocation: {currencySymbol}{selectedTrackerHistory.monthlyBudget.toLocaleString()} · Spending: {currencySymbol}{selectedTrackerHistory.spentThisMonth.toLocaleString()} · Shared jar balance: {currencySymbol}{sharedRolloverJar.available.toLocaleString()} · Monthly result: {currencySymbol}{sharedRolloverJar.monthlyResult.toLocaleString()}
-            </div>
-          )}
-          <div className="space-y-2">
-            {(selectedSavingsHistory ? savingsHistoryRows : trackerHistoryRows).map((row) => (
-              <div key={String(row.id)} className="rounded-2xl bg-neutral-800 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{row.title || row.category}</p>
-                    <p className="text-xs text-neutral-500">{row.date} · {row.account}</p>
-                  </div>
-                  <p className="font-semibold">{currencySymbol}{row.amount.toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </>
+    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const selected = activeTab === tab.id;
+        return (
+          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
+            <Icon size={17} />
+            {tab.label}
+          </button>
+        );
+      })}
+    </nav>
   );
+}
+
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return <div><h2 className="text-xl font-semibold tracking-tight">{title}</h2><p className="mt-1 text-sm text-neutral-500">{subtitle}</p></div>;
+}
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  open,
+  onToggle,
+  onViewAll,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  open: boolean;
+  onToggle: () => void;
+  onViewAll: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-3 text-left md:pointer-events-none">
+          <span className="md:hidden"><Menu size={17} className="text-neutral-500" /></span>
+          <SectionTitle title={title} subtitle={subtitle} />
+        </button>
+        <button type="button" onClick={onViewAll} className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white">View all <ChevronRight size={15} /></button>
+      </div>
+      <div className={`${open ? "block" : "hidden"} md:block`}>{children}</div>
+    </section>
+  );
+}
+
+function AccountRow({ icon: Icon, label, value, currency, tone }: { icon: typeof Landmark; label: string; value: number; currency: string; tone: "blue" | "orange" }) {
+  return <div className="flex items-center justify-between gap-4 rounded-2xl bg-white/[0.035] p-4"><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone === "blue" ? "bg-sky-400/10 text-sky-200" : "bg-orange-400/10 text-orange-200"}`}><Icon size={18} /></span><span className="font-medium">{label}</span></div><span className="font-semibold">{currency}{value.toLocaleString()}</span></div>;
+}
+
+function HistoryMetric({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs text-neutral-500">{label}</p><p className="mt-1 text-sm font-semibold">{value}</p></div>;
 }
