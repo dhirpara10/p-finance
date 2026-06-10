@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -85,6 +85,7 @@ export function DashboardLayout({ state }: Props) {
   function selectTab(tab: Tab) {
     setActiveTab(tab);
     setBucketHistory(null);
+    state.clearBucketHistory();
     if (tab === "settings") {
       state.closeSettings();
       state.navigateToSettingsPage("hub");
@@ -339,24 +340,33 @@ function HomeView({
       >
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.slice(0, 3).map((bucket) => (
-            <SavingsBucketCard
+            <FlipBucketCard
               key={bucket.id}
-              bucket={bucket}
-              currencySymbol={state.currencySymbol}
-              onFund={() => {
-                state.setFromBucket("Bank");
-                state.setToBucket(bucket.id);
-                state.setShowTransferForm(true);
-              }}
-              onWithdraw={() => {
-                state.setFromBucket(bucket.id);
-                state.setToBucket("Bank");
-                state.setShowTransferForm(true);
-              }}
-              onHistory={() => {
-                setBucketHistory({ type: "savings", id: bucket.id });
-                onBuckets();
-              }}
+              flipped={state.activeBucketHistoryId === bucket.id}
+              front={
+                <SavingsBucketCard
+                  bucket={bucket}
+                  currencySymbol={state.currencySymbol}
+                  onFund={() => {
+                    state.setFromBucket("Bank");
+                    state.setToBucket(bucket.id);
+                    state.setShowTransferForm(true);
+                  }}
+                  onWithdraw={() => {
+                    state.setFromBucket(bucket.id);
+                    state.setToBucket("Bank");
+                    state.setShowTransferForm(true);
+                  }}
+                  onHistory={() => state.openSavingsBucketHistory(bucket.id)}
+                />
+              }
+              back={
+                <BucketHistoryBack
+                  state={state}
+                  savings={bucket}
+                  onClose={state.clearBucketHistory}
+                />
+              }
             />
           ))}
         </div>
@@ -371,14 +381,23 @@ function HomeView({
       >
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.slice(0, 3).map((tracker) => (
-            <TrackerCard
+            <FlipBucketCard
               key={tracker.id}
-              tracker={tracker}
-              currencySymbol={state.currencySymbol}
-              onHistory={() => {
-                setBucketHistory({ type: "tracker", id: tracker.id });
-                onBuckets();
-              }}
+              flipped={state.activeTrackerHistoryId === tracker.id}
+              front={
+                <TrackerCard
+                  tracker={tracker}
+                  currencySymbol={state.currencySymbol}
+                  onHistory={() => state.openTrackerHistory(tracker.id)}
+                />
+              }
+              back={
+                <BucketHistoryBack
+                  state={state}
+                  tracker={tracker}
+                  onClose={state.clearBucketHistory}
+                />
+              }
             />
           ))}
         </div>
@@ -542,6 +561,64 @@ function BucketsView({
         />
       )}
     </div>
+  );
+}
+
+function FlipBucketCard({
+  flipped,
+  front,
+  back,
+}: {
+  flipped: boolean;
+  front: React.ReactNode;
+  back: React.ReactNode;
+}) {
+  const [isFlipped, setIsFlipped] = useState(flipped);
+
+  useEffect(() => {
+    setIsFlipped(flipped);
+  }, [flipped]);
+
+  return (
+    <div className={`bucket-flip ${isFlipped ? "is-flipped" : ""}`}>
+      <div className="bucket-flip-inner">
+        <div
+          aria-hidden={isFlipped}
+          inert={isFlipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-front"
+        >
+          {front}
+        </div>
+        <div
+          aria-hidden={!isFlipped}
+          inert={!isFlipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-back"
+        >
+          {back}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BucketHistoryBack({
+  state,
+  savings,
+  tracker,
+  onClose,
+}: {
+  state: FinanceDashboardState;
+  savings?: FinanceDashboardState["savingsBucketBalances"][number] | null;
+  tracker?: FinanceDashboardState["trackerSummaries"][number] | null;
+  onClose: () => void;
+}) {
+  return (
+    <BucketHistoryPanel
+      state={state}
+      savings={savings}
+      tracker={tracker}
+      onClose={onClose}
+    />
   );
 }
 

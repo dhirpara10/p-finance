@@ -35,7 +35,19 @@ const defaultExpenseCategories = [
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const hasLoadedData = useRef(false);
-  const liabilityModule = useLiabilities();
+  const [activeBucketHistoryId, setActiveBucketHistoryId] = useState<
+    string | null
+  >(null);
+  const [activeTrackerHistoryId, setActiveTrackerHistoryId] = useState<
+    string | null
+  >(null);
+  const liabilityModule = Object.assign(useLiabilities(), {
+    activeBucketHistoryId,
+    activeTrackerHistoryId,
+    openSavingsBucketHistory,
+    openTrackerHistory,
+    clearBucketHistory,
+  });
 
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -251,6 +263,21 @@ export function useFinanceDashboard() {
     setShowBorrowedForm(false);
     liabilityModule.closeLiabilityForm();
     liabilityModule.setEditingScheduleId(null);
+  }
+
+  function openSavingsBucketHistory(bucketId: string) {
+    setActiveBucketHistoryId(bucketId);
+    setActiveTrackerHistoryId(null);
+  }
+
+  function openTrackerHistory(trackerId: string) {
+    setActiveTrackerHistoryId(trackerId);
+    setActiveBucketHistoryId(null);
+  }
+
+  function clearBucketHistory() {
+    setActiveBucketHistoryId(null);
+    setActiveTrackerHistoryId(null);
   }
 
   function navigateToSettingsPage(page: NonNullable<typeof settingsPage>) {
