@@ -602,8 +602,25 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     (bucket) => bucket.id === "savings_remittance"
   );
   const activeTrackers = bucketListTrackers.filter((tracker) => tracker.active);
+  function monthlyAllocationForTracker(tracker: BucketListTracker) {
+    const allocation = tracker.recurringAllocation;
+    if (!allocation?.active || allocation.allocationAmount <= 0) {
+      return tracker.monthlyBudget;
+    }
+
+    if (allocation.frequency === "weekly") {
+      return allocation.allocationAmount * 52 / 12;
+    }
+    if (allocation.frequency === "biweekly") {
+      return allocation.allocationAmount * 26 / 12;
+    }
+    if (allocation.frequency === "yearly") {
+      return allocation.allocationAmount / 12;
+    }
+    return allocation.allocationAmount;
+  }
   const totalMonthlyTrackerAllocation = activeTrackers.reduce(
-    (sum, tracker) => sum + tracker.monthlyBudget,
+    (sum, tracker) => sum + monthlyAllocationForTracker(tracker),
     0
   );
   const trackerSummaries = activeTrackers.map((tracker) => {
@@ -629,7 +646,7 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           : spentThisMonth >= tracker.monthlyBudget * 0.8
             ? "Near Limit"
             : "On Track",
-      monthlyAllocation: tracker.monthlyBudget,
+      monthlyAllocation: monthlyAllocationForTracker(tracker),
     };
   });
   const trackerLinkedCategoryIds = new Set(
@@ -723,7 +740,6 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           : "Fixed amount",
       amount: item.amount,
       date: item.date,
-      timestamp: String(item.id),
     })),
     ...expenses.map((item, index) => ({
       id:
@@ -734,7 +750,6 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
       subtitle: item.account,
       amount: item.amount,
       date: item.date,
-      timestamp: item.updatedAt || item.createdAt || String(item.id),
       isRecurring: item.isRecurring,
     })),
     ...transfers.map((item, index) => ({
@@ -752,31 +767,6 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           : item.notes || "Money transfer",
       amount: item.amount,
       date: item.date,
-      timestamp: item.updatedAt || item.createdAt || String(item.id),
-    })),
-    ...lentRecords.map((item, index) => ({
-      id:
-        item.id ||
-        `legacy-lent-${item.date || "no-date"}-${item.amount || 0}-${index}`,
-      type: "lent" as const,
-      title: `Lent to ${item.name || "Unknown"}`,
-      subtitle: item.notes || "Legacy lending record",
-      amount: item.amount,
-      date: item.date,
-      timestamp: String(item.id),
-      source: "legacyLent" as const,
-    })),
-    ...borrowedRecords.map((item, index) => ({
-      id:
-        item.id ||
-        `legacy-borrowed-${item.date || "no-date"}-${item.amount || 0}-${index}`,
-      type: "borrowed" as const,
-      title: `Borrowed from ${item.name || "Unknown"}`,
-      subtitle: item.notes || "Legacy borrowing record",
-      amount: item.amount,
-      date: item.date,
-      timestamp: String(item.id),
-      source: "legacyBorrowed" as const,
     })),
     ...lendingTransactions.map((item, index) => {
       const person = people.find(
@@ -798,7 +788,6 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
         subtitle: item.note || "Lending profile",
         amount: item.amount,
         date: item.date,
-        timestamp: item.createdAt || String(item.id),
         source: "lendingTransaction" as const,
       };
     }),
@@ -815,13 +804,10 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
           subtitle: `${liability?.provider || "Liability"} / principal $${item.principalAmount.toFixed(2)}`,
           amount: item.amount,
           date: item.paidDate || item.dueDate,
-          timestamp: item.processedAt || item.updatedAt || item.paidDate,
         };
       }),
   ].sort(
     (a, b) =>
-      getActivityTime(b.timestamp || b.date) -
-        getActivityTime(a.timestamp || a.date) ||
       getActivityTime(b.date) - getActivityTime(a.date) ||
       compareActivityIds(b.id, a.id)
   );

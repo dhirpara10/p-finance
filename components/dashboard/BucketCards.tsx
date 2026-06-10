@@ -102,9 +102,9 @@ export function TrackerCard({
       : tracker.status === "Near Limit"
         ? "bg-orange-400/10 text-orange-200"
         : "bg-emerald-400/10 text-emerald-200";
-  const frequency = `${currencySymbol}${tracker.monthlyAllocation.toLocaleString(undefined, {
-    maximumFractionDigits: 0,
-  })} monthly plan`;
+  const frequency = tracker.recurringAllocation?.active
+    ? `${currencySymbol}${tracker.recurringAllocation.allocationAmount.toLocaleString()} ${tracker.recurringAllocation.frequency}`
+    : `${currencySymbol}${tracker.monthlyAllocation.toLocaleString(undefined, { maximumFractionDigits: 0 })} planned`;
 
   return (
     <article className="tracker-card min-w-[82vw] snap-start rounded-3xl border border-purple-400/15 p-5 sm:min-w-[360px] md:min-w-0">
@@ -132,7 +132,7 @@ export function TrackerCard({
         <p className="text-right text-xs text-neutral-400">
           {frequency}
           <br />
-          <span className="text-neutral-600">shared jar allocation</span>
+          <span className="text-neutral-600">allocation</span>
         </p>
       </div>
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">

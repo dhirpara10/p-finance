@@ -3,7 +3,6 @@
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { SelectField } from "@/components/forms/SelectField";
 import type { LendingTransaction, PersonProfile } from "@/lib/types";
-import { Pencil, Trash2 } from "lucide-react";
 
 type LendingDetailsProps = { state: FinanceDashboardState; };
 
@@ -51,9 +50,6 @@ export function LendingDetails({ state }: LendingDetailsProps) {
     openSettlement,
     saveSettlement,
     deleteLendingTransaction,
-    deleteLent,
-    deleteBorrowed,
-    startEdit,
   } = state;
 
   const profiles = filterProfiles(personProfiles, detailsView);
@@ -248,42 +244,15 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                         </p>
                       )}
 
-                      <div className="mt-3 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              startEdit({
-                                id: transaction.id,
-                                type: transaction.type,
-                                title: `${getTransactionLabel(transaction)} ${profile.name}`,
-                                subtitle: transaction.note || "Lending profile",
-                                amount: transaction.amount,
-                                date: transaction.date,
-                                source: transaction.legacy
-                                  ? undefined
-                                  : "lendingTransaction",
-                              })
-                            }
-                            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-700 px-4 py-2 text-sm font-semibold text-blue-200"
-                          >
-                            <Pencil size={14} /> Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!transaction.legacy) {
-                                deleteLendingTransaction(transaction.id);
-                              } else if (transaction.type === "lent") {
-                                deleteLent(transaction.id);
-                              } else {
-                                deleteBorrowed(transaction.id);
-                              }
-                            }}
-                            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.06] px-4 py-2 text-sm font-semibold text-red-200"
-                          >
-                            <Trash2 size={14} /> Delete
-                          </button>
-                        </div>
+                      {!transaction.legacy && (
+                        <button
+                          type="button"
+                          onClick={() => deleteLendingTransaction(transaction.id)}
+                          className="mt-3 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-black"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

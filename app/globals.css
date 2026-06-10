@@ -93,59 +93,6 @@ select option {
     linear-gradient(135deg, #21142e 0%, #15101d 52%, #101116 100%);
 }
 
-/* Bucket history flips without changing the surrounding grid height. */
-.bucket-flip {
-  min-width: 82vw;
-  scroll-snap-align: start;
-  perspective: 1200px;
-}
-
-.bucket-flip-inner {
-  display: grid;
-  height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 480ms cubic-bezier(.22, .8, .25, 1);
-}
-
-.bucket-flip.is-flipped .bucket-flip-inner {
-  transform: rotateY(180deg);
-}
-
-.bucket-flip-face {
-  grid-area: 1 / 1;
-  min-width: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-.bucket-flip-face > article,
-.bucket-flip-face > section {
-  width: 100%;
-  min-width: 0;
-}
-
-.bucket-flip-back {
-  transform: rotateY(180deg);
-}
-
-@media (min-width: 640px) {
-  .bucket-flip {
-    min-width: 360px;
-  }
-}
-
-@media (min-width: 768px) {
-  .bucket-flip {
-    min-width: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bucket-flip-inner {
-    transition-duration: 1ms;
-  }
-}
-
 .section-kicker {
   font-size: 0.68rem;
   font-weight: 650;

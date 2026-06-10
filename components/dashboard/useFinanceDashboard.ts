@@ -4,15 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, getBucketLabel, normalizeBucketId, normalizeSavingsBuckets, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
 import { findPersonByName } from "@/lib/lending";
-import { addLendingTransaction, addPerson, createSheetRecord, deleteFromSheet, deleteSheetRecord, getAllData, saveSetting, saveToSheet, updateRow, updateSheetRecord, updateSheetRow } from "@/lib/sheetsApi";
-import {
-  addAllocationFrequency,
-  advanceRecurringAllocation,
-  getDueAllocationDates,
-  hasAllocationExecution,
-  recurringExecutionId,
-} from "@/lib/recurringAllocations";
-import type { AllocationFrequency, Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, RecurringJarAllocation, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
+import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
+import type { Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
 import { useLiabilities } from "@/components/liabilities/useLiabilities";
 
 const defaultIncomeSources = [
@@ -42,7 +35,6 @@ const defaultExpenseCategories = [
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const hasLoadedData = useRef(false);
-  const recurringAllocationsProcessed = useRef(false);
   const liabilityModule = useLiabilities();
 
   const [authReady, setAuthReady] = useState(false);
@@ -53,7 +45,7 @@ export function useFinanceDashboard() {
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [, setLockUntil] = useState<number | null>(null);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [appPasscode, setAppPasscode] = useState("2605");
   const [newPasscode, setNewPasscode] = useState("");
 
@@ -61,9 +53,6 @@ export function useFinanceDashboard() {
   const [incomeCashReceived, setIncomeCashReceived] = useState("");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [recurringJarAllocations, setRecurringJarAllocations] = useState<
-    RecurringJarAllocation[]
-  >([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [lendingTransactions, setLendingTransactions] = useState<LendingTransactionRecord[]>([]);
   const [lentRecords, setLentRecords] = useState<MoneyRecord[]>([]);
@@ -167,9 +156,6 @@ export function useFinanceDashboard() {
   const [transferDate, setTransferDate] = useState(today);
   const [transferNotes, setTransferNotes] = useState("");
   const [transferTrackerId, setTransferTrackerId] = useState("");
-  const [transferIsRecurring, setTransferIsRecurring] = useState(false);
-  const [transferRecurringFrequency, setTransferRecurringFrequency] =
-    useState<AllocationFrequency>("monthly");
 
   const [moneyName, setMoneyName] = useState("");
   const [moneyAmount, setMoneyAmount] = useState("");
@@ -227,8 +213,6 @@ export function useFinanceDashboard() {
     setTransferDate(today);
     setTransferNotes("");
     setTransferTrackerId("");
-    setTransferIsRecurring(false);
-    setTransferRecurringFrequency("monthly");
   }
 
   function resetMoneyForm() {
@@ -433,16 +417,6 @@ export function useFinanceDashboard() {
         date: String(date || ""),
         notes: String(notes || ""),
         trackerId: String((details as { trackerId?: string }).trackerId || ""),
-        createdAt: String((details as { createdAt?: string }).createdAt || ""),
-        updatedAt: String((details as { updatedAt?: string }).updatedAt || ""),
-        recurringAllocationId: String(
-          (details as { recurringAllocationId?: string }).recurringAllocationId ||
-            ""
-        ),
-        executionDate: String(
-          (details as { executionDate?: string }).executionDate || ""
-        ),
-        reversalOf: (details as { reversalOf?: string | number }).reversalOf,
       };
     }
 
@@ -454,35 +428,6 @@ export function useFinanceDashboard() {
       date: String(item?.date || ""),
       notes: String(item?.notes || ""),
       trackerId: String(item?.trackerId || ""),
-      createdAt: String(item?.createdAt || ""),
-      updatedAt: String(item?.updatedAt || ""),
-      recurringAllocationId: String(item?.recurringAllocationId || ""),
-      executionDate: String(item?.executionDate || ""),
-      reversalOf: item?.reversalOf,
-    };
-  }
-
-  function parseRecurringJarAllocation(
-    item: Record<string, unknown>
-  ): RecurringJarAllocation {
-    return {
-      id: String(item.id || ""),
-      sourceAccountId: item.sourceAccountId === "Cash" ? "Cash" : "Bank",
-      allocationAmount: toNumber(item.allocationAmount),
-      frequency:
-        item.frequency === "weekly" ||
-        item.frequency === "biweekly" ||
-        item.frequency === "yearly"
-          ? item.frequency
-          : "monthly",
-      trackerId: String(item.trackerId || ""),
-      note: String(item.note || ""),
-      startDate: String(item.startDate || ""),
-      nextExecutionDate: String(item.nextExecutionDate || ""),
-      lastExecutionDate: String(item.lastExecutionDate || ""),
-      active: item.active === true || item.active === "true",
-      createdAt: String(item.createdAt || ""),
-      updatedAt: String(item.updatedAt || ""),
     };
   }
 
@@ -703,10 +648,6 @@ export function useFinanceDashboard() {
           sheetDataRaw.RepaymentSchedules ||
           sheetDataRaw.repaymentSchedules ||
           [],
-        RecurringJarAllocations:
-          sheetDataRaw.RecurringJarAllocations ||
-          sheetDataRaw.recurringJarAllocations ||
-          [],
       };
 
       console.log("sheetData keys", Object.keys(sheetDataRaw));
@@ -834,18 +775,7 @@ export function useFinanceDashboard() {
 
       setExpenses((sheetData.expenses || []).map(parseExpenseRow));
 
-      const parsedTransfers = (sheetData.transfers || []).map(parseTransferRow);
-      setTransfers(parsedTransfers);
-      setRecurringJarAllocations(
-        (sheetData.RecurringJarAllocations || [])
-          .filter(
-            (item: unknown): item is Record<string, unknown> =>
-              Boolean(item && typeof item === "object")
-          )
-          .map(parseRecurringJarAllocation)
-          .filter((item: RecurringJarAllocation) => item.id)
-      );
-      recurringAllocationsProcessed.current = false;
+      setTransfers((sheetData.transfers || []).map(parseTransferRow));
 
       setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
 
@@ -905,8 +835,6 @@ export function useFinanceDashboard() {
     if (authReady && isUnlocked && !hasLoadedData.current) {
       loadFromSheets();
     }
-    // Loading is intentionally gated by the ref so state hydration runs once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, isUnlocked]);
 
   useEffect(() => {
@@ -939,27 +867,6 @@ export function useFinanceDashboard() {
     sharedRolloverJarBalance,
     monthlyResetDay,
   });
-
-  useEffect(() => {
-    if (
-      !isUnlocked ||
-      !hasLoadedData.current ||
-      recurringAllocationsProcessed.current ||
-      !recurringJarAllocations.length
-    ) {
-      return;
-    }
-
-    recurringAllocationsProcessed.current = true;
-    void processDueRecurringJarAllocations();
-    // The guarded processor runs once per hydrated rule set.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isUnlocked,
-    recurringJarAllocations,
-    dashboardValues.bankBalance,
-    dashboardValues.cashBalance,
-  ]);
 
 
 
@@ -1147,162 +1054,6 @@ export function useFinanceDashboard() {
     setShowExpenseForm(false);
   }
 
-  function transferValues(transfer: Transfer) {
-    return [
-      transfer.id,
-      transfer.from_bucket,
-      transfer.to_bucket,
-      transfer.amount,
-      transfer.date,
-      transfer.notes,
-      {
-        trackerId: transfer.trackerId || "",
-        createdAt: transfer.createdAt || "",
-        updatedAt: transfer.updatedAt || "",
-        recurringAllocationId: transfer.recurringAllocationId || "",
-        executionDate: transfer.executionDate || "",
-        reversalOf: transfer.reversalOf || "",
-      },
-    ];
-  }
-
-  async function processDueRecurringJarAllocations() {
-    let nextTransfers = [...transfers];
-    let nextRules = [...recurringJarAllocations];
-    let availableBank = dashboardValues.bankBalance;
-    let availableCash = dashboardValues.cashBalance;
-
-    for (const rule of recurringJarAllocations) {
-      let currentRule = nextRules.find((item) => item.id === rule.id) || rule;
-      for (const executionDate of getDueAllocationDates(currentRule)) {
-        if (
-          hasAllocationExecution(nextTransfers, currentRule.id, executionDate)
-        ) {
-          const advancedRule = advanceRecurringAllocation(
-            currentRule,
-            executionDate
-          );
-          await updateSheetRecord<RecurringJarAllocation>(
-            "RecurringJarAllocations",
-            advancedRule.id,
-            advancedRule
-          );
-          nextRules = nextRules.map((item) =>
-            item.id === advancedRule.id ? advancedRule : item
-          );
-          currentRule = advancedRule;
-          continue;
-        }
-
-        const available =
-          currentRule.sourceAccountId === "Cash"
-            ? availableCash
-            : availableBank;
-        if (currentRule.allocationAmount > available) {
-          console.warn(
-            `Recurring jar allocation ${currentRule.id} was not processed because ${currentRule.sourceAccountId} has insufficient funds.`
-          );
-          break;
-        }
-
-        const now = new Date().toISOString();
-        const transfer: Transfer = {
-          id: recurringExecutionId(currentRule.id, executionDate),
-          from_bucket: currentRule.sourceAccountId,
-          to_bucket: "shared_rollover_jar",
-          amount: currentRule.allocationAmount,
-          date: executionDate,
-          notes:
-            currentRule.note?.trim() ||
-            "Automatic shared jar allocation",
-          trackerId: currentRule.trackerId,
-          recurringAllocationId: currentRule.id,
-          executionDate,
-          createdAt: now,
-          updatedAt: now,
-        };
-        const advancedRule = advanceRecurringAllocation(
-          currentRule,
-          executionDate,
-          now
-        );
-
-        await createSheetRecord<Transfer>("transfers", {
-          id: transfer.id,
-          from_bucket: transfer.from_bucket,
-          to_bucket: transfer.to_bucket,
-          amount: transfer.amount,
-          date: transfer.date,
-          notes: transfer.notes,
-          trackerId: transfer.trackerId || "",
-          recurringAllocationId: transfer.recurringAllocationId,
-          executionDate: transfer.executionDate,
-          createdAt: transfer.createdAt,
-          updatedAt: transfer.updatedAt,
-        });
-        try {
-          await updateSheetRecord<RecurringJarAllocation>(
-            "RecurringJarAllocations",
-            advancedRule.id,
-            advancedRule
-          );
-        } catch (error) {
-          await deleteSheetRecord("transfers", transfer.id);
-          throw error;
-        }
-
-        nextTransfers = [transfer, ...nextTransfers];
-        nextRules = nextRules.map((item) =>
-          item.id === advancedRule.id ? advancedRule : item
-        );
-        currentRule = advancedRule;
-        if (currentRule.sourceAccountId === "Cash") {
-          availableCash -= currentRule.allocationAmount;
-        } else {
-          availableBank -= currentRule.allocationAmount;
-        }
-      }
-    }
-
-    setTransfers(nextTransfers);
-    setRecurringJarAllocations(nextRules);
-  }
-
-  async function saveRecurringJarAllocation(startDate: string) {
-    if (!transferIsRecurring || toBucket !== "shared_rollover_jar") return;
-    if (fromBucket !== "Bank" && fromBucket !== "Cash") {
-      throw new Error(
-        "Recurring jar allocations must use Bank or Cash as the source."
-      );
-    }
-
-    const now = new Date().toISOString();
-    const rule: RecurringJarAllocation = {
-      id: crypto.randomUUID(),
-      sourceAccountId: fromBucket,
-      allocationAmount: Number(transferAmount),
-      frequency: transferRecurringFrequency,
-      trackerId: transferTrackerId || undefined,
-      note: transferNotes.trim() || undefined,
-      startDate,
-      nextExecutionDate: addAllocationFrequency(
-        startDate,
-        transferRecurringFrequency
-      ),
-      active: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const saved = await createSheetRecord<RecurringJarAllocation>(
-      "RecurringJarAllocations",
-      rule
-    );
-    if (!saved.id) {
-      throw new Error("Recurring allocation is missing an id.");
-    }
-    setRecurringJarAllocations([saved, ...recurringJarAllocations]);
-  }
-
   async function addTransfer() {
     const amount = Number(transferAmount);
     if (!amount || amount <= 0) return;
@@ -1317,8 +1068,6 @@ export function useFinanceDashboard() {
         ? dashboardValues.bankBalance
         : fromBucket === "Cash"
           ? dashboardValues.cashBalance
-          : fromBucket === "shared_rollover_jar"
-            ? dashboardValues.sharedRolloverJar.storedBalance
           : dashboardValues.savingsBucketBalances.find(
               (bucket) => bucket.id === fromBucket
             )?.currentBalance;
@@ -1348,14 +1097,17 @@ export function useFinanceDashboard() {
         toBucket === "shared_rollover_jar" && transferTrackerId
           ? transferTrackerId
           : undefined,
-      createdAt: previousTransfer?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      recurringAllocationId: previousTransfer?.recurringAllocationId,
-      executionDate: previousTransfer?.executionDate,
-      reversalOf: previousTransfer?.reversalOf,
     };
 
-    const values = transferValues(newTransfer);
+    const values = [
+      newTransfer.id,
+      newTransfer.from_bucket,
+      newTransfer.to_bucket,
+      newTransfer.amount,
+      newTransfer.date,
+      newTransfer.notes,
+      { trackerId: newTransfer.trackerId || "" },
+    ];
 
     const saved =
       editingItem?.type === "transfer"
@@ -1363,20 +1115,6 @@ export function useFinanceDashboard() {
         : await saveToSheet("transfers", values);
 
     if (!saved) return;
-
-    if (!editingItem) {
-      try {
-        await saveRecurringJarAllocation(newTransfer.date);
-      } catch (error) {
-        await deleteFromSheet("transfers", newTransfer.id);
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Unable to save recurring allocation."
-        );
-        return;
-      }
-    }
 
     if (editingItem?.type === "transfer") {
       setTransfers(
@@ -1391,118 +1129,6 @@ export function useFinanceDashboard() {
     resetTransferForm();
     setEditingItem(null);
     setShowTransferForm(false);
-  }
-
-  async function reverseTransfer(id: string | number) {
-    const original = transfers.find(
-      (transfer) => String(transfer.id) === String(id)
-    );
-    if (!original) return;
-    if (
-      transfers.some(
-        (transfer) => String(transfer.reversalOf) === String(original.id)
-      )
-    ) {
-      alert("This transfer has already been reversed.");
-      return;
-    }
-    if (!window.confirm("Reverse this transfer with an equal opposite entry?")) {
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const reversal: Transfer = {
-      id: Date.now(),
-      from_bucket: original.to_bucket,
-      to_bucket: original.from_bucket,
-      amount: original.amount,
-      date: getToday(),
-      notes: `Reversal of ${original.notes || getBucketLabel(original.to_bucket, savingsBuckets)}`,
-      trackerId: original.trackerId,
-      reversalOf: original.id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const saved = await saveToSheet("transfers", transferValues(reversal));
-    if (!saved) return;
-    setTransfers([reversal, ...transfers]);
-  }
-
-  async function updateRecurringJarAllocation(
-    id: string,
-    patch: Partial<RecurringJarAllocation>
-  ) {
-    const rule = recurringJarAllocations.find((item) => item.id === id);
-    if (!rule) return;
-    const frequency = patch.frequency || rule.frequency;
-    const startDate = patch.startDate || rule.startDate;
-    const scheduleChanged =
-      patch.frequency !== undefined || patch.startDate !== undefined;
-    const updated = {
-      ...rule,
-      ...patch,
-      nextExecutionDate:
-        scheduleChanged && patch.nextExecutionDate === undefined
-          ? addAllocationFrequency(startDate, frequency)
-          : patch.nextExecutionDate || rule.nextExecutionDate,
-      updatedAt: new Date().toISOString(),
-    };
-    if (updated.allocationAmount <= 0) {
-      alert("Recurring allocation amount must be greater than zero.");
-      return;
-    }
-    const saved = await updateSheetRecord<RecurringJarAllocation>(
-      "RecurringJarAllocations",
-      id,
-      updated
-    );
-    setRecurringJarAllocations(
-      recurringJarAllocations.map((item) =>
-        item.id === id ? saved : item
-      )
-    );
-  }
-
-  async function createRecurringJarAllocation(
-    draft: Pick<
-      RecurringJarAllocation,
-      | "sourceAccountId"
-      | "allocationAmount"
-      | "frequency"
-      | "trackerId"
-      | "note"
-      | "startDate"
-    >
-  ) {
-    if (draft.allocationAmount <= 0) {
-      throw new Error("Recurring allocation amount must be greater than zero.");
-    }
-    const now = new Date().toISOString();
-    const rule: RecurringJarAllocation = {
-      id: crypto.randomUUID(),
-      ...draft,
-      nextExecutionDate: addAllocationFrequency(
-        draft.startDate,
-        draft.frequency
-      ),
-      active: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const saved = await createSheetRecord<RecurringJarAllocation>(
-      "RecurringJarAllocations",
-      rule
-    );
-    setRecurringJarAllocations([saved, ...recurringJarAllocations]);
-    return saved;
-  }
-
-  async function deleteRecurringJarAllocation(id: string) {
-    if (!window.confirm("Delete this recurring jar allocation?")) return;
-    await deleteSheetRecord("RecurringJarAllocations", id);
-    setRecurringJarAllocations(
-      recurringJarAllocations.filter((item) => item.id !== id)
-    );
   }
 
   async function ensurePerson(name: string, phone: string) {
@@ -1589,17 +1215,8 @@ export function useFinanceDashboard() {
       return null;
     }
 
-    const editingTransaction =
-      editingItem &&
-      (editingItem.type === "lent" ||
-        editingItem.type === "borrowed" ||
-        editingItem.type === "settlement")
-        ? lendingTransactions.find(
-            (item) => String(item.id) === String(editingItem.id)
-          )
-        : undefined;
     const newTransaction: LendingTransactionRecord = {
-      id: editingTransaction?.id || "",
+      id: "",
       personId,
       type,
       amount,
@@ -1608,7 +1225,7 @@ export function useFinanceDashboard() {
         type === "lent" || (type === "borrowed" && Boolean(affectsAccountBalance)),
       date,
       note,
-      createdAt: editingTransaction?.createdAt || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     const payload = {
@@ -1622,23 +1239,6 @@ export function useFinanceDashboard() {
     };
 
     console.log("Final transaction payload:", payload);
-
-    if (editingTransaction) {
-      const saved = await updateRow(
-        "LendingTransactions",
-        String(editingTransaction.id),
-        newTransaction
-      );
-      if (!saved) return null;
-      setLendingTransactions(
-        lendingTransactions.map((item) =>
-          String(item.id) === String(editingTransaction.id)
-            ? newTransaction
-            : item
-        )
-      );
-      return newTransaction;
-    }
 
     const saved = await addLendingTransaction(payload);
 
@@ -1669,49 +1269,6 @@ export function useFinanceDashboard() {
     }
 
     try {
-      const legacyEditing =
-        editingItem &&
-        (editingItem.type === "lent" || editingItem.type === "borrowed") &&
-        !lendingTransactions.some(
-          (item) => String(item.id) === String(editingItem.id)
-        );
-      if (legacyEditing) {
-        const record: MoneyRecord = {
-          id: editingItem.id,
-          name: moneyName.trim(),
-          amount,
-          date: moneyDate || getToday(),
-          phone: moneyPhone.trim(),
-          notes: moneyNotes.trim(),
-          status: moneyStatus,
-        };
-        const saved = await updateSheetRow(editingItem.type, record.id, [
-          record.id,
-          record.name,
-          record.amount,
-          record.date,
-          record.phone,
-          record.notes,
-          record.status,
-        ]);
-        if (!saved) return;
-        if (editingItem.type === "lent") {
-          setLentRecords(
-            lentRecords.map((item) =>
-              String(item.id) === String(record.id) ? record : item
-            )
-          );
-        } else {
-          setBorrowedRecords(
-            borrowedRecords.map((item) =>
-              String(item.id) === String(record.id) ? record : item
-            )
-          );
-        }
-        closeAllForms();
-        return;
-      }
-
       let person: Person | null = null;
 
       if (lendingPersonMode === "existing") {
@@ -1757,15 +1314,11 @@ export function useFinanceDashboard() {
   }
 
   async function addLent() {
-    await addMoneyTransaction(
-      editingItem?.type === "settlement" ? "settlement" : "lent"
-    );
+    await addMoneyTransaction("lent");
   }
 
   async function addBorrowed() {
-    await addMoneyTransaction(
-      editingItem?.type === "settlement" ? "settlement" : "borrowed"
-    );
+    await addMoneyTransaction("borrowed");
   }
 
   function openSettlement(profileId: string | number, amount?: number) {
@@ -1868,36 +1421,11 @@ export function useFinanceDashboard() {
       return;
     }
 
-    setEditingItem({ type: item.type, id: item.id });
-
-    if (item.source === "lendingTransaction") {
-      const record = lendingTransactions.find(
-        (transaction) => String(transaction.id) === String(item.id)
-      );
-      if (!record) return;
-      const person = people.find(
-        (candidate) => String(candidate.id) === String(record.personId)
-      );
-      setLendingPersonMode("existing");
-      setSelectedPersonId(record.personId);
-      setPersonSearch(person?.name || "");
-      setMoneyName(person?.name || "");
-      setMoneyPhone(person?.phone || "");
-      setMoneyAmount(String(record.amount));
-      setMoneyDate(record.date);
-      setMoneyNotes(record.note);
-      setMoneyAccount(record.account || "Bank");
-      setBorrowedAffectsAccountBalance(
-        Boolean(record.affectsAccountBalance)
-      );
-      setDetailsView(null);
-      if (record.type === "lent") {
-        setShowLentForm(true);
-      } else {
-        setShowBorrowedForm(true);
-      }
+    if (item.type === "settlement" || item.source === "lendingTransaction") {
       return;
     }
+
+    setEditingItem({ type: item.type, id: item.id });
 
     if (item.type === "income") {
       const record = incomes.find(
@@ -1962,7 +1490,6 @@ export function useFinanceDashboard() {
       setMoneyPhone(record.phone);
       setMoneyNotes(record.notes);
       setMoneyStatus(record.status);
-      setLendingPersonMode("new");
       setShowLentForm(true);
     }
 
@@ -1978,7 +1505,6 @@ export function useFinanceDashboard() {
       setMoneyPhone(record.phone);
       setMoneyNotes(record.notes);
       setMoneyStatus(record.status);
-      setLendingPersonMode("new");
       setShowBorrowedForm(true);
     }
   }
@@ -2096,7 +1622,7 @@ export function useFinanceDashboard() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, recurringJarAllocations, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, transferIsRecurring, setTransferIsRecurring, transferRecurringFrequency, setTransferRecurringFrequency, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, reverseTransfer, createRecurringJarAllocation, updateRecurringJarAllocation, deleteRecurringJarAllocation, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
+  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); } };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

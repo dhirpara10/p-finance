@@ -3,9 +3,9 @@
 import { Actions, Field, SettingsPanel } from "@/components/settings/SettingsAccountsPage";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { useState } from "react";
-import { Archive, Plus, RefreshCw, Save, Tags, Trash2 } from "lucide-react";
+import { Archive, Plus, Tags } from "lucide-react";
 import { findDuplicateTrackerCategory } from "@/lib/buckets";
-import type { AllocationFrequency, BucketListTracker } from "@/lib/types";
+import type { AllocationFrequency } from "@/lib/types";
 import { SelectField } from "@/components/forms/SelectField";
 
 type Props = { state: FinanceDashboardState };
@@ -20,6 +20,37 @@ export function SettingsBucketsPage({ state }: Props) {
 
   function updateTracker(id: string, field: "name" | "monthlyBudget" | "active", value: number | string | boolean) {
     state.setBucketListTrackers(state.bucketListTrackers.map((tracker) => tracker.id === id ? { ...tracker, [field]: value, updatedAt: new Date().toISOString() } : tracker));
+  }
+
+  function updateRecurringAllocation(
+    id: string,
+    patch: Partial<{
+      sourceAccountId: "Bank" | "Cash";
+      allocationAmount: number;
+      frequency: AllocationFrequency;
+      active: boolean;
+    }>
+  ) {
+    state.setBucketListTrackers(
+      state.bucketListTrackers.map((tracker) =>
+        tracker.id === id
+          ? {
+              ...tracker,
+              recurringAllocation: {
+                sourceAccountId:
+                  tracker.recurringAllocation?.sourceAccountId || "Bank",
+                allocationAmount:
+                  tracker.recurringAllocation?.allocationAmount || 0,
+                frequency:
+                  tracker.recurringAllocation?.frequency || "monthly",
+                active: tracker.recurringAllocation?.active || false,
+                ...patch,
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : tracker
+      )
+    );
   }
 
   function addSavingsBucket() {
@@ -143,7 +174,74 @@ export function SettingsBucketsPage({ state }: Props) {
             <Field label="Monthly cap">
               <input type="number" value={String(tracker.monthlyBudget)} onChange={(event) => updateTracker(tracker.id, "monthlyBudget", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
-            <TrackerRecurringAllocation state={state} tracker={tracker} />
+            <div className="mt-4 rounded-2xl border border-purple-500/15 bg-purple-500/[0.06] p-4">
+              <label className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block text-sm font-semibold">Recurring Allocation</span>
+                  <span className="mt-1 block text-xs text-neutral-500">Plan automatic contributions into the one shared jar.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(tracker.recurringAllocation?.active)}
+                  onChange={(event) =>
+                    updateRecurringAllocation(tracker.id, {
+                      active: event.target.checked,
+                    })
+                  }
+                  className="h-5 w-5 accent-purple-500"
+                />
+              </label>
+              {tracker.recurringAllocation?.active && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <SelectField
+                    label="Source"
+                    value={tracker.recurringAllocation.sourceAccountId}
+                    onChange={(event) =>
+                      updateRecurringAllocation(tracker.id, {
+                        sourceAccountId:
+                          event.target.value === "Cash" ? "Cash" : "Bank",
+                      })
+                    }
+                    options={[
+                      { value: "Bank", label: "Bank" },
+                      { value: "Cash", label: "Cash" },
+                    ]}
+                  />
+                  <Field label="Amount">
+                    <input
+                      type="number"
+                      value={String(tracker.recurringAllocation.allocationAmount)}
+                      onChange={(event) =>
+                        updateRecurringAllocation(tracker.id, {
+                          allocationAmount: Number(event.target.value),
+                        })
+                      }
+                      className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
+                    />
+                  </Field>
+                  <SelectField
+                    label="Frequency"
+                    value={tracker.recurringAllocation.frequency}
+                    onChange={(event) =>
+                      updateRecurringAllocation(tracker.id, {
+                        frequency: event.target.value as AllocationFrequency,
+                      })
+                    }
+                    options={[
+                      { value: "weekly", label: "Weekly" },
+                      { value: "biweekly", label: "Biweekly" },
+                      { value: "monthly", label: "Monthly" },
+                      { value: "yearly", label: "Yearly" },
+                    ]}
+                  />
+                </div>
+              )}
+              {tracker.recurringAllocation?.active && (
+                <p className="mt-3 text-xs text-purple-200">
+                  Allocated automatically {tracker.recurringAllocation.frequency} from {tracker.recurringAllocation.sourceAccountId}.
+                </p>
+              )}
+            </div>
             <p className="mt-3 text-xs text-neutral-500">{tracker.linkedCategoryIds.length} linked categor{tracker.linkedCategoryIds.length === 1 ? "y" : "ies"}</p>
             <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "tracker", id: tracker.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-800 p-3 text-sm font-semibold text-purple-200">View History & Budget Math</button>
           </div>
@@ -152,162 +250,5 @@ export function SettingsBucketsPage({ state }: Props) {
       </div>
       <Actions state={state} />
     </SettingsPanel>
-  );
-}
-
-function TrackerRecurringAllocation({
-  state,
-  tracker,
-}: {
-  state: FinanceDashboardState;
-  tracker: BucketListTracker;
-}) {
-  const rule = state.recurringJarAllocations.find(
-    (item) => item.trackerId === tracker.id
-  );
-  const [source, setSource] = useState<"Bank" | "Cash">(
-    rule?.sourceAccountId || "Bank"
-  );
-  const [amount, setAmount] = useState(
-    String(rule?.allocationAmount || "")
-  );
-  const [frequency, setFrequency] = useState<AllocationFrequency>(
-    rule?.frequency || "monthly"
-  );
-  const [startDate, setStartDate] = useState(
-    rule?.startDate || new Date().toISOString().split("T")[0]
-  );
-  const [saving, setSaving] = useState(false);
-
-  async function saveRule() {
-    const allocationAmount = Number(amount);
-    if (!allocationAmount || allocationAmount <= 0) {
-      alert("Allocation amount must be greater than zero.");
-      return;
-    }
-    setSaving(true);
-    try {
-      if (rule) {
-        await state.updateRecurringJarAllocation(rule.id, {
-          sourceAccountId: source,
-          allocationAmount,
-          frequency,
-          startDate,
-          active: true,
-        });
-      } else {
-        await state.createRecurringJarAllocation({
-          sourceAccountId: source,
-          allocationAmount,
-          frequency,
-          trackerId: tracker.id,
-          startDate,
-          note: `${tracker.name} shared jar allocation`,
-        });
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="mt-4 rounded-2xl border border-purple-500/15 bg-purple-500/[0.06] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex items-start gap-3">
-          <RefreshCw size={17} className="mt-0.5 text-purple-300" />
-          <span>
-            <span className="block text-sm font-semibold">
-              Recurring Allocation
-            </span>
-            <span className="mt-1 block text-xs text-neutral-500">
-              Real transfers into the one shared jar.
-            </span>
-          </span>
-        </span>
-        {rule && (
-          <button
-            type="button"
-            onClick={() =>
-              state.updateRecurringJarAllocation(rule.id, {
-                active: !rule.active,
-              })
-            }
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              rule.active
-                ? "bg-emerald-400/10 text-emerald-200"
-                : "bg-white/[0.05] text-neutral-400"
-            }`}
-          >
-            {rule.active ? "Active" : "Paused"}
-          </button>
-        )}
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <SelectField
-          label="Source"
-          value={source}
-          onChange={(event) =>
-            setSource(event.target.value === "Cash" ? "Cash" : "Bank")
-          }
-          options={[
-            { value: "Bank", label: "Bank" },
-            { value: "Cash", label: "Cash" },
-          ]}
-        />
-        <Field label="Amount">
-          <input
-            type="number"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-          />
-        </Field>
-        <SelectField
-          label="Frequency"
-          value={frequency}
-          onChange={(event) =>
-            setFrequency(event.target.value as AllocationFrequency)
-          }
-          options={[
-            { value: "weekly", label: "Weekly" },
-            { value: "biweekly", label: "Biweekly" },
-            { value: "monthly", label: "Monthly" },
-            { value: "yearly", label: "Yearly" },
-          ]}
-        />
-        <Field label="Start date">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-          />
-        </Field>
-      </div>
-      {rule && (
-        <p className="mt-3 text-xs text-purple-200/75">
-          Next execution {rule.nextExecutionDate}. Last execution{" "}
-          {rule.lastExecutionDate || "not yet"}.
-        </p>
-      )}
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={saveRule}
-          disabled={saving}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-purple-400/15 p-3 text-sm font-semibold text-purple-100 disabled:opacity-50"
-        >
-          <Save size={15} /> {rule ? "Update rule" : "Create rule"}
-        </button>
-        {rule && (
-          <button
-            type="button"
-            aria-label={`Delete ${tracker.name} recurring allocation`}
-            onClick={() => state.deleteRecurringJarAllocation(rule.id)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-400/15 text-red-200"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
-      </div>
-    </div>
   );
 }

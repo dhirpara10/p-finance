@@ -9,14 +9,13 @@ import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
-import type { AllocationFrequency, Bucket } from "@/lib/types";
+import type { Bucket } from "@/lib/types";
 import { formTokens } from "@/lib/designTokens";
-import { RefreshCw } from "lucide-react";
 
 type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
-  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, transferIsRecurring, setTransferIsRecurring, transferRecurringFrequency, setTransferRecurringFrequency, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers } = state;
+  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers } = state;
   const accountAndSavingsOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
@@ -26,76 +25,27 @@ export function TransferForm({ state }: TransferFormProps) {
     ...accountAndSavingsOptions,
     { value: "shared_rollover_jar", label: "Shared Rollover Jar" },
   ];
-  const sourceOptions = [
-    ...accountAndSavingsOptions,
-    { value: "shared_rollover_jar", label: "Shared Rollover Jar" },
-  ];
 
   return (
     <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"} subtitle="Move money between accounts and savings buckets." />
       <ModalContent>
         <ModalSection>
-          <SelectField label="From" value={fromBucket} onChange={(event) => setFromBucket(event.target.value as Bucket)} options={sourceOptions} />
+          <SelectField label="From" value={fromBucket} onChange={(event) => setFromBucket(event.target.value as Bucket)} options={accountAndSavingsOptions} />
           <SelectField label="To" value={toBucket} onChange={(event) => setToBucket(event.target.value as Bucket)} options={destinationOptions} />
           {toBucket === "shared_rollover_jar" && (
-            <>
-              <SelectField
-                label="Tracker context optional"
-                helper="This tags the allocation only. It does not create a separate tracker balance."
-                value={transferTrackerId}
-                onChange={(event) => setTransferTrackerId(event.target.value)}
-                options={[
-                  { value: "", label: "General shared jar allocation" },
-                  ...bucketListTrackers
-                    .filter((tracker) => tracker.active)
-                    .map((tracker) => ({ value: tracker.id, label: tracker.name })),
-                ]}
-              />
-              {!editingItem &&
-                (fromBucket === "Bank" || fromBucket === "Cash") && (
-                <label className="flex items-center justify-between gap-3 rounded-2xl border border-purple-400/15 bg-purple-400/[0.06] p-4">
-                  <span className="flex items-start gap-3">
-                    <RefreshCw size={18} className="mt-0.5 text-purple-300" />
-                    <span>
-                      <span className="block text-sm font-semibold">
-                        Repeat this allocation
-                      </span>
-                      <span className="mt-1 block text-xs text-neutral-500">
-                        Future transfers use a guarded recurring rule.
-                      </span>
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={transferIsRecurring}
-                    onChange={(event) =>
-                      setTransferIsRecurring(event.target.checked)
-                    }
-                    className="h-5 w-5 accent-purple-500"
-                  />
-                </label>
-              )}
-              {transferIsRecurring &&
-                !editingItem &&
-                (fromBucket === "Bank" || fromBucket === "Cash") && (
-                <SelectField
-                  label="Frequency"
-                  value={transferRecurringFrequency}
-                  onChange={(event) =>
-                    setTransferRecurringFrequency(
-                      event.target.value as AllocationFrequency
-                    )
-                  }
-                  options={[
-                    { value: "weekly", label: "Weekly" },
-                    { value: "biweekly", label: "Biweekly" },
-                    { value: "monthly", label: "Monthly" },
-                    { value: "yearly", label: "Yearly" },
-                  ]}
-                />
-              )}
-            </>
+            <SelectField
+              label="Tracker context optional"
+              helper="This tags the allocation only. It does not create a separate tracker balance."
+              value={transferTrackerId}
+              onChange={(event) => setTransferTrackerId(event.target.value)}
+              options={[
+                { value: "", label: "General shared jar allocation" },
+                ...bucketListTrackers
+                  .filter((tracker) => tracker.active)
+                  .map((tracker) => ({ value: tracker.id, label: tracker.name })),
+              ]}
+            />
           )}
           <FormField label="Amount">
             <input type="number" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} className={formTokens.input} />

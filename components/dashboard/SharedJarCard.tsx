@@ -4,17 +4,6 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 import { ArrowDown, ArrowUp, PiggyBank, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
-function formatJarMoney(
-  currencySymbol: string,
-  amount: number,
-  showPositive = false
-) {
-  const sign = amount < 0 ? "− " : showPositive && amount > 0 ? "+ " : "";
-  return `${sign}${currencySymbol}${Math.abs(amount).toLocaleString(undefined, {
-    maximumFractionDigits: 0,
-  })}`;
-}
-
 export function SharedJarCard({
   state,
   compact = false,
@@ -32,9 +21,9 @@ export function SharedJarCard({
   );
 
   return (
-    <section className="jar-card relative min-w-[90vw] snap-start overflow-hidden rounded-[28px] border border-purple-400/20 p-5 sm:min-w-0 sm:p-6">
+    <section className="jar-card relative min-w-[86vw] snap-start overflow-hidden rounded-[28px] border border-purple-400/20 p-5 sm:min-w-0 sm:p-6">
       <div className="jar-glow pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-purple-500/20 blur-3xl" />
-      <div className="relative grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
         <div>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-400/15 text-purple-200 ring-1 ring-purple-300/15">
@@ -50,15 +39,18 @@ export function SharedJarCard({
             </div>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-6">
             <p className="text-sm text-neutral-400">Available now</p>
             <p className="mt-1 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              {formatJarMoney(currencySymbol, sharedRolloverJar.available)}
+              {currencySymbol}
+              {sharedRolloverJar.available.toLocaleString(undefined, {
+                maximumFractionDigits: 0,
+              })}
             </p>
           </div>
 
           {!compact && (
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <JarMetric
                 icon={ArrowDown}
                 label="Monthly inflow"
@@ -74,11 +66,7 @@ export function SharedJarCard({
               <JarMetric
                 icon={Sparkles}
                 label="Month result"
-                value={formatJarMoney(
-                  currencySymbol,
-                  sharedRolloverJar.monthlyResult,
-                  true
-                )}
+                value={`${sharedRolloverJar.monthlyResult >= 0 ? "+" : ""}${currencySymbol}${sharedRolloverJar.monthlyResult.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 tone={
                   sharedRolloverJar.monthlyResult >= 0
                     ? "text-emerald-300"
@@ -91,7 +79,7 @@ export function SharedJarCard({
         </div>
 
         <div className="flex items-center gap-4 md:flex-col">
-          <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
+          <div className="relative h-28 w-28 shrink-0">
             <svg viewBox="0 0 120 120" className="-rotate-90">
               <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="9" />
               <motion.circle
