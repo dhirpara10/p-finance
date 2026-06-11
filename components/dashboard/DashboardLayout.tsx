@@ -353,6 +353,12 @@ function HomeView({
             />
           </div>
 
+          {state.cashBalance < 0 && (
+            <div className="mt-3 rounded-2xl bg-red-500/10 p-4 text-sm font-medium text-red-400">
+              Cash balance is negative. Fix this before adding more cash outflows.
+            </div>
+          )}
+
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-5">
             <button
               type="button"

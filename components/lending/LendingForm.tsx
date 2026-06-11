@@ -82,7 +82,7 @@ export function LendingForm({ state }: LendingFormProps) {
           )}
 
           <FormField label="Amount">
-            <input type="number" value={moneyAmount} onChange={(event) => setMoneyAmount(event.target.value)} className={formTokens.input} />
+            <input type="number" inputMode="decimal" value={moneyAmount} onChange={(event) => setMoneyAmount(event.target.value)} className={formTokens.input} />
           </FormField>
           <SelectField label="Account" value={moneyAccount} onChange={(event) => setMoneyAccount(event.target.value === "Cash" ? "Cash" : "Bank")} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
           {!showLentForm && (

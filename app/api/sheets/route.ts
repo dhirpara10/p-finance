@@ -227,6 +227,25 @@ async function deleteRow(supabase: SupabaseClient, sheet: string, id: string | n
   return true;
 }
 
+async function clearSheet(supabase: SupabaseClient, sheet: string) {
+  const cleanSheet = normalizeSheetName(sheet);
+
+  if (!cleanSheet) {
+    throw new Error("Missing sheet name");
+  }
+
+  const { error } = await supabase
+    .from("app_rows")
+    .delete()
+    .eq("sheet", cleanSheet);
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
 async function addPerson(
   supabase: SupabaseClient,
   person: { name: string; phone?: string }
@@ -396,6 +415,15 @@ export async function POST(request: Request) {
 
     if (action === "deleteRow") {
       await deleteRow(supabase, payload.sheet, payload.id);
+
+      return jsonResponse({
+        success: true,
+        data: true,
+      });
+    }
+
+    if (action === "clearSheet") {
+      await clearSheet(supabase, payload.sheet);
 
       return jsonResponse({
         success: true,

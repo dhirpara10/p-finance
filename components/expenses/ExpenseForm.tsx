@@ -29,7 +29,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
       <ModalContent>
         <ModalSection>
           <FormField label="Amount">
-            <input type="number" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className={formTokens.input} />
+            <input type="number" inputMode="decimal" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className={formTokens.input} />
           </FormField>
           <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={categoryOptions} />
           <div className="flex gap-2">

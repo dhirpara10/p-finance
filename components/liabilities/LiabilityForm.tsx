@@ -96,6 +96,7 @@ export function LiabilityForm({ state }: Props) {
     <FormField label={label}>
       <input
         type="number"
+        inputMode="decimal"
         min="0"
         step="0.01"
         value={value}

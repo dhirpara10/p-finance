@@ -31,19 +31,19 @@ export function IncomeForm({ state }: IncomeFormProps) {
           {incomeType === "Hourly" ? (
             <InputGroup>
               <FormField label="Rate">
-                <input type="number" value={incomeRate} onChange={(event) => setIncomeRate(event.target.value)} className={formTokens.input} />
+                <input type="number" inputMode="decimal" value={incomeRate} onChange={(event) => setIncomeRate(event.target.value)} className={formTokens.input} />
               </FormField>
               <FormField label="Hours">
-                <input type="number" value={incomeHours} onChange={(event) => setIncomeHours(event.target.value)} className={formTokens.input} />
+                <input type="number" inputMode="decimal" value={incomeHours} onChange={(event) => setIncomeHours(event.target.value)} className={formTokens.input} />
               </FormField>
             </InputGroup>
           ) : (
             <FormField label="Amount">
-              <input type="number" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} className={formTokens.input} />
+              <input type="number" inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} className={formTokens.input} />
             </FormField>
           )}
           <FormField label="Cash received">
-            <input type="number" value={incomeCashReceived} onChange={(event) => setIncomeCashReceived(event.target.value)} className={formTokens.input} />
+            <input type="number" inputMode="decimal" value={incomeCashReceived} onChange={(event) => setIncomeCashReceived(event.target.value)} className={formTokens.input} />
           </FormField>
           <InputGroup>
             <SummaryField label="Calculated Amount" value={`$${calculatedAmount.toLocaleString()}`} />
