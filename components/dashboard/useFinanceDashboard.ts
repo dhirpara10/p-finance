@@ -8,6 +8,8 @@ import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSett
 import type { Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
 import { useLiabilities } from "@/components/liabilities/useLiabilities";
 
+
+
 const defaultIncomeSources = [
   { name: "Hawthorn Pizza", rate: 20 },
   { name: "Pizza High", rate: 23 },
@@ -31,6 +33,7 @@ const defaultExpenseCategories = [
   "Emergency",
   "Other",
 ];
+
 
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
@@ -349,11 +352,54 @@ export function useFinanceDashboard() {
     return String(value);
   }
 
+  function hasUsableDate(value: unknown) {
+  if (typeof value !== "string") return false;
+  const text = value.trim();
+  if (!text) return false;
+
+  const time = new Date(text).getTime();
+  return Number.isFinite(time);
+}
+
+function hasCleanText(value: unknown) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function isValidIncomeRow(item: Income) {
+  return (
+    hasCleanText(item.source) &&
+    hasUsableDate(item.date) &&
+    Number.isFinite(Number(item.amount)) &&
+    Number(item.amount) > 0
+  );
+}
+
+function isValidExpenseRow(item: Expense) {
+  return (
+    hasCleanText(item.category) &&
+    hasUsableDate(item.date) &&
+    Number.isFinite(Number(item.amount)) &&
+    Number(item.amount) > 0
+  );
+}
+
+function isValidTransferRow(item: Transfer) {
+  return (
+    hasCleanText(item.from_bucket) &&
+    hasCleanText(item.to_bucket) &&
+    hasUsableDate(item.date) &&
+    Number.isFinite(Number(item.amount)) &&
+    Number(item.amount) > 0
+  );
+}
+
   function parseIncomeRow(item: any): Income {
     const row = normalizeSheetRow(item);
 
     if (Array.isArray(row)) {
       const [id, income_type, source, rate, hours, amount, cash_received, date, notes] = row;
+
+      
 
       return {
         id: normalizeRowId(id),
@@ -798,11 +844,21 @@ export function useFinanceDashboard() {
         hydratedLiabilities.repaymentSchedules
       );
 
-      setIncomes((sheetData.income || []).map(parseIncomeRow));
+     const cleanIncomes = (sheetData.income || [])
+  .map(parseIncomeRow)
+  .filter(isValidIncomeRow);
 
-      setExpenses((sheetData.expenses || []).map(parseExpenseRow));
+const cleanExpenses = (sheetData.expenses || [])
+  .map(parseExpenseRow)
+  .filter(isValidExpenseRow);
 
-      setTransfers((sheetData.transfers || []).map(parseTransferRow));
+const cleanTransfers = (sheetData.transfers || [])
+  .map(parseTransferRow)
+  .filter(isValidTransferRow);
+
+setIncomes(cleanIncomes);
+setExpenses(cleanExpenses);
+setTransfers(cleanTransfers);
 
       setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
 
@@ -894,7 +950,6 @@ export function useFinanceDashboard() {
     sharedRolloverJarBalance,
     monthlyResetDay,
   });
-
 
 
   async function saveSettings() {

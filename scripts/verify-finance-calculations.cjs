@@ -480,4 +480,48 @@ run("lending, borrowing, and settlements move cash in the right direction", () =
   closeTo(borrowed.netWorth, 1000, "borrowing settlement net worth");
 });
 
+
+run("recent activity ignores malformed income and transfer rows", () => {
+  const result = calculate({
+    incomes: [
+      {
+        id: "bad-income",
+        income_type: "Fixed Amount",
+        source: "",
+        rate: 0,
+        hours: 0,
+        amount: 50,
+        cash_received: 0,
+        date: "",
+        notes: "",
+      },
+      {
+        id: "good-income",
+        income_type: "Hourly",
+        source: "Hawthorn Pizza",
+        rate: 20,
+        hours: 32,
+        amount: 640,
+        cash_received: 0,
+        date: today,
+        notes: "",
+      },
+    ],
+    transfers: [
+      {
+        id: "bad-transfer",
+        from_bucket: "Bank",
+        to_bucket: 50,
+        amount: 0,
+        date: "",
+        notes: { broken: true },
+      },
+    ],
+  });
+
+  assert.equal(result.recentActivity.length, 1);
+  assert.equal(result.recentActivity[0].title, "Hawthorn Pizza");
+  assert.equal(result.recentActivity[0].amount, 640);
+});
+
 console.log("All finance calculation checks passed.");

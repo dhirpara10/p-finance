@@ -48,15 +48,33 @@ export function RecentActivity({
     deleteRepaymentSchedule,
   } = state;
 
-  const filteredActivity = recentActivity.filter((item) => {
-    const matchesType = typeFilter === "all" || item.type === typeFilter;
-    const query = search.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      item.title.toLowerCase().includes(query) ||
-      item.subtitle.toLowerCase().includes(query);
-    return matchesType && matchesSearch;
-  });
+ const validActivity = recentActivity.filter((item) => {
+  const title = typeof item.title === "string" ? item.title.trim() : "";
+  const subtitle = typeof item.subtitle === "string" ? item.subtitle.trim() : "";
+  const date = typeof item.date === "string" ? item.date.trim() : "";
+  const amount = Number(item.amount);
+
+  if (!title || !subtitle || !date) return false;
+  if (!Number.isFinite(amount)) return false;
+  if (item.type === "transfer" && amount <= 0) return false;
+
+  if (title === "Untitled activity") return false;
+  if (subtitle.includes("[object Object]")) return false;
+  if (title.includes("[object Object]")) return false;
+
+  return true;
+});
+
+const filteredActivity = validActivity.filter((item) => {
+  const matchesType = typeFilter === "all" || item.type === typeFilter;
+  const query = search.trim().toLowerCase();
+  const matchesSearch =
+    !query ||
+    item.title.toLowerCase().includes(query) ||
+    item.subtitle.toLowerCase().includes(query);
+
+  return matchesType && matchesSearch;
+});
   const displayedRecentActivity = showAll
     ? filteredActivity
     : filteredActivity.slice(0, 5);
@@ -108,7 +126,7 @@ export function RecentActivity({
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
                       <p className="truncate font-medium">
-                        {item.title?.trim() || "Untitled activity"}
+                        {item.title.trim()}
                       </p>
                     </div>
                     <p className="truncate text-xs text-neutral-400">

@@ -727,90 +727,163 @@ export function calculateDashboardValues({ incomes, expenses, transfers, people,
     trackerLinkedCategoryIds,
     currentNetWorth: netWorth,
   });
-  const recentActivity: RecentActivityItem[] = [
-    ...incomes.map((item, index) => ({
+function hasValidDate(value: unknown) {
+  if (typeof value !== "string") return false;
+  if (!value.trim()) return false;
+
+  const time = new Date(value).getTime();
+  return Number.isFinite(time);
+}
+
+function cleanText(value: unknown) {
+  if (typeof value !== "string") return "";
+  const text = value.trim();
+
+  if (!text) return "";
+  if (text === "[object Object]") return "";
+  if (text.includes("[object Object]")) return "";
+
+  return text;
+}
+
+function isPositiveAmount(value: unknown) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0;
+}
+
+const validIncomes = incomes.filter((item) => {
+  return (
+    cleanText(item.source) &&
+    hasValidDate(item.date) &&
+    isPositiveAmount(item.amount)
+  );
+});
+
+const validExpenses = expenses.filter((item) => {
+  return (
+    cleanText(item.category) &&
+    cleanText(item.account) &&
+    hasValidDate(item.date) &&
+    isPositiveAmount(item.amount)
+  );
+});
+
+const validTransfers = transfers.filter((item) => {
+  return (
+    hasValidDate(item.date) &&
+    isPositiveAmount(item.amount) &&
+    cleanText(getBucketLabel(item.from_bucket, savingsBuckets)) &&
+    cleanText(getBucketLabel(item.to_bucket, savingsBuckets)) &&
+    typeof item.notes !== "object"
+  );
+});
+
+const validLendingTransactions = lendingTransactions.filter((item) => {
+  return (
+    hasValidDate(item.date) &&
+    isPositiveAmount(item.amount) &&
+    cleanText(item.type)
+  );
+});
+
+const validPaidRepaymentSchedules = repaymentSchedules.filter((item) => {
+  return (
+    item.status === "paid" &&
+    hasValidDate(item.paidDate || item.dueDate) &&
+    isPositiveAmount(item.amount)
+  );
+});
+
+const recentActivity: RecentActivityItem[] = [
+  ...validIncomes.map((item, index) => ({
+    id:
+      item.id ||
+      `income-${item.date}-${item.amount}-${index}`,
+    type: "income" as const,
+    title: cleanText(item.source),
+    subtitle:
+      item.income_type === "Hourly"
+        ? `${Number(item.hours) || 0}h x $${Number(item.rate) || 0}/hr`
+        : "Fixed amount",
+    amount: Number(item.amount),
+    date: item.date,
+  })),
+
+  ...validExpenses.map((item, index) => ({
+    id:
+      item.id ||
+      `expense-${item.date}-${item.amount}-${index}`,
+    type: "expense" as const,
+    title: cleanText(item.category),
+    subtitle: cleanText(item.account),
+    amount: Number(item.amount),
+    date: item.date,
+    isRecurring: item.isRecurring,
+  })),
+
+  ...validTransfers.map((item, index) => {
+    const fromLabel = cleanText(getBucketLabel(item.from_bucket, savingsBuckets));
+    const toLabel = cleanText(getBucketLabel(item.to_bucket, savingsBuckets));
+    const notes = cleanText(item.notes);
+
+    return {
       id:
         item.id ||
-        `income-${item.date || "no-date"}-${item.amount || 0}-${index}`,
-      type: "income" as const,
-      title: item.source,
-      subtitle:
-        item.income_type === "Hourly"
-          ? String(item.hours) + "h x $" + String(item.rate) + "/hr"
-          : "Fixed amount",
-      amount: item.amount,
-      date: item.date,
-    })),
-    ...expenses.map((item, index) => ({
-      id:
-        item.id ||
-        `expense-${item.date || "no-date"}-${item.amount || 0}-${index}`,
-      type: "expense" as const,
-      title: item.category,
-      subtitle: item.account,
-      amount: item.amount,
-      date: item.date,
-      isRecurring: item.isRecurring,
-    })),
-    ...transfers.map((item, index) => ({
-      id:
-        item.id ||
-        `transfer-${item.date || "no-date"}-${item.amount || 0}-${index}`,
+        `transfer-${item.date}-${item.amount}-${index}`,
       type: "transfer" as const,
-      title:
-        getBucketLabel(item.from_bucket, savingsBuckets) +
-        " to " +
-        getBucketLabel(item.to_bucket, savingsBuckets),
+      title: `${fromLabel} to ${toLabel}`,
       subtitle:
         item.to_bucket === "shared_rollover_jar"
-          ? item.notes || "Shared jar allocation"
-          : item.notes || "Money transfer",
-      amount: item.amount,
+          ? notes || "Shared jar allocation"
+          : notes || "Money transfer",
+      amount: Number(item.amount),
       date: item.date,
-    })),
-    ...lendingTransactions.map((item, index) => {
-      const person = people.find(
-        (profile) => String(profile.id) === String(item.personId)
-      );
-      const name = person?.name || "Unknown";
+    };
+  }),
 
-      return {
-        id:
-          item.id ||
-          `${item.type}-${item.date || "no-date"}-${item.amount || 0}-${index}`,
-        type: item.type,
-        title:
-          item.type === "lent"
-            ? "Lent to " + name
-            : item.type === "borrowed"
-              ? "Borrowed from " + name
-              : "Settlement with " + name,
-        subtitle: item.note || "Lending profile",
-        amount: item.amount,
-        date: item.date,
-        source: "lendingTransaction" as const,
-      };
-    }),
-    ...repaymentSchedules
-      .filter((item) => item.status === "paid")
-      .map((item) => {
-        const liability = liabilities.find(
-          (record) => record.id === item.liabilityId
-        );
-        return {
-          id: item.id,
-          type: "liability_repayment" as const,
-          title: `${liability?.name || "Liability"} repayment`,
-          subtitle: `${liability?.provider || "Liability"} / principal $${item.principalAmount.toFixed(2)}`,
-          amount: item.amount,
-          date: item.paidDate || item.dueDate,
-        };
-      }),
-  ].sort(
-    (a, b) =>
-      getActivityTime(b.date) - getActivityTime(a.date) ||
-      compareActivityIds(b.id, a.id)
-  );
+  ...validLendingTransactions.map((item, index) => {
+    const person = people.find(
+      (profile) => String(profile.id) === String(item.personId)
+    );
+    const name = cleanText(person?.name) || "Unknown";
+
+    return {
+      id:
+        item.id ||
+        `${item.type}-${item.date}-${item.amount}-${index}`,
+      type: item.type,
+      title:
+        item.type === "lent"
+          ? `Lent to ${name}`
+          : item.type === "borrowed"
+            ? `Borrowed from ${name}`
+            : `Settlement with ${name}`,
+      subtitle: cleanText(item.note) || "Lending profile",
+      amount: Number(item.amount),
+      date: item.date,
+      source: "lendingTransaction" as const,
+    };
+  }),
+
+  ...validPaidRepaymentSchedules.map((item) => {
+    const liability = liabilities.find(
+      (record) => record.id === item.liabilityId
+    );
+
+    return {
+      id: item.id,
+      type: "liability_repayment" as const,
+      title: `${cleanText(liability?.name) || "Liability"} repayment`,
+      subtitle: `${cleanText(liability?.provider) || "Liability"} / principal $${Number(item.principalAmount || 0).toFixed(2)}`,
+      amount: Number(item.amount),
+      date: item.paidDate || item.dueDate,
+    };
+  }),
+].sort(
+  (a, b) =>
+    getActivityTime(b.date) - getActivityTime(a.date) ||
+    compareActivityIds(b.id, a.id)
+);
 
   return {
     activeLent,
