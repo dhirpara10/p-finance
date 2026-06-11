@@ -223,6 +223,9 @@ export type RecentActivityItem = {
   title: string;
   subtitle: string;
   amount: number;
+  account?: string;
+createdAt?: string;
+updatedAt?: string;
   date: string;
   source?: "lendingTransaction";
   isRecurring?: boolean;

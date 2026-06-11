@@ -1301,89 +1301,67 @@ async function addIncome() {
   }
 
   async function saveLendingTransaction({
-    person,
-    type,
-    amount,
-    account,
-    affectsAccountBalance,
-    date,
-    note,
-  }: {
-    person: Person;
-    type: LendingTransactionRecord["type"];
-    amount: number;
-    account?: ExpenseAccount;
-    affectsAccountBalance?: boolean;
-    date: string;
-    note: string;
-  }) {
-    const validTypes: LendingTransactionRecord["type"][] = [
-      "lent",
-      "borrowed",
-      "settlement",
-    ];
+  person,
+  type,
+  amount,
+  account,
+  affectsAccountBalance,
+  date,
+  note,
+}: {
+  person: Person;
+  type: LendingTransactionRecord["type"];
+  amount: number;
+  account?: ExpenseAccount;
+  affectsAccountBalance?: boolean;
+  date: string;
+  note: string;
+}) {
+  const validTypes: LendingTransactionRecord["type"][] = [
+    "lent",
+    "borrowed",
+    "settlement",
+  ];
 
-    const personId = getPersonId(person);
+  const personId = getPersonId(person);
 
-    if (!personId) {
-      alert("Person profile is missing an id.");
-      return null;
-    }
-
-    if (!validTypes.includes(type)) {
-      alert("Invalid lending transaction type.");
-      return null;
-    }
-
-    if (!amount || amount <= 0) {
-      alert("Amount must be greater than 0.");
-      return null;
-    }
-
-    const newTransaction: LendingTransactionRecord = {
-      id: "",
-      personId,
-      type,
-      amount,
-      account: account || "Bank",
-      affectsAccountBalance:
-        type === "lent" || (type === "borrowed" && Boolean(affectsAccountBalance)),
-      date,
-      note,
-      createdAt: new Date().toISOString(),
-    };
-
-    const payload = {
-      personId: newTransaction.personId,
-      type: newTransaction.type,
-      amount: newTransaction.amount,
-      account: newTransaction.account,
-      affectsAccountBalance: newTransaction.affectsAccountBalance,
-      date: newTransaction.date,
-      note: newTransaction.note,
-    };
-
-    console.log("Final transaction payload:", payload);
-
-    const saved = await addLendingTransaction(payload);
-
-    if (!saved) return null;
-
-    const transactionId = extractCreatedId(saved);
-
-    if (!transactionId) {
-      await loadFromSheets();
-      return newTransaction;
-    }
-
-    const savedTransaction = {
-      ...newTransaction,
-      id: transactionId,
-    };
-
-    setLendingTransactions([savedTransaction, ...lendingTransactions]);
-    return savedTransaction;
+  if (!personId) {
+    alert("Person profile is missing an id.");
+    return null;
   }
+
+  if (!validTypes.includes(type)) {
+    alert("Invalid lending transaction type.");
+    return null;
+  }
+
+  if (!amount || amount <= 0) {
+    alert("Amount must be greater than 0.");
+    return null;
+  }
+
+  const payload = {
+    personId,
+    type,
+    amount: Number(amount),
+    account: account || "Bank",
+    affectsAccountBalance:
+      type === "lent" ||
+      (type === "borrowed" && Boolean(affectsAccountBalance)),
+    date: date || getToday(),
+    note: note?.trim() || "",
+  };
+
+  console.log("Final transaction payload:", payload);
+
+  const saved = await addLendingTransaction(payload);
+
+  if (!saved) return null;
+
+  await loadFromSheets();
+
+  return saved;
+}
 
   async function addMoneyTransaction(type: LendingTransactionRecord["type"]) {
     const amount = Number(moneyAmount);
