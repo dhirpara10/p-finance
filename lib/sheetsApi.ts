@@ -227,3 +227,7 @@ export async function updateRow(sheet: string, id: string, data: unknown) {
 export async function deleteRow(sheet: string, id: string) {
   return callSheetsApi({ action: "deleteRow", sheet, id });
 }
+
+export async function clearSheet(sheet: string) {
+  return callSheetsApi({ action: "clearSheet", sheet });
+}

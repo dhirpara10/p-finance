@@ -176,6 +176,7 @@ export function LendingDetails({ state }: LendingDetailsProps) {
 
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Settlement amount"
                       value={settlementAmount}
                       onChange={(e) => setSettlementAmount(e.target.value)}

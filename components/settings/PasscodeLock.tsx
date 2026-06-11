@@ -45,6 +45,7 @@ export function PasscodeLock({ state }: PasscodeLockProps) {
           <input
             type="password"
             inputMode="numeric"
+            pattern="[0-9]*"
             autoComplete="off"
             autoFocus
             value={passcodeInput}
@@ -73,7 +74,7 @@ export function PasscodeLock({ state }: PasscodeLockProps) {
         </button>
 
         <p className="mt-5 text-xs text-neutral-500">
-          Session locks automatically after 5 minutes.
+          Session locks automatically after 15 minutes.
         </p>
       </form>
     </main>

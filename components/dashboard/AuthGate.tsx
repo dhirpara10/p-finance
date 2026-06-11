@@ -16,6 +16,7 @@ export function AuthGate({ state }: AuthGateProps) {
           <input
             type="password"
             inputMode="numeric"
+            pattern="[0-9]*"
             value={passcodeInput}
             onChange={(e) => setPasscodeInput(e.target.value)}
             placeholder="4-digit passcode"

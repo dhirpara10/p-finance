@@ -139,7 +139,7 @@ export function SettingsBucketsPage({ state }: Props) {
               <input value={bucket.name} onChange={(event) => updateSavingsBucket(bucket.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
             <Field label="Target amount">
-              <input type="number" value={String(bucket.targetAmount)} onChange={(event) => updateSavingsBucket(bucket.id, "targetAmount", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input type="number" inputMode="numeric" pattern="[0-9]*" value={String(bucket.targetAmount)} onChange={(event) => updateSavingsBucket(bucket.id, "targetAmount", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
             <Field label="Storage label">
               <input value={bucket.linkedStorageLabel} onChange={(event) => updateSavingsBucket(bucket.id, "linkedStorageLabel", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
@@ -156,7 +156,7 @@ export function SettingsBucketsPage({ state }: Props) {
         <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
           <p className="text-sm font-semibold text-purple-200">One Shared Rollover Jar</p>
           <p className="mt-1 text-xs text-neutral-400">Opening carry-forward balance used by every active tracker.</p>
-          <input type="number" value={String(state.sharedRolloverJarBalance)} onChange={(event) => state.setSharedRolloverJarBalance(Number(event.target.value))} className="mt-3 w-full rounded-2xl bg-neutral-950 p-4 outline-none" />
+          <input type="number" inputMode="decimal" value={String(state.sharedRolloverJarBalance)} onChange={(event) => state.setSharedRolloverJarBalance(Number(event.target.value))} className="mt-3 w-full rounded-2xl bg-neutral-950 p-4 outline-none" />
         </div>
         <div className="flex gap-2">
           <input value={newTrackerName} onChange={(event) => setNewTrackerName(event.target.value)} placeholder="New virtual tracker" className="min-w-0 flex-1 rounded-2xl bg-neutral-800 p-4 outline-none" />
@@ -172,7 +172,7 @@ export function SettingsBucketsPage({ state }: Props) {
               <input value={tracker.name} onChange={(event) => updateTracker(tracker.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
             <Field label="Monthly cap">
-              <input type="number" value={String(tracker.monthlyBudget)} onChange={(event) => updateTracker(tracker.id, "monthlyBudget", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input type="number" inputMode="numeric" pattern="[0-9]*" value={String(tracker.monthlyBudget)} onChange={(event) => updateTracker(tracker.id, "monthlyBudget", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
             </Field>
             <div className="mt-4 rounded-2xl border border-purple-500/15 bg-purple-500/[0.06] p-4">
               <label className="flex items-center justify-between gap-3">

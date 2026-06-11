@@ -30,7 +30,7 @@ export function RepaymentForm({ state }: { state: FinanceDashboardState }) {
     setter: (value: string) => void
   ) => (
     <FormField label={label}>
-      <input type="number" min="0" step="0.01" value={value} onChange={(event) => setter(event.target.value)} className={formTokens.input} />
+      <input type="number" inputMode="decimal" min="0" step="0.01" value={value} onChange={(event) => setter(event.target.value)} className={formTokens.input} />
     </FormField>
   );
 

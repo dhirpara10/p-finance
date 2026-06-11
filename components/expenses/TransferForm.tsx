@@ -48,7 +48,7 @@ export function TransferForm({ state }: TransferFormProps) {
             />
           )}
           <FormField label="Amount">
-            <input type="number" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} className={formTokens.input} />
+            <input type="number" inputMode="decimal" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} className={formTokens.input} />
           </FormField>
           <DateField label="Date" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
           <FormField label="Notes">
