@@ -130,3 +130,62 @@ select option {
     transform: translateX(100%);
   }
 }
+
+.bucket-flip {
+  width: 82vw;
+  min-height: 320px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  perspective: 1200px;
+}
+
+.bucket-flip-inner {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  transform-style: preserve-3d;
+  transition: transform 420ms ease;
+}
+
+.bucket-flip.is-flipped .bucket-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.bucket-flip-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 320px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.bucket-flip-face > * {
+  height: 100%;
+}
+
+.bucket-flip-back {
+  transform: rotateY(180deg);
+}
+
+@media (min-width: 640px) {
+  .bucket-flip {
+    width: 360px;
+  }
+}
+
+@media (min-width: 768px) {
+  .bucket-flip {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

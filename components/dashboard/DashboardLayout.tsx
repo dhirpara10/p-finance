@@ -70,11 +70,11 @@ export function DashboardLayout({ state }: Props) {
   const [activitySearch, setActivitySearch] = useState("");
   const [activityType, setActivityType] = useState("all");
   const [bucketHistory, setBucketHistory] = useState<BucketHistory>(null);
-  const [mobileSections, setMobileSections] = useState({
-    savings: true,
-    trackers: false,
-    accounts: false,
-  });
+  // const [mobileSections, setMobileSections] = useState({
+  //   savings: true,
+  //   trackers: false,
+  //   accounts: false,
+  // });
 
   const openIncome = () => state.setShowIncomeForm(true);
   const openExpense = () => state.setShowExpenseForm(true);
@@ -120,8 +120,9 @@ export function DashboardLayout({ state }: Props) {
               onActivity={() => selectTab("activity")}
               showAllActivity={showAllActivity}
               onToggleActivity={() => setShowAllActivity(!showAllActivity)}
-              mobileSections={mobileSections}
-              setMobileSections={setMobileSections}
+              // mobileSections={mobileSections}
+              // setMobileSections={setMobileSections}
+              bucketHistory={bucketHistory}
               setBucketHistory={setBucketHistory}
             />
           )}
@@ -243,8 +244,7 @@ function HomeView({
   onActivity,
   showAllActivity,
   onToggleActivity,
-  mobileSections,
-  setMobileSections,
+  bucketHistory,
   setBucketHistory,
 }: {
   state: FinanceDashboardState;
@@ -258,11 +258,27 @@ function HomeView({
   onActivity: () => void;
   showAllActivity: boolean;
   onToggleActivity: () => void;
-  mobileSections: { savings: boolean; trackers: boolean; accounts: boolean };
-  setMobileSections: (value: { savings: boolean; trackers: boolean; accounts: boolean }) => void;
+  bucketHistory: BucketHistory;
   setBucketHistory: (value: BucketHistory) => void;
 }) {
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
+
+  function toggleSavingsHistory(id: string) {
+    setBucketHistory(
+      bucketHistory?.type === "savings" && bucketHistory.id === id
+        ? null
+        : { type: "savings", id }
+    );
+  }
+
+  function toggleTrackerHistory(id: string) {
+    setBucketHistory(
+      bucketHistory?.type === "tracker" && bucketHistory.id === id
+        ? null
+        : { type: "tracker", id }
+    );
+  }
+
   return (
     <div className="space-y-8">
       <section className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 scroll-smooth sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
@@ -274,6 +290,7 @@ function HomeView({
           currency={state.currencySymbol}
           tone="emerald"
         />
+
         <BalanceCard
           icon={Landmark}
           label="Net worth"
@@ -282,14 +299,16 @@ function HomeView({
           currency={state.currencySymbol}
           tone="blue"
         />
+
         <BalanceCard
           icon={state.remaining >= 0 ? TrendingUp : TrendingDown}
           label="Month remaining"
           value={state.remaining}
-          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in · ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
+          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in / ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
           currency={state.currencySymbol}
           tone={state.remaining >= 0 ? "neutral" : "warning"}
         />
+
         <BalanceCard
           icon={PiggyBank}
           label="Jar available"
@@ -309,40 +328,80 @@ function HomeView({
       />
 
       <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
+        <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
           <SharedJarCard state={state} onAllocate={onAllocate} />
         </div>
+
         <div className="surface-card rounded-[28px] border border-white/[0.055] p-5">
           <SectionTitle title="Accounts" subtitle="Your usable money" />
+
           <div className="mt-5 space-y-3">
-            <AccountRow icon={Landmark} label="Bank" value={state.bankBalance} currency={state.currencySymbol} tone="blue" />
-            <AccountRow icon={CircleDollarSign} label="Cash" value={state.cashBalance} currency={state.currencySymbol} tone="orange" />
+            <AccountRow
+              icon={Landmark}
+              label="Bank"
+              value={state.bankBalance}
+              currency={state.currencySymbol}
+              tone="blue"
+            />
+
+            <AccountRow
+              icon={CircleDollarSign}
+              label="Cash"
+              value={state.cashBalance}
+              currency={state.currencySymbol}
+              tone="orange"
+            />
           </div>
+
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-5">
-            <button type="button" onClick={() => state.setDetailsView("lent")} className="text-left">
+            <button
+              type="button"
+              onClick={() => state.setDetailsView("lent")}
+              className="text-left"
+            >
               <p className="text-xs text-neutral-500">Receivables</p>
-              <p className="mt-1 font-semibold text-emerald-300">{state.currencySymbol}{state.activeLent.toLocaleString()}</p>
+              <p className="mt-1 font-semibold text-emerald-300">
+                {state.currencySymbol}
+                {state.activeLent.toLocaleString()}
+              </p>
             </button>
-            <button type="button" onClick={() => state.setDetailsView("borrowed")} className="border-l border-white/[0.06] pl-4 text-left">
+
+            <button
+              type="button"
+              onClick={() => state.setDetailsView("borrowed")}
+              className="border-l border-white/[0.06] pl-4 text-left"
+            >
               <p className="text-xs text-neutral-500">Personal borrowing</p>
-              <p className="mt-1 font-semibold text-red-300">{state.currencySymbol}{state.activeBorrowed.toLocaleString()}</p>
+              <p className="mt-1 font-semibold text-red-300">
+                {state.currencySymbol}
+                {state.activeBorrowed.toLocaleString()}
+              </p>
             </button>
           </div>
         </div>
       </section>
 
-      <CollapsibleSection
-        title="Protected savings"
-        subtitle={`${activeSavings.length} real-money goals`}
-        open={mobileSections.savings}
-        onToggle={() => setMobileSections({ ...mobileSections, savings: !mobileSections.savings })}
-        onViewAll={onBuckets}
-      >
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <SectionTitle
+            title="Protected savings"
+            subtitle={`${activeSavings.length} real-money goals`}
+          />
+
+          <button
+            type="button"
+            onClick={onBuckets}
+            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white"
+          >
+            View all <ChevronRight size={15} />
+          </button>
+        </div>
+
+        <div className="no-scrollbar  flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.slice(0, 3).map((bucket) => (
             <FlipBucketCard
               key={bucket.id}
-              flipped={state.activeBucketHistoryId === bucket.id}
+              flipped={bucketHistory?.type === "savings" && bucketHistory.id === bucket.id}
               front={
                 <SavingsBucketCard
                   bucket={bucket}
@@ -357,60 +416,79 @@ function HomeView({
                     state.setToBucket("Bank");
                     state.setShowTransferForm(true);
                   }}
-                  onHistory={() => state.openSavingsBucketHistory(bucket.id)}
+                  onHistory={() => toggleSavingsHistory(bucket.id)}
                 />
               }
               back={
                 <BucketHistoryBack
                   state={state}
                   savings={bucket}
-                  onClose={state.clearBucketHistory}
+                  onClose={() => setBucketHistory(null)}
                 />
               }
             />
           ))}
         </div>
-      </CollapsibleSection>
+      </section>
 
-      <CollapsibleSection
-        title="Lifestyle trackers"
-        subtitle={`${state.trackerSummaries.length} virtual spending plans`}
-        open={mobileSections.trackers}
-        onToggle={() => setMobileSections({ ...mobileSections, trackers: !mobileSections.trackers })}
-        onViewAll={onBuckets}
-      >
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <SectionTitle
+            title="Lifestyle trackers"
+            subtitle={`${state.trackerSummaries.length} virtual spending plans`}
+          />
+
+          <button
+            type="button"
+            onClick={onBuckets}
+            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white"
+          >
+            View all <ChevronRight size={15} />
+          </button>
+        </div>
+
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.slice(0, 3).map((tracker) => (
             <FlipBucketCard
               key={tracker.id}
-              flipped={state.activeTrackerHistoryId === tracker.id}
+              flipped={bucketHistory?.type === "tracker" && bucketHistory.id === tracker.id}
               front={
                 <TrackerCard
                   tracker={tracker}
                   currencySymbol={state.currencySymbol}
-                  onHistory={() => state.openTrackerHistory(tracker.id)}
+                  onHistory={() => toggleTrackerHistory(tracker.id)}
                 />
               }
               back={
                 <BucketHistoryBack
                   state={state}
                   tracker={tracker}
-                  onClose={state.clearBucketHistory}
+                  onClose={() => setBucketHistory(null)}
                 />
               }
             />
           ))}
         </div>
-      </CollapsibleSection>
+      </section>
 
       <section>
         <div className="mb-4 flex items-end justify-between gap-4">
           <SectionTitle title="Recent activity" subtitle="Latest money movement" />
-          <button type="button" onClick={onActivity} className="text-sm font-medium text-neutral-400 hover:text-white">
+
+          <button
+            type="button"
+            onClick={onActivity}
+            className="text-sm font-medium text-neutral-400 hover:text-white"
+          >
             View all
           </button>
         </div>
-        <RecentActivity state={state} showAll={showAllActivity} onToggleShowAll={onToggleActivity} />
+
+        <RecentActivity
+          state={state}
+          showAll={showAllActivity}
+          onToggleShowAll={onToggleActivity}
+        />
       </section>
     </div>
   );
@@ -501,8 +579,22 @@ function BucketsView({
   onAllocate: () => void;
 }) {
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
-  const selectedSavings = bucketHistory?.type === "savings" ? state.savingsBucketBalances.find((bucket) => bucket.id === bucketHistory.id) : null;
-  const selectedTracker = bucketHistory?.type === "tracker" ? state.trackerSummaries.find((tracker) => tracker.id === bucketHistory.id) : null;
+
+  function toggleSavingsHistory(id: string) {
+    setBucketHistory(
+      bucketHistory?.type === "savings" && bucketHistory.id === id
+        ? null
+        : { type: "savings", id }
+    );
+  }
+
+  function toggleTrackerHistory(id: string) {
+    setBucketHistory(
+      bucketHistory?.type === "tracker" && bucketHistory.id === id
+        ? null
+        : { type: "tracker", id }
+    );
+  }
 
   return (
     <div className="space-y-10">
@@ -510,56 +602,80 @@ function BucketsView({
         title="Buckets"
         description="Protected savings hold real money. Lifestyle trackers organize spending through one shared rollover jar."
       />
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
+
+      <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
         <SharedJarCard state={state} onAllocate={onAllocate} />
       </div>
 
       <section>
-        <SectionTitle title="Protected savings" subtitle="Real money held away from your usable balance" />
-        <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <SectionTitle
+          title="Protected savings"
+          subtitle="Real money held away from your usable balance"
+        />
+
+        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.map((bucket) => (
-            <SavingsBucketCard
+            <FlipBucketCard
               key={bucket.id}
-              bucket={bucket}
-              currencySymbol={state.currencySymbol}
-              onFund={() => {
-                state.setFromBucket("Bank");
-                state.setToBucket(bucket.id);
-                state.setShowTransferForm(true);
-              }}
-              onWithdraw={() => {
-                state.setFromBucket(bucket.id);
-                state.setToBucket("Bank");
-                state.setShowTransferForm(true);
-              }}
-              onHistory={() => setBucketHistory({ type: "savings", id: bucket.id })}
+              flipped={bucketHistory?.type === "savings" && bucketHistory.id === bucket.id}
+              front={
+                <SavingsBucketCard
+                  bucket={bucket}
+                  currencySymbol={state.currencySymbol}
+                  onFund={() => {
+                    state.setFromBucket("Bank");
+                    state.setToBucket(bucket.id);
+                    state.setShowTransferForm(true);
+                  }}
+                  onWithdraw={() => {
+                    state.setFromBucket(bucket.id);
+                    state.setToBucket("Bank");
+                    state.setShowTransferForm(true);
+                  }}
+                  onHistory={() => toggleSavingsHistory(bucket.id)}
+                />
+              }
+              back={
+                <BucketHistoryBack
+                  state={state}
+                  savings={bucket}
+                  onClose={() => setBucketHistory(null)}
+                />
+              }
             />
           ))}
         </div>
       </section>
 
       <section>
-        <SectionTitle title="Lifestyle trackers" subtitle="Virtual monthly plans powered by the shared jar" />
+        <SectionTitle
+          title="Lifestyle trackers"
+          subtitle="Virtual monthly plans powered by the shared jar"
+        />
+
         <div className="no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.map((tracker) => (
-            <TrackerCard
+            <FlipBucketCard
               key={tracker.id}
-              tracker={tracker}
-              currencySymbol={state.currencySymbol}
-              onHistory={() => setBucketHistory({ type: "tracker", id: tracker.id })}
+              flipped={bucketHistory?.type === "tracker" && bucketHistory.id === tracker.id}
+              front={
+                <TrackerCard
+                  tracker={tracker}
+                  currencySymbol={state.currencySymbol}
+                  onHistory={() => toggleTrackerHistory(tracker.id)}
+                />
+              }
+              back={
+                <BucketHistoryBack
+                  state={state}
+                  tracker={tracker}
+                  onClose={() => setBucketHistory(null)}
+                />
+              }
             />
           ))}
         </div>
       </section>
-
-      {bucketHistory && (
-        <BucketHistoryPanel
-          state={state}
-          savings={selectedSavings}
-          tracker={selectedTracker}
-          onClose={() => setBucketHistory(null)}
-        />
-      )}
     </div>
   );
 }
@@ -573,25 +689,20 @@ function FlipBucketCard({
   front: React.ReactNode;
   back: React.ReactNode;
 }) {
-  const [isFlipped, setIsFlipped] = useState(flipped);
-
-  useEffect(() => {
-    setIsFlipped(flipped);
-  }, [flipped]);
-
   return (
-    <div className={`bucket-flip ${isFlipped ? "is-flipped" : ""}`}>
+    <div className={`bucket-flip ${flipped ? "is-flipped" : ""}`}>
       <div className="bucket-flip-inner">
         <div
-          aria-hidden={isFlipped}
-          inert={isFlipped ? true : undefined}
+          aria-hidden={flipped}
+          inert={flipped ? true : undefined}
           className="bucket-flip-face bucket-flip-front"
         >
           {front}
         </div>
+
         <div
-          aria-hidden={!isFlipped}
-          inert={!isFlipped ? true : undefined}
+          aria-hidden={!flipped}
+          inert={!flipped ? true : undefined}
           className="bucket-flip-face bucket-flip-back"
         >
           {back}
@@ -618,6 +729,7 @@ function BucketHistoryBack({
       savings={savings}
       tracker={tracker}
       onClose={onClose}
+      compact
     />
   );
 }
@@ -627,20 +739,33 @@ function BucketHistoryPanel({
   savings,
   tracker,
   onClose,
+  compact = false,
 }: {
   state: FinanceDashboardState;
   savings: FinanceDashboardState["savingsBucketBalances"][number] | null | undefined;
   tracker: FinanceDashboardState["trackerSummaries"][number] | null | undefined;
   onClose: () => void;
+  compact?: boolean;
 }) {
   const rows = savings
     ? state.transfers
-        .filter((transfer) => bucketMatches(transfer.from_bucket, savings) || bucketMatches(transfer.to_bucket, savings))
+        .filter(
+          (transfer) =>
+            bucketMatches(transfer.from_bucket, savings) ||
+            bucketMatches(transfer.to_bucket, savings)
+        )
         .map((transfer) => ({
           id: transfer.id,
           date: transfer.date,
-          title: bucketMatches(transfer.to_bucket, savings) ? "Transfer in" : "Transfer out",
-          detail: getBucketLabel(bucketMatches(transfer.from_bucket, savings) ? transfer.to_bucket : transfer.from_bucket, state.savingsBucketBalances),
+          title: bucketMatches(transfer.to_bucket, savings)
+            ? "Transfer in"
+            : "Transfer out",
+          detail: getBucketLabel(
+            bucketMatches(transfer.from_bucket, savings)
+              ? transfer.to_bucket
+              : transfer.from_bucket,
+            state.savingsBucketBalances
+          ),
           amount: transfer.amount,
         }))
     : tracker
@@ -650,40 +775,104 @@ function BucketHistoryPanel({
               .map(normalizeCategoryId)
               .includes(expenseCategoryId(expense))
           )
-          .map((expense) => ({ id: expense.id, date: expense.date, title: expense.category, detail: expense.account, amount: expense.amount }))
+          .map((expense) => ({
+            id: expense.id,
+            date: expense.date,
+            title: expense.category,
+            detail: expense.account,
+            amount: expense.amount,
+          }))
       : [];
+
   rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <section className="surface-card rounded-[28px] border border-white/[0.06] p-5 sm:p-6">
+    <section
+      className={`surface-card flex ${
+        compact ? "h-full" : ""
+      } flex-col rounded-[28px] border border-white/[0.06] p-5 sm:p-6`}
+    >
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">History</p>
-          <h3 className="mt-2 text-xl font-semibold">{savings?.name || tracker?.name}</h3>
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">
+            History
+          </p>
+
+          <h3 className="mt-2 truncate text-xl font-semibold">
+            {savings?.name || tracker?.name}
+          </h3>
         </div>
-        <button type="button" aria-label="Close history" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.05] text-neutral-400"><X size={16} /></button>
+
+        <button
+          type="button"
+          aria-label="Close history"
+          onClick={onClose}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-neutral-400 transition hover:bg-white/[0.08] hover:text-white"
+        >
+          <X size={16} />
+        </button>
       </div>
+
       {tracker && (
-        <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-purple-400/10 bg-purple-400/[0.05] p-4 sm:grid-cols-4">
-          <HistoryMetric label="Monthly cap" value={`${state.currencySymbol}${tracker.monthlyBudget.toLocaleString()}`} />
-          <HistoryMetric label="Tracker spend" value={`${state.currencySymbol}${tracker.spentThisMonth.toLocaleString()}`} />
-          <HistoryMetric label="Shared available" value={`${state.currencySymbol}${state.sharedRolloverJar.available.toLocaleString()}`} />
-          <HistoryMetric label="Monthly result" value={`${state.currencySymbol}${state.sharedRolloverJar.monthlyResult.toLocaleString()}`} />
+        <div
+          className={`mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-purple-400/10 bg-purple-400/[0.05] ${
+            compact ? "p-3" : "p-4 sm:grid-cols-4"
+          }`}
+        >
+          <HistoryMetric
+            label="Monthly cap"
+            value={`${state.currencySymbol}${tracker.monthlyBudget.toLocaleString()}`}
+          />
+          <HistoryMetric
+            label="Tracker spend"
+            value={`${state.currencySymbol}${tracker.spentThisMonth.toLocaleString()}`}
+          />
+          <HistoryMetric
+            label="Shared available"
+            value={`${state.currencySymbol}${state.sharedRolloverJar.available.toLocaleString()}`}
+          />
+          <HistoryMetric
+            label="Monthly result"
+            value={`${state.currencySymbol}${state.sharedRolloverJar.monthlyResult.toLocaleString()}`}
+          />
         </div>
       )}
-      <div className="mt-5 divide-y divide-white/[0.05]">
-        {rows.map((row) => (
-          <div key={String(row.id)} className="flex items-center justify-between gap-4 py-3.5">
-            <div><p className="text-sm font-medium">{row.title}</p><p className="mt-1 text-xs text-neutral-500">{row.date} · {row.detail}</p></div>
-            <p className="text-sm font-semibold">{state.currencySymbol}{row.amount.toLocaleString()}</p>
+
+      <div
+        className={`no-scrollbar mt-0 min-h-0 ${
+          compact ? "flex-1 overflow-y-auto" : ""
+        }`}
+      >
+        {rows.length ? (
+          <div className="divide-y divide-white/[0.05]">
+            {rows.map((row) => (
+              <div
+                key={String(row.id)}
+                className="flex items-center justify-between gap-4 py-3.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{row.title}</p>
+                  <p className="mt-1 truncate text-xs text-neutral-500">
+                    {row.date} · {row.detail}
+                  </p>
+                </div>
+
+                <p className="shrink-0 text-sm font-semibold">
+                  {state.currencySymbol}
+                  {row.amount.toLocaleString()}
+                </p>
+              </div>
+            ))}
           </div>
-        ))}
-        {!rows.length && <p className="py-6 text-center text-sm text-neutral-500">No activity yet</p>}
+        ) : (
+          <p className="flex min-h-[120px] flex-1 items-center justify-center text-center text-sm text-neutral-500">
+            No activity yet
+          </p>
+        )}
       </div>
     </section>
   );
 }
-
 function ActivityView({
   state,
   search,
@@ -827,34 +1016,34 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) 
   return <div><h2 className="text-xl font-semibold tracking-tight">{title}</h2><p className="mt-1 text-sm text-neutral-500">{subtitle}</p></div>;
 }
 
-function CollapsibleSection({
-  title,
-  subtitle,
-  open,
-  onToggle,
-  onViewAll,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  open: boolean;
-  onToggle: () => void;
-  onViewAll: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-3 text-left md:pointer-events-none">
-          <span className="md:hidden"><Menu size={17} className="text-neutral-500" /></span>
-          <SectionTitle title={title} subtitle={subtitle} />
-        </button>
-        <button type="button" onClick={onViewAll} className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white">View all <ChevronRight size={15} /></button>
-      </div>
-      <div className={`${open ? "block" : "hidden"} md:block`}>{children}</div>
-    </section>
-  );
-}
+// function CollapsibleSection({
+//   title,
+//   subtitle,
+//   open,
+//   onToggle,
+//   onViewAll,
+//   children,
+// }: {
+//   title: string;
+//   subtitle: string;
+//   open: boolean;
+//   onToggle: () => void;
+//   onViewAll: () => void;
+//   children: React.ReactNode;
+// }) {
+//   return (
+//     <section>
+//       <div className="mb-4 flex items-center justify-between gap-4">
+//         <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-3 text-left md:pointer-events-none">
+//           <span className="md:hidden"><Menu size={17} className="text-neutral-500" /></span>
+//           <SectionTitle title={title} subtitle={subtitle} />
+//         </button>
+//         <button type="button" onClick={onViewAll} className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white">View all <ChevronRight size={15} /></button>
+//       </div>
+//       <div className={`${open ? "block" : "hidden"} md:block`}>{children}</div>
+//     </section>
+//   );
+// }
 
 function AccountRow({ icon: Icon, label, value, currency, tone }: { icon: typeof Landmark; label: string; value: number; currency: string; tone: "blue" | "orange" }) {
   return <div className="flex items-center justify-between gap-4 rounded-2xl bg-white/[0.035] p-4"><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone === "blue" ? "bg-sky-400/10 text-sky-200" : "bg-orange-400/10 text-orange-200"}`}><Icon size={18} /></span><span className="font-medium">{label}</span></div><span className="font-semibold">{currency}{value.toLocaleString()}</span></div>;

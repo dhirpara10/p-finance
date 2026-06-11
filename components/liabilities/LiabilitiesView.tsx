@@ -76,7 +76,7 @@ export function LiabilitiesView({ state }: Props) {
         }
       />
 
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-6">
+      <div className="no-scrollbar  flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-6">
         {summaries.map(([label, value, Icon, color]) => (
           <article key={label} className="surface-card w-[78vw] shrink-0 snap-start rounded-2xl border border-white/[0.055] p-4 sm:w-auto">
             <Icon size={18} className={color} />
