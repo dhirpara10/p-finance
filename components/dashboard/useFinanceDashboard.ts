@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, getBucketLabel, normalizeBucketId, normalizeSavingsBuckets, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
 import { findPersonByName } from "@/lib/lending";
-import { addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
+import { createSheetRecord,updateSheetRecord,addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow } from "@/lib/sheetsApi";
 import type { Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
 import { useLiabilities } from "@/components/liabilities/useLiabilities";
 
@@ -692,214 +692,241 @@ function isValidTransferRow(item: Transfer) {
   }
 
   async function loadFromSheets() {
-    setLoading(true);
-    setLoadError("");
+  setLoading(true);
+  setLoadError("");
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    try {
-      const sheetDataRaw = await getAllData(controller.signal);
-      const sheetData = {
-        ...sheetDataRaw,
-        People:
-          sheetDataRaw.People ||
-          sheetDataRaw.people ||
-          sheetDataRaw.PEOPLE ||
-          [],
-        LendingTransactions:
-          sheetDataRaw.LendingTransactions ||
-          sheetDataRaw.lendingTransactions ||
-          sheetDataRaw.Lendingtransactions ||
-          sheetDataRaw.lendingtransactions ||
-          [],
-        Liabilities:
-          sheetDataRaw.Liabilities ||
-          sheetDataRaw.liabilities ||
-          [],
-        RepaymentSchedules:
-          sheetDataRaw.RepaymentSchedules ||
-          sheetDataRaw.repaymentSchedules ||
-          [],
-      };
+  try {
+    const sheetDataRaw = await getAllData(controller.signal);
+    const sheetData = {
+      ...sheetDataRaw,
+      People:
+        sheetDataRaw.People ||
+        sheetDataRaw.people ||
+        sheetDataRaw.PEOPLE ||
+        [],
+      LendingTransactions:
+        sheetDataRaw.LendingTransactions ||
+        sheetDataRaw.lendingTransactions ||
+        sheetDataRaw.Lendingtransactions ||
+        sheetDataRaw.lendingtransactions ||
+        [],
+      Liabilities:
+        sheetDataRaw.Liabilities ||
+        sheetDataRaw.liabilities ||
+        [],
+      RepaymentSchedules:
+        sheetDataRaw.RepaymentSchedules ||
+        sheetDataRaw.repaymentSchedules ||
+        [],
+    };
 
-      console.log("sheetData keys", Object.keys(sheetDataRaw));
-      console.log("People", sheetData.People);
-      console.log("LendingTransactions", sheetData.LendingTransactions);
+    const settings = sheetData.settings || [];
 
-      const settings = sheetData.settings || [];
+    setInitialCashBalance(
+      toNumber(getSettingValue(settings, "initial_cash_balance", "0"))
+    );
 
-      console.log("loaded settings", settings);
-
-      setInitialCashBalance(
-        toNumber(getSettingValue(settings, "initial_cash_balance", "0"))
-      );
-      setInitialBankBalance(
-        toNumber(
-          getSettingValue(
-            settings,
-            "initial_bank_balance",
-            getSettingValue(settings, "initial_commbank_balance", "0")
-          )
-        )
-      );
-      setEmergencyGoal(toNumber(getSettingValue(settings, "emergency_goal", "0")));
-      setDebtRepaymentGoal(
-        toNumber(getSettingValue(settings, "debt_repayment_goal", "0"))
-      );
-      setRemittanceGoal(toNumber(getSettingValue(settings, "remittance_goal", "0")));
-      const loadedSavingsBuckets = parseJsonArray<SavingsBucket>(
-        getSettingValue(settings, "savings_buckets", "[]"),
-        []
-      );
-      const legacyEmergencyGoal = toNumber(
-        getSettingValue(settings, "emergency_goal", "0")
-      );
-      const legacyDebtGoal = toNumber(
-        getSettingValue(settings, "debt_repayment_goal", "0")
-      );
-      const legacyRemittanceGoal = toNumber(
-        getSettingValue(settings, "remittance_goal", "0")
-      );
-      setSavingsBuckets(
-        loadedSavingsBuckets.length
-          ? normalizeSavingsBuckets(loadedSavingsBuckets)
-          : defaultSavingsBuckets.map((bucket) => {
-              if (bucket.id === "savings_emergency_fund") {
-                return { ...bucket, targetAmount: legacyEmergencyGoal };
-              }
-              if (bucket.id === "savings_debt_collection") {
-                return { ...bucket, targetAmount: legacyDebtGoal };
-              }
-              if (bucket.id === "savings_remittance") {
-                return { ...bucket, targetAmount: legacyRemittanceGoal };
-              }
-              return bucket;
-            })
-      );
-      setBucketListTrackers(
-        normalizeTrackerLinks(
-          parseJsonArray<BucketListTracker>(
-            getSettingValue(settings, "bucket_list_trackers", "[]"),
-            defaultBucketListTrackers
-          )
-        )
-      );
-      setSharedRolloverJarBalance(
-        toNumber(getSettingValue(settings, "shared_rollover_jar_balance", "0"))
-      );
-      setMonthlyResetDay(
-        Math.min(
-          Math.max(toNumber(getSettingValue(settings, "monthly_reset_day", "1")), 1),
-          28
-        )
-      );
-      setCurrency(getSettingValue(settings, "currency", "AUD"));
-      const loadedIncomeSources = parseIncomeSources(
+    setInitialBankBalance(
+      toNumber(
         getSettingValue(
           settings,
-          "income_sources",
-          JSON.stringify(defaultIncomeSources)
+          "initial_bank_balance",
+          getSettingValue(settings, "initial_commbank_balance", "0")
         )
-      );
-      setIncomeSources(loadedIncomeSources);
-      if (!loadedIncomeSources.some((source) => source.name === incomeSource)) {
-        setIncomeSource(loadedIncomeSources[0]?.name || "Hawthorn Pizza");
-        setIncomeRate(String(loadedIncomeSources[0]?.rate || 0));
-      }
+      )
+    );
 
-      const loadedExpenseCategories = parseExpenseCategories(
-        getSettingValue(
-          settings,
-          "expense_categories",
-          JSON.stringify(defaultExpenseCategories)
+    setEmergencyGoal(
+      toNumber(getSettingValue(settings, "emergency_goal", "0"))
+    );
+
+    setDebtRepaymentGoal(
+      toNumber(getSettingValue(settings, "debt_repayment_goal", "0"))
+    );
+
+    setRemittanceGoal(
+      toNumber(getSettingValue(settings, "remittance_goal", "0"))
+    );
+
+    const loadedSavingsBuckets = parseJsonArray<SavingsBucket>(
+      getSettingValue(settings, "savings_buckets", "[]"),
+      []
+    );
+
+    const legacyEmergencyGoal = toNumber(
+      getSettingValue(settings, "emergency_goal", "0")
+    );
+
+    const legacyDebtGoal = toNumber(
+      getSettingValue(settings, "debt_repayment_goal", "0")
+    );
+
+    const legacyRemittanceGoal = toNumber(
+      getSettingValue(settings, "remittance_goal", "0")
+    );
+
+    setSavingsBuckets(
+      loadedSavingsBuckets.length
+        ? normalizeSavingsBuckets(loadedSavingsBuckets)
+        : defaultSavingsBuckets.map((bucket) => {
+            if (bucket.id === "savings_emergency_fund") {
+              return { ...bucket, targetAmount: legacyEmergencyGoal };
+            }
+
+            if (bucket.id === "savings_debt_collection") {
+              return { ...bucket, targetAmount: legacyDebtGoal };
+            }
+
+            if (bucket.id === "savings_remittance") {
+              return { ...bucket, targetAmount: legacyRemittanceGoal };
+            }
+
+            return bucket;
+          })
+    );
+
+    setBucketListTrackers(
+      normalizeTrackerLinks(
+        parseJsonArray<BucketListTracker>(
+          getSettingValue(settings, "bucket_list_trackers", "[]"),
+          defaultBucketListTrackers
         )
-      );
-      setExpenseCategories(loadedExpenseCategories);
-      if (!loadedExpenseCategories.some((cat) => cat === expenseCategory)) {
-        setExpenseCategory(loadedExpenseCategories[0] || "Food");
-      }
+      )
+    );
 
-      setDailyReminderEnabled(
-        String(getSettingValue(settings, "daily_reminder_enabled", "false"))
-          .toLowerCase() === "true"
-      );
-      setDailyReminderTime(
-        getSettingValue(settings, "daily_reminder_time", "21:30") || "21:30"
-      );
-      setDailyReminderTone(
-        getSettingValue(settings, "daily_reminder_tone", "mixed") || "mixed"
-      );
-      const hydratedLiabilities = liabilityModule.hydrateLiabilities(
-        sheetData.Liabilities,
-        sheetData.RepaymentSchedules,
-        getSettingValue(
-          settings,
-          "liability_settings",
-          JSON.stringify(liabilityModule.liabilitySettings)
-        )
-      );
-      await liabilityModule.processDueBnplRepayments(
-        hydratedLiabilities.liabilities,
-        hydratedLiabilities.repaymentSchedules
-      );
+    setSharedRolloverJarBalance(
+      toNumber(getSettingValue(settings, "shared_rollover_jar_balance", "0"))
+    );
 
-     const cleanIncomes = (sheetData.income || [])
-  .map(parseIncomeRow)
-  .filter(isValidIncomeRow);
+    setMonthlyResetDay(
+      Math.min(
+        Math.max(
+          toNumber(getSettingValue(settings, "monthly_reset_day", "1")),
+          1
+        ),
+        28
+      )
+    );
 
-const cleanExpenses = (sheetData.expenses || [])
-  .map(parseExpenseRow)
-  .filter(isValidExpenseRow);
+    setCurrency(getSettingValue(settings, "currency", "AUD"));
 
-const cleanTransfers = (sheetData.transfers || [])
-  .map(parseTransferRow)
-  .filter(isValidTransferRow);
+    const loadedIncomeSources = parseIncomeSources(
+      getSettingValue(
+        settings,
+        "income_sources",
+        JSON.stringify(defaultIncomeSources)
+      )
+    );
 
-setIncomes(cleanIncomes);
-setExpenses(cleanExpenses);
-setTransfers(cleanTransfers);
+    setIncomeSources(loadedIncomeSources);
 
-      setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
-
-      setBorrowedRecords((sheetData.borrowed || []).map(parseMoneyRecordRow));
-
-      setPeople(
-        (sheetData.People || []).map((item: any) => ({
-          id: getSheetId(item.id) || "",
-          name: String(item.name || ""),
-          phone: String(item.phone || ""),
-          createdAt: String(item.createdAt || ""),
-          updatedAt: String(item.updatedAt || ""),
-        }))
-      );
-
-      setLendingTransactions(
-        (sheetData.LendingTransactions || []).map((item: any) => ({
-          id: getSheetId(item.id) || "",
-          personId: getSheetId(item.personId) || "",
-          type:
-            item.type === "borrowed" || item.type === "settlement"
-              ? item.type
-              : "lent",
-          amount: toNumber(item.amount),
-          account: item.account === "Cash" ? "Cash" : "Bank",
-          affectsAccountBalance:
-            item.affectsAccountBalance === true ||
-            item.affectsAccountBalance === "true",
-          date: String(item.date || ""),
-          note: String(item.note || ""),
-          createdAt: String(item.createdAt || ""),
-        }))
-      );
-      hasLoadedData.current = true;
-    } catch (error: any) {
-      setLoadError(error.message || "Failed to load data from Google Sheets.");
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
+    if (!loadedIncomeSources.some((source) => source.name === incomeSource)) {
+      setIncomeSource(loadedIncomeSources[0]?.name || "Hawthorn Pizza");
+      setIncomeRate(String(loadedIncomeSources[0]?.rate || 0));
     }
+
+    const loadedExpenseCategories = parseExpenseCategories(
+      getSettingValue(
+        settings,
+        "expense_categories",
+        JSON.stringify(defaultExpenseCategories)
+      )
+    );
+
+    setExpenseCategories(loadedExpenseCategories);
+
+    if (!loadedExpenseCategories.some((cat) => cat === expenseCategory)) {
+      setExpenseCategory(loadedExpenseCategories[0] || "Food");
+    }
+
+    setDailyReminderEnabled(
+      String(getSettingValue(settings, "daily_reminder_enabled", "false"))
+        .toLowerCase() === "true"
+    );
+
+    setDailyReminderTime(
+      getSettingValue(settings, "daily_reminder_time", "21:30") || "21:30"
+    );
+
+    setDailyReminderTone(
+      getSettingValue(settings, "daily_reminder_tone", "mixed") || "mixed"
+    );
+
+    const hydratedLiabilities = liabilityModule.hydrateLiabilities(
+      sheetData.Liabilities,
+      sheetData.RepaymentSchedules,
+      getSettingValue(
+        settings,
+        "liability_settings",
+        JSON.stringify(liabilityModule.liabilitySettings)
+      )
+    );
+
+    await liabilityModule.processDueBnplRepayments(
+      hydratedLiabilities.liabilities,
+      hydratedLiabilities.repaymentSchedules
+    );
+
+    const cleanIncomes = (sheetData.income || [])
+      .map(parseIncomeRow)
+      .filter(isValidIncomeRow);
+
+    const cleanExpenses = (sheetData.expenses || [])
+      .map(parseExpenseRow)
+      .filter(isValidExpenseRow);
+
+    const cleanTransfers = (sheetData.transfers || [])
+      .map(parseTransferRow)
+      .filter(isValidTransferRow);
+
+    setIncomes(cleanIncomes);
+    setExpenses(cleanExpenses);
+    setTransfers(cleanTransfers);
+
+    setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
+
+    setBorrowedRecords((sheetData.borrowed || []).map(parseMoneyRecordRow));
+
+    setPeople(
+      (sheetData.People || []).map((item: any) => ({
+        id: getSheetId(item.id) || "",
+        name: String(item.name || ""),
+        phone: String(item.phone || ""),
+        createdAt: String(item.createdAt || ""),
+        updatedAt: String(item.updatedAt || ""),
+      }))
+    );
+
+    setLendingTransactions(
+      (sheetData.LendingTransactions || []).map((item: any) => ({
+        id: getSheetId(item.id) || "",
+        personId: getSheetId(item.personId) || "",
+        type:
+          item.type === "borrowed" || item.type === "settlement"
+            ? item.type
+            : "lent",
+        amount: toNumber(item.amount),
+        account: item.account === "Cash" ? "Cash" : "Bank",
+        affectsAccountBalance:
+          item.affectsAccountBalance === true ||
+          item.affectsAccountBalance === "true",
+        date: String(item.date || ""),
+        note: String(item.note || ""),
+        createdAt: String(item.createdAt || ""),
+      }))
+    );
+
+    hasLoadedData.current = true;
+  } catch (error: any) {
+    setLoadError(error.message || "Failed to load data from Google Sheets.");
+  } finally {
+    clearTimeout(timeoutId);
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     const savedPasscode = localStorage.getItem("finance_app_passcode");
@@ -1003,17 +1030,38 @@ setTransfers(cleanTransfers);
     closeSettings();
   }
 
-  async function addIncome() {
-  const calculatedAmount =
+async function addIncome() {
+  const cleanSource = incomeSource.trim();
+  const cleanDate = incomeDate || getToday();
+
+  const totalAmount =
     incomeType === "Hourly"
       ? Number(incomeRate) * Number(incomeHours)
       : Number(incomeAmount);
 
   const cashReceived = Number(incomeCashReceived || 0);
 
-  if (!calculatedAmount || calculatedAmount <= 0) return;
+  if (!cleanSource) {
+    alert("Select an income source.");
+    return;
+  }
 
-  if (cashReceived < 0 || cashReceived > calculatedAmount) {
+  if (!cleanDate) {
+    alert("Select a date.");
+    return;
+  }
+
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+    alert("Enter a valid income amount.");
+    return;
+  }
+
+  if (!Number.isFinite(cashReceived) || cashReceived < 0) {
+    alert("Cash received cannot be negative.");
+    return;
+  }
+
+  if (cashReceived > totalAmount) {
     alert("Cash received cannot be more than total income.");
     return;
   }
@@ -1021,42 +1069,37 @@ setTransfers(cleanTransfers);
   const newIncome: Income = {
     id: editingItem?.type === "income" ? editingItem.id : Date.now(),
     income_type: incomeType,
-    source: incomeSource,
+    source: cleanSource,
     rate: incomeType === "Hourly" ? Number(incomeRate) : 0,
     hours: incomeType === "Hourly" ? Number(incomeHours) : 0,
-    amount: calculatedAmount,
+    amount: totalAmount,
     cash_received: cashReceived,
-    date: incomeDate || getToday(),
-    notes: incomeNotes,
+    date: cleanDate,
+    notes: incomeNotes.trim(),
   };
 
-  const values = [
-    newIncome.id,
-    newIncome.income_type,
-    newIncome.source,
-    newIncome.rate,
-    newIncome.hours,
-    newIncome.amount,
-    newIncome.cash_received,
-    newIncome.date,
-    newIncome.notes,
-  ];
+  console.log("SAVING INCOME PAYLOAD", newIncome);
 
   const saved =
     editingItem?.type === "income"
-      ? await updateSheetRow("income", newIncome.id, values)
-      : await saveToSheet("income", values);
+      ? await updateSheetRecord("income", newIncome.id, newIncome)
+      : await createSheetRecord("income", newIncome);
 
-  if (!saved) return;
+  console.log("SAVED INCOME RESULT", saved);
+
+  if (!saved) {
+    alert("Income was not saved to database.");
+    return;
+  }
 
   if (editingItem?.type === "income") {
-    setIncomes(
-      incomes.map((item) =>
+    setIncomes((current) =>
+      current.map((item) =>
         String(item.id) === String(newIncome.id) ? newIncome : item
       )
     );
   } else {
-    setIncomes([newIncome, ...incomes]);
+    setIncomes((current) => [newIncome, ...current]);
   }
 
   resetIncomeForm();
