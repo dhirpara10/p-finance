@@ -1107,154 +1107,232 @@ async function addIncome() {
   setShowIncomeForm(false);
 }
 
+function getEditableCashBalance(previousAmount = 0) {
+  return dashboardValues.cashBalance + previousAmount;
+}
+
+function blockNegativeCash(amount: number, previousAmount = 0) {
+  const availableCash = getEditableCashBalance(previousAmount);
+
+  if (amount > availableCash) {
+    alert("Not enough cash balance.");
+    return true;
+  }
+
+  return false;
+}
+
+
+function getAvailableAccountBalance(
+  account: ExpenseAccount | string,
+  previousAmount = 0
+) {
+  return account === "Cash"
+    ? dashboardValues.cashBalance + previousAmount
+    : dashboardValues.bankBalance + previousAmount;
+}
+
+function blockNegativeAccountBalance(
+  account: ExpenseAccount | string,
+  amount: number,
+  previousAmount = 0
+) {
+  const available = getAvailableAccountBalance(account, previousAmount);
+
+  if (amount > available) {
+    alert(`Not enough ${account} balance.`);
+    return true;
+  }
+
+  return false;
+}
+
   async function addExpense() {
-    if (!expenseAmount || Number(expenseAmount) <= 0) return;
+  const amount = Number(expenseAmount);
 
-    const newExpense: Expense = {
-      id: editingItem?.type === "expense" ? editingItem.id : Date.now(),
-      type: "expense",
-      amount: Number(expenseAmount),
-      category: expenseCategory,
-      categoryId: categoryIdFromName(expenseCategory),
-      account: expenseAccount,
-      date: expenseDate || getToday(),
-      notes: expenseNotes,
-      isRecurring: expenseIsRecurring,
-      recurringFrequency: expenseIsRecurring
-        ? expenseRecurringFrequency
-        : undefined,
-      recurringStartDate: expenseIsRecurring
-        ? expenseDate || getToday()
-        : undefined,
-      recurringEndDate: expenseIsRecurring
-        ? expenseRecurringEndDate || undefined
-        : undefined,
-      recurringStatus: expenseIsRecurring ? "active" : undefined,
-      createdAt:
-        editingItem?.type === "expense"
-          ? expenses.find((item) => String(item.id) === String(editingItem.id))
-              ?.createdAt || new Date().toISOString()
-          : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  if (!amount || amount <= 0) return;
 
-    const values = [
-      newExpense.id,
-      newExpense.amount,
-      newExpense.category,
-      newExpense.account,
-      newExpense.date,
-      newExpense.notes,
-      {
-        categoryId: newExpense.categoryId,
-        isRecurring: newExpense.isRecurring,
-        recurringFrequency: newExpense.recurringFrequency,
-        recurringStartDate: newExpense.recurringStartDate,
-        recurringEndDate: newExpense.recurringEndDate,
-        recurringStatus: newExpense.recurringStatus,
-        createdAt: newExpense.createdAt,
-        updatedAt: newExpense.updatedAt,
-      },
-    ];
+  
 
-    const saved =
+ const previousExpense =
+  editingItem?.type === "expense"
+    ? expenses.find((item) => String(item.id) === String(editingItem.id))
+    : null;
+
+const previousAccountAmount =
+  previousExpense?.account === expenseAccount ? previousExpense.amount : 0;
+
+if (blockNegativeAccountBalance(expenseAccount, amount, previousAccountAmount)) {
+  return;
+}
+
+  const previousCashAmount =
+    previousExpense?.account === "Cash" ? previousExpense.amount : 0;
+
+  if (expenseAccount === "Cash" && blockNegativeCash(amount, previousCashAmount)) {
+    return;
+  }
+
+  const newExpense: Expense = {
+    id: editingItem?.type === "expense" ? editingItem.id : Date.now(),
+    type: "expense",
+    amount,
+    category: expenseCategory,
+    categoryId: categoryIdFromName(expenseCategory),
+    account: expenseAccount,
+    date: expenseDate || getToday(),
+    notes: expenseNotes,
+    isRecurring: expenseIsRecurring,
+    recurringFrequency: expenseIsRecurring ? expenseRecurringFrequency : undefined,
+    recurringStartDate: expenseIsRecurring ? expenseDate || getToday() : undefined,
+    recurringEndDate: expenseIsRecurring ? expenseRecurringEndDate || undefined : undefined,
+    recurringStatus: expenseIsRecurring ? "active" : undefined,
+    createdAt:
       editingItem?.type === "expense"
-        ? await updateSheetRow("expenses", newExpense.id, values)
-        : await saveToSheet("expenses", values);
+        ? expenses.find((item) => String(item.id) === String(editingItem.id))
+            ?.createdAt || new Date().toISOString()
+        : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
-    if (!saved) return;
+  const values = [
+    newExpense.id,
+    newExpense.amount,
+    newExpense.category,
+    newExpense.account,
+    newExpense.date,
+    newExpense.notes,
+    {
+      categoryId: newExpense.categoryId,
+      isRecurring: newExpense.isRecurring,
+      recurringFrequency: newExpense.recurringFrequency,
+      recurringStartDate: newExpense.recurringStartDate,
+      recurringEndDate: newExpense.recurringEndDate,
+      recurringStatus: newExpense.recurringStatus,
+      createdAt: newExpense.createdAt,
+      updatedAt: newExpense.updatedAt,
+    },
+  ];
 
-    if (editingItem?.type === "expense") {
-      setExpenses(
-        expenses.map((item) =>
-          String(item.id) === String(newExpense.id) ? newExpense : item
-        )
-      );
-    } else {
-      setExpenses([newExpense, ...expenses]);
-    }
+  const saved =
+    editingItem?.type === "expense"
+      ? await updateSheetRow("expenses", newExpense.id, values)
+      : await saveToSheet("expenses", values);
 
-    resetExpenseForm();
-    setEditingItem(null);
-    setShowExpenseForm(false);
+  if (!saved) return;
+
+  if (editingItem?.type === "expense") {
+    setExpenses(
+      expenses.map((item) =>
+        String(item.id) === String(newExpense.id) ? newExpense : item
+      )
+    );
+  } else {
+    setExpenses([newExpense, ...expenses]);
   }
 
-  async function addTransfer() {
-    const amount = Number(transferAmount);
-    if (!amount || amount <= 0) return;
+  resetExpenseForm();
+  setEditingItem(null);
+  setShowExpenseForm(false);
+}
 
-    if (fromBucket === toBucket) {
-      alert("From and To bucket cannot be same.");
-      return;
-    }
+async function addTransfer() {
+  const amount = Number(transferAmount);
 
-    const sourceBalance =
-      fromBucket === "Bank"
-        ? dashboardValues.bankBalance
-        : fromBucket === "Cash"
-          ? dashboardValues.cashBalance
-          : dashboardValues.savingsBucketBalances.find(
-              (bucket) => bucket.id === fromBucket
-            )?.currentBalance;
-    const previousTransfer =
-      editingItem?.type === "transfer"
-        ? transfers.find((item) => String(item.id) === String(editingItem.id))
-        : null;
-    const availableBalance =
-      Number(sourceBalance || 0) +
-      (previousTransfer && previousTransfer.from_bucket === fromBucket
-        ? previousTransfer.amount
-        : 0);
+  if (!amount || amount <= 0) return;
 
-    if (amount > availableBalance) {
-      alert(`Only ${currencySymbolFor(currency)}${availableBalance.toLocaleString()} is available in ${getBucketLabel(fromBucket, savingsBuckets)}.`);
-      return;
-    }
-
-    const newTransfer: Transfer = {
-      id: editingItem?.type === "transfer" ? editingItem.id : Date.now(),
-      from_bucket: fromBucket,
-      to_bucket: toBucket,
-      amount,
-      date: transferDate || getToday(),
-      notes: transferNotes,
-      trackerId:
-        toBucket === "shared_rollover_jar" && transferTrackerId
-          ? transferTrackerId
-          : undefined,
-    };
-
-    const values = [
-      newTransfer.id,
-      newTransfer.from_bucket,
-      newTransfer.to_bucket,
-      newTransfer.amount,
-      newTransfer.date,
-      newTransfer.notes,
-      { trackerId: newTransfer.trackerId || "" },
-    ];
-
-    const saved =
-      editingItem?.type === "transfer"
-        ? await updateSheetRow("transfers", newTransfer.id, values)
-        : await saveToSheet("transfers", values);
-
-    if (!saved) return;
-
-    if (editingItem?.type === "transfer") {
-      setTransfers(
-        transfers.map((item) =>
-          String(item.id) === String(newTransfer.id) ? newTransfer : item
-        )
-      );
-    } else {
-      setTransfers([newTransfer, ...transfers]);
-    }
-
-    resetTransferForm();
-    setEditingItem(null);
-    setShowTransferForm(false);
+  if (fromBucket === toBucket) {
+    alert("From and To bucket cannot be same.");
+    return;
   }
+
+  const previousTransfer =
+    editingItem?.type === "transfer"
+      ? transfers.find((item) => String(item.id) === String(editingItem.id))
+      : null;
+
+  const previousAccountAmount =
+    previousTransfer?.from_bucket === fromBucket &&
+    (fromBucket === "Bank" || fromBucket === "Cash")
+      ? previousTransfer.amount
+      : 0;
+
+  if (
+    (fromBucket === "Bank" || fromBucket === "Cash") &&
+    blockNegativeAccountBalance(fromBucket, amount, previousAccountAmount)
+  ) {
+    return;
+  }
+
+  const sourceBalance =
+    fromBucket === "Bank"
+      ? dashboardValues.bankBalance
+      : fromBucket === "Cash"
+        ? dashboardValues.cashBalance
+        : dashboardValues.savingsBucketBalances.find(
+            (bucket) => bucket.id === fromBucket
+          )?.currentBalance;
+
+  const availableBalance =
+    Number(sourceBalance || 0) +
+    (previousTransfer && previousTransfer.from_bucket === fromBucket
+      ? previousTransfer.amount
+      : 0);
+
+  if (amount > availableBalance) {
+    alert(
+      `Only ${currencySymbolFor(currency)}${availableBalance.toLocaleString()} is available in ${getBucketLabel(
+        fromBucket,
+        savingsBuckets
+      )}.`
+    );
+    return;
+  }
+
+  const newTransfer: Transfer = {
+    id: editingItem?.type === "transfer" ? editingItem.id : Date.now(),
+    from_bucket: fromBucket,
+    to_bucket: toBucket,
+    amount,
+    date: transferDate || getToday(),
+    notes: transferNotes,
+    trackerId:
+      toBucket === "shared_rollover_jar" && transferTrackerId
+        ? transferTrackerId
+        : undefined,
+  };
+
+  const values = [
+    newTransfer.id,
+    newTransfer.from_bucket,
+    newTransfer.to_bucket,
+    newTransfer.amount,
+    newTransfer.date,
+    newTransfer.notes,
+    { trackerId: newTransfer.trackerId || "" },
+  ];
+
+  const saved =
+    editingItem?.type === "transfer"
+      ? await updateSheetRow("transfers", newTransfer.id, values)
+      : await saveToSheet("transfers", values);
+
+  if (!saved) return;
+
+  if (editingItem?.type === "transfer") {
+    setTransfers(
+      transfers.map((item) =>
+        String(item.id) === String(newTransfer.id) ? newTransfer : item
+      )
+    );
+  } else {
+    setTransfers([newTransfer, ...transfers]);
+  }
+
+  resetTransferForm();
+  setEditingItem(null);
+  setShowTransferForm(false);
+}
 
   async function ensurePerson(name: string, phone: string) {
     const cleanedName = name.trim().replace(/\s+/g, " ");
@@ -1364,57 +1442,67 @@ async function addIncome() {
 }
 
   async function addMoneyTransaction(type: LendingTransactionRecord["type"]) {
-    const amount = Number(moneyAmount);
+  const amount = Number(moneyAmount);
 
-    if (!amount || amount <= 0) {
-      alert("Amount must be greater than 0.");
-      return;
-    }
+  if (!amount || amount <= 0) {
+    alert("Amount must be greater than 0.");
+    return;
+  }
 
-    try {
-      let person: Person | null = null;
+  const isMoneyOutflow = type === "lent";
 
-      if (lendingPersonMode === "existing") {
-        person = getSelectedPerson();
+  if (
+    isMoneyOutflow &&
+    blockNegativeAccountBalance(moneyAccount, amount)
+  ) {
+    return;
+  }
 
-        if (!getPersonId(person)) {
-          alert("Select an existing person profile.");
-          return;
-        }
-      } else {
-        const existing = findPersonByName(people, moneyName);
+  try {
+    let person: Person | null = null;
 
-        if (existing) {
-          alert("This person already exists. Select existing profile instead.");
-          return;
-        }
+    if (lendingPersonMode === "existing") {
+      person = getSelectedPerson();
 
-        person = await ensurePerson(moneyName, moneyPhone);
+      if (!getPersonId(person)) {
+        alert("Select an existing person profile.");
+        return;
+      }
+    } else {
+      const existing = findPersonByName(people, moneyName);
+
+      if (existing) {
+        alert("This person already exists. Select existing profile instead.");
+        return;
       }
 
-      if (!person) return;
-
-      const saved = await saveLendingTransaction({
-        person,
-        type,
-        amount,
-        account: moneyAccount,
-        affectsAccountBalance: type === "borrowed" ? borrowedAffectsAccountBalance : true,
-        date: moneyDate || getToday(),
-        note: moneyNotes,
-      });
-
-      if (!saved) return;
-
-      resetMoneyForm();
-      setEditingItem(null);
-      setShowLentForm(false);
-      setShowBorrowedForm(false);
-    } catch (error: any) {
-      console.error(error);
-      alert(error.message || "Failed to save lending transaction.");
+      person = await ensurePerson(moneyName, moneyPhone);
     }
+
+    if (!person) return;
+
+    const saved = await saveLendingTransaction({
+      person,
+      type,
+      amount,
+      account: moneyAccount,
+      affectsAccountBalance:
+        type === "borrowed" ? borrowedAffectsAccountBalance : true,
+      date: moneyDate || getToday(),
+      note: moneyNotes,
+    });
+
+    if (!saved) return;
+
+    resetMoneyForm();
+    setEditingItem(null);
+    setShowLentForm(false);
+    setShowBorrowedForm(false);
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message || "Failed to save lending transaction.");
   }
+}
 
   async function addLent() {
     await addMoneyTransaction("lent");
@@ -1433,35 +1521,45 @@ async function addIncome() {
   }
 
   async function saveSettlement() {
-    const profile = dashboardValues.personProfiles.find(
-      (item) => String(item.id) === String(settlementProfileId)
-    );
-    const amount = Number(settlementAmount);
+  const profile = dashboardValues.personProfiles.find(
+    (item) => String(item.id) === String(settlementProfileId)
+  );
+  const amount = Number(settlementAmount);
 
-    if (!profile || !amount || amount <= 0) return;
+  if (!profile || !amount || amount <= 0) return;
 
-    const openBalance = Math.abs(profile.netBalance);
-    if (openBalance > 0 && amount > openBalance) {
-      alert("Settlement amount cannot be more than the open balance.");
-      return;
-    }
+  const openBalance = Math.abs(profile.netBalance);
 
-    const person = await ensurePerson(profile.name, profile.phone || "");
-    if (!person) return;
-
-    const saved = await saveLendingTransaction({
-      person,
-      type: "settlement",
-      amount,
-      account: settlementAccount,
-      date: settlementDate || getToday(),
-      note: settlementNotes,
-    });
-
-    if (!saved) return;
-
-    resetSettlementForm();
+  if (openBalance > 0 && amount > openBalance) {
+    alert("Settlement amount cannot be more than the open balance.");
+    return;
   }
+
+  const isPayingSomeoneBack = profile.netBalance < 0;
+
+  if (
+    isPayingSomeoneBack &&
+    blockNegativeAccountBalance(settlementAccount, amount)
+  ) {
+    return;
+  }
+
+  const person = await ensurePerson(profile.name, profile.phone || "");
+  if (!person) return;
+
+  const saved = await saveLendingTransaction({
+    person,
+    type: "settlement",
+    amount,
+    account: settlementAccount,
+    date: settlementDate || getToday(),
+    note: settlementNotes,
+  });
+
+  if (!saved) return;
+
+  resetSettlementForm();
+}
 
   async function deleteSettlement(id: string | number) {
     if (!window.confirm("Delete this settlement?")) return;
