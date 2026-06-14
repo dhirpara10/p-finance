@@ -426,8 +426,7 @@ export function useLiabilities() {
     }
   }
 
-  async function deleteLiability(id: string) {
-    if (!window.confirm("Delete this liability and its repayment schedule?")) return;
+  async function deleteLiabilityNoConfirm(id: string) {
     const schedules = repaymentSchedules.filter((row) => row.liabilityId === id);
     await Promise.all(
       schedules.map((row) => deleteSheetRecord("RepaymentSchedules", row.id))
@@ -437,6 +436,11 @@ export function useLiabilities() {
       current.filter((row) => row.liabilityId !== id)
     );
     setLiabilities((current) => current.filter((item) => item.id !== id));
+  }
+
+  async function deleteLiability(id: string) {
+    if (!window.confirm("Delete this liability and its repayment schedule?")) return;
+    await deleteLiabilityNoConfirm(id);
   }
 
   async function markRepaymentPaid(scheduleId: string) {
@@ -815,6 +819,7 @@ export function useLiabilities() {
     closeLiabilityForm,
     saveLiability,
     deleteLiability,
+    deleteLiabilityNoConfirm,
     markRepaymentPaid,
     setEditingScheduleId,
     saveRepaymentSchedule,

@@ -187,7 +187,7 @@ function LiabilityCard({
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => state.openEditLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.05] p-3 text-sm font-medium text-neutral-300"><Pencil size={15} /> Edit</button>
-        <button type="button" onClick={() => state.deleteLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.035] p-3 text-sm font-medium text-neutral-500 hover:text-red-300"><Trash2 size={15} /> Delete</button>
+        <button type="button" onClick={() => state.deleteFullLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.035] p-3 text-sm font-medium text-neutral-500 hover:text-red-300"><Trash2 size={15} /> Delete</button>
       </div>
     </article>
   );

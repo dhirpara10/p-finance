@@ -93,6 +93,7 @@ export type Expense = {
   categoryId: string;
   account: ExpenseAccount;
   paymentMethod?: ExpensePaymentMethod;
+  liabilityId?: string;
   date: string;
   notes: string;
   isRecurring: boolean;
