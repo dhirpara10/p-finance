@@ -3,16 +3,87 @@
 import { Actions, Field, SettingsPanel } from "@/components/settings/SettingsAccountsPage";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { useState } from "react";
-import { Archive, Plus, Tags } from "lucide-react";
-import { findDuplicateTrackerCategory } from "@/lib/buckets";
-import type { AllocationFrequency } from "@/lib/types";
+import { Archive, Plus, Tags, Trash2 } from "lucide-react";
+import { categoryIdFromName, findDuplicateTrackerCategory, normalizeCategoryId } from "@/lib/buckets";
+import type { AllocationFrequency, BucketListTracker } from "@/lib/types";
 import { SelectField } from "@/components/forms/SelectField";
 
 type Props = { state: FinanceDashboardState };
 
+function CategoryLinksEditor({
+  tracker,
+  state,
+}: {
+  tracker: BucketListTracker;
+  state: FinanceDashboardState;
+}) {
+  const allCategories = state.expenseCategories;
+
+  function isLinked(catName: string) {
+    const catId = categoryIdFromName(catName);
+    return tracker.linkedCategoryIds
+      .map(normalizeCategoryId)
+      .includes(normalizeCategoryId(catId));
+  }
+
+  function toggleCategory(catName: string) {
+    const catId = categoryIdFromName(catName);
+    const newIds = isLinked(catName)
+      ? tracker.linkedCategoryIds.filter((id) => normalizeCategoryId(id) !== normalizeCategoryId(catId))
+      : [...tracker.linkedCategoryIds, catId];
+
+    const duplicate = findDuplicateTrackerCategory(state.bucketListTrackers, tracker.id, newIds);
+    if (duplicate) {
+      alert(`A category is already linked to "${duplicate.owner.name}". Each category can only belong to one tracker.`);
+      return;
+    }
+
+    state.updateBucketListTrackerCategoryLinks(tracker.id, newIds);
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-neutral-500">
+        Select which expense categories count toward <span className="font-semibold text-purple-200">{tracker.name}</span>. Each category can only belong to one tracker.
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {allCategories.map((catName) => {
+          const linked = isLinked(catName);
+          return (
+            <label
+              key={catName}
+              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
+                linked
+                  ? "border-purple-400/30 bg-purple-500/15 text-purple-200"
+                  : "border-white/[0.06] bg-white/[0.025] text-neutral-400 hover:border-white/[0.1] hover:text-neutral-200"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-purple-500"
+                checked={linked}
+                onChange={() => toggleCategory(catName)}
+              />
+              {catName}
+            </label>
+          );
+        })}
+      </div>
+      {allCategories.length === 0 && (
+        <p className="py-6 text-center text-sm text-neutral-500">No categories yet. Add some in Categories settings.</p>
+      )}
+    </div>
+  );
+}
+
 export function SettingsBucketsPage({ state }: Props) {
   const [newSavingsName, setNewSavingsName] = useState("");
   const [newTrackerName, setNewTrackerName] = useState("");
+  const [editingCategoryTrackerId, setEditingCategoryTrackerId] = useState<string | null>(null);
+
+  const editingCategoryTracker = editingCategoryTrackerId
+    ? state.bucketListTrackers.find((t) => t.id === editingCategoryTrackerId) ?? null
+    : null;
 
   function updateSavingsBucket(id: string, field: "name" | "targetAmount" | "linkedStorageLabel" | "active", value: number | string | boolean) {
     state.setSavingsBuckets(state.savingsBuckets.map((bucket) => bucket.id === id ? { ...bucket, [field]: value, updatedAt: new Date().toISOString() } : bucket));
@@ -37,12 +108,9 @@ export function SettingsBucketsPage({ state }: Props) {
           ? {
               ...tracker,
               recurringAllocation: {
-                sourceAccountId:
-                  tracker.recurringAllocation?.sourceAccountId || "Bank",
-                allocationAmount:
-                  tracker.recurringAllocation?.allocationAmount || 0,
-                frequency:
-                  tracker.recurringAllocation?.frequency || "monthly",
+                sourceAccountId: tracker.recurringAllocation?.sourceAccountId || "Bank",
+                allocationAmount: tracker.recurringAllocation?.allocationAmount || 0,
+                frequency: tracker.recurringAllocation?.frequency || "monthly",
                 active: tracker.recurringAllocation?.active || false,
                 ...patch,
               },
@@ -102,20 +170,43 @@ export function SettingsBucketsPage({ state }: Props) {
     updateSavingsBucket(id, "active", active);
   }
 
+  function deleteSavingsBucket(id: string) {
+    const balance = state.savingsBucketBalances.find((b) => b.id === id)?.currentBalance || 0;
+    if (balance !== 0) {
+      alert("Withdraw this bucket's money before deleting it.");
+      return;
+    }
+    if (!window.confirm("Delete this savings bucket permanently?")) return;
+    state.setSavingsBuckets(state.savingsBuckets.filter((b) => b.id !== id));
+  }
+
   function toggleTracker(id: string, active: boolean) {
     const tracker = state.bucketListTrackers.find((item) => item.id === id);
     if (active && tracker) {
-      const duplicate = findDuplicateTrackerCategory(
-        state.bucketListTrackers,
-        id,
-        tracker.linkedCategoryIds
-      );
+      const duplicate = findDuplicateTrackerCategory(state.bucketListTrackers, id, tracker.linkedCategoryIds);
       if (duplicate) {
         alert(`Cannot restore this tracker because ${duplicate.owner.name} already uses one of its categories.`);
         return;
       }
     }
     updateTracker(id, "active", active);
+  }
+
+  function deleteTracker(id: string) {
+    if (!window.confirm("Delete this tracker permanently?")) return;
+    state.setBucketListTrackers(state.bucketListTrackers.filter((t) => t.id !== id));
+  }
+
+  if (editingCategoryTracker) {
+    return (
+      <SettingsPanel title="Category Links" onBack={() => setEditingCategoryTrackerId(null)}>
+        <CategoryLinksEditor
+          tracker={editingCategoryTracker}
+          state={state}
+        />
+        <Actions state={state} />
+      </SettingsPanel>
+    );
   }
 
   return (
@@ -133,7 +224,14 @@ export function SettingsBucketsPage({ state }: Props) {
           <div key={bucket.id} className={`rounded-2xl bg-neutral-950 p-4 ${bucket.active ? "" : "opacity-60"}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300">Real money</span>
-              <button type="button" onClick={() => toggleSavingsBucket(bucket.id, !bucket.active)} className="flex items-center gap-1 text-xs text-neutral-400"><Archive size={14}/>{bucket.active ? "Archive" : "Restore"}</button>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => toggleSavingsBucket(bucket.id, !bucket.active)} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-200">
+                  <Archive size={14}/>{bucket.active ? "Archive" : "Restore"}
+                </button>
+                <button type="button" onClick={() => deleteSavingsBucket(bucket.id)} className="flex items-center gap-1 text-xs text-neutral-500 hover:text-red-300">
+                  <Trash2 size={13}/> Delete
+                </button>
+              </div>
             </div>
             <Field label="Name">
               <input value={bucket.name} onChange={(event) => updateSavingsBucket(bucket.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
@@ -148,6 +246,7 @@ export function SettingsBucketsPage({ state }: Props) {
           </div>
         ))}
       </div>
+
       <div className="space-y-3">
         <h3 className="font-semibold text-purple-300">Bucket List Trackers</h3>
         <p className="text-sm text-neutral-500">
@@ -166,7 +265,14 @@ export function SettingsBucketsPage({ state }: Props) {
           <div key={tracker.id} className={`rounded-2xl bg-neutral-950 p-4 ${tracker.active ? "" : "opacity-60"}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-purple-500/15 px-2 py-1 text-xs font-semibold text-purple-300">Virtual tracker</span>
-              <button type="button" onClick={() => toggleTracker(tracker.id, !tracker.active)} className="flex items-center gap-1 text-xs text-neutral-400"><Archive size={14}/>{tracker.active ? "Archive" : "Restore"}</button>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => toggleTracker(tracker.id, !tracker.active)} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-200">
+                  <Archive size={14}/>{tracker.active ? "Archive" : "Restore"}
+                </button>
+                <button type="button" onClick={() => deleteTracker(tracker.id)} className="flex items-center gap-1 text-xs text-neutral-500 hover:text-red-300">
+                  <Trash2 size={13}/> Delete
+                </button>
+              </div>
             </div>
             <Field label="Name">
               <input value={tracker.name} onChange={(event) => updateTracker(tracker.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
@@ -183,11 +289,7 @@ export function SettingsBucketsPage({ state }: Props) {
                 <input
                   type="checkbox"
                   checked={Boolean(tracker.recurringAllocation?.active)}
-                  onChange={(event) =>
-                    updateRecurringAllocation(tracker.id, {
-                      active: event.target.checked,
-                    })
-                  }
+                  onChange={(event) => updateRecurringAllocation(tracker.id, { active: event.target.checked })}
                   className="h-5 w-5 accent-purple-500"
                 />
               </label>
@@ -196,37 +298,21 @@ export function SettingsBucketsPage({ state }: Props) {
                   <SelectField
                     label="Source"
                     value={tracker.recurringAllocation.sourceAccountId}
-                    onChange={(event) =>
-                      updateRecurringAllocation(tracker.id, {
-                        sourceAccountId:
-                          event.target.value === "Cash" ? "Cash" : "Bank",
-                      })
-                    }
-                    options={[
-                      { value: "Bank", label: "Bank" },
-                      { value: "Cash", label: "Cash" },
-                    ]}
+                    onChange={(event) => updateRecurringAllocation(tracker.id, { sourceAccountId: event.target.value === "Cash" ? "Cash" : "Bank" })}
+                    options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]}
                   />
                   <Field label="Amount">
                     <input
                       type="number"
                       value={String(tracker.recurringAllocation.allocationAmount)}
-                      onChange={(event) =>
-                        updateRecurringAllocation(tracker.id, {
-                          allocationAmount: Number(event.target.value),
-                        })
-                      }
+                      onChange={(event) => updateRecurringAllocation(tracker.id, { allocationAmount: Number(event.target.value) })}
                       className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
                     />
                   </Field>
                   <SelectField
                     label="Frequency"
                     value={tracker.recurringAllocation.frequency}
-                    onChange={(event) =>
-                      updateRecurringAllocation(tracker.id, {
-                        frequency: event.target.value as AllocationFrequency,
-                      })
-                    }
+                    onChange={(event) => updateRecurringAllocation(tracker.id, { frequency: event.target.value as AllocationFrequency })}
                     options={[
                       { value: "weekly", label: "Weekly" },
                       { value: "biweekly", label: "Biweekly" },
@@ -242,11 +328,19 @@ export function SettingsBucketsPage({ state }: Props) {
                 </p>
               )}
             </div>
-            <p className="mt-3 text-xs text-neutral-500">{tracker.linkedCategoryIds.length} linked categor{tracker.linkedCategoryIds.length === 1 ? "y" : "ies"}</p>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-neutral-500">{tracker.linkedCategoryIds.length} linked categor{tracker.linkedCategoryIds.length === 1 ? "y" : "ies"}</p>
+              <button
+                type="button"
+                onClick={() => setEditingCategoryTrackerId(tracker.id)}
+                className="flex items-center gap-1.5 rounded-xl bg-purple-500/15 px-3 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/25"
+              >
+                <Tags size={13}/> Manage Category Links
+              </button>
+            </div>
             <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "tracker", id: tracker.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-800 p-3 text-sm font-semibold text-purple-200">View History & Budget Math</button>
           </div>
         ))}
-        <button type="button" onClick={() => state.navigateToSettingsPage("categories")} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral-800 p-4 font-semibold text-purple-200"><Tags size={18}/> Manage Category Links</button>
       </div>
       <Actions state={state} />
     </SettingsPanel>

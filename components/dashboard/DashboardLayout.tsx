@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -56,17 +56,17 @@ import { RemittanceView } from "@/components/remittance/RemittanceView";
 
 type Props = { state: FinanceDashboardState };
 type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings";
+type NavTab = Exclude<Tab, "settings">;
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
-const tabs = [
+const tabs: { id: NavTab; label: string; mobileLabel: string; icon: React.ElementType }[] = [
   { id: "home", label: "Home", mobileLabel: "Home", icon: Home },
   { id: "buckets", label: "Buckets", mobileLabel: "Buckets", icon: Layers3 },
   { id: "liabilities", label: "Liabilities", mobileLabel: "Debt", icon: ReceiptText },
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: List },
   { id: "remittance", label: "Remittance", mobileLabel: "Remit", icon: Plane },
   { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
-  { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings },
-] as const;
+];
 
 export function DashboardLayout({ state }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("home");
@@ -107,7 +107,7 @@ export function DashboardLayout({ state }: Props) {
   return (
     <main className="min-h-screen overflow-x-clip bg-[#080a0d] pb-36 text-white md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
-        <AppHeader state={state} />
+        <AppHeader state={state} onOpenSettings={() => selectTab("settings")} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
 
         <div className="mt-6">
@@ -172,8 +172,10 @@ export function DashboardLayout({ state }: Props) {
 
 function AppHeader({
   state,
+  onOpenSettings,
 }: {
   state: FinanceDashboardState;
+  onOpenSettings: () => void;
 }) {
   return (
     <header className="flex items-center justify-between gap-4">
@@ -206,6 +208,14 @@ function AppHeader({
         )}
         <button
           type="button"
+          aria-label="Settings"
+          onClick={onOpenSettings}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07]"
+        >
+          <Settings size={18} />
+        </button>
+        <button
+          type="button"
           aria-label="Lock app"
           onClick={state.lockApp}
           className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07]"
@@ -225,7 +235,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-7 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-6 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -1014,7 +1024,7 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-7 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
