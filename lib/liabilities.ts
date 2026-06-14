@@ -122,39 +122,62 @@ export function generateRepaymentSchedule(
   }
 
   const frequency = liability.repaymentFrequency || "monthly";
-  const periods = loanPaymentCount(liability);
-  const periodsPerYear = frequencyPeriodsPerYear(frequency);
-  const periodicRate = Math.max(liability.interestRate || 0, 0) / 100 / periodsPerYear;
-  const originalPrincipal = Math.max(
-    liability.principalAmount || liability.originalAmount,
-    0
-  );
-  let outstanding = Math.max(
-    liability.outstandingPrincipal ?? liability.outstandingBalance,
-    0
-  );
-  let dueDate =
-    liability.startDate || new Date().toISOString().split("T")[0];
-  const scheduledPayment = Math.max(liability.repaymentAmount || 0, 0);
+const maxPeriods = loanPaymentCount(liability);
+const periodsPerYear = frequencyPeriodsPerYear(frequency);
+const periodicRate =
+  Math.max(liability.interestRate || 0, 0) / 100 / periodsPerYear;
 
-  return Array.from({ length: periods }, (_, index) => {
-    const interestBase =
-      liability.interestType === "compound" ? outstanding : originalPrincipal;
-    const interest = roundMoney(interestBase * periodicRate);
-    const fee = index === 0 ? Math.max(liability.fees || 0, 0) : 0;
-    const fallbackPayment = roundMoney(outstanding / Math.max(periods - index, 1) + interest + fee);
-    const amount = Math.min(
-      scheduledPayment > 0 ? scheduledPayment : fallbackPayment,
-      roundMoney(outstanding + interest + fee)
-    );
-    const principal = roundMoney(
-      Math.min(Math.max(amount - interest - fee, 0), outstanding)
-    );
-    outstanding = roundMoney(Math.max(outstanding - principal, 0));
-    const row = scheduleRow(liability.id, dueDate, amount, principal, interest, fee);
-    dueDate = addFrequency(dueDate, frequency);
-    return row;
-  }).filter((row) => row.amount > 0);
+const originalPrincipal = Math.max(
+  liability.principalAmount || liability.originalAmount,
+  0
+);
+
+let outstanding = Math.max(
+  liability.outstandingPrincipal ?? liability.outstandingBalance,
+  0
+);
+
+let dueDate = liability.startDate || new Date().toISOString().split("T")[0];
+const scheduledPayment = Math.max(liability.repaymentAmount || 0, 0);
+const rows: Omit<RepaymentSchedule, "id">[] = [];
+
+for (let index = 0; index < maxPeriods && outstanding > 0; index += 1) {
+  const remainingPeriods = Math.max(maxPeriods - index, 1);
+
+  const interestBase =
+    liability.interestType === "compound" ? outstanding : outstanding;
+
+  const interest = roundMoney(outstanding * periodicRate);
+
+  const fee = index === 0 ? Math.max(liability.fees || 0, 0) : 0;
+
+  const fallbackPayment = roundMoney(
+    outstanding / remainingPeriods + interest + fee
+  );
+
+  const desiredPayment =
+    scheduledPayment > 0 ? scheduledPayment : fallbackPayment;
+
+  const amount = Math.min(
+    desiredPayment,
+    roundMoney(outstanding + interest + fee)
+  );
+
+  const principal = roundMoney(
+    Math.min(Math.max(amount - interest - fee, 0), outstanding)
+  );
+
+  if (amount <= 0 || principal <= 0) break;
+
+  rows.push(
+    scheduleRow(liability.id, dueDate, amount, principal, interest, fee)
+  );
+
+  outstanding = roundMoney(Math.max(outstanding - principal, 0));
+  dueDate = addFrequency(dueDate, frequency);
+}
+
+return rows;
 }
 
 export function parseLiabilitySettings(value: unknown): LiabilitySettings {

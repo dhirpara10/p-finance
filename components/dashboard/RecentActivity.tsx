@@ -106,7 +106,7 @@ export function RecentActivity({
     const date = typeof item.date === "string" ? item.date.trim() : "";
     const amount = Number(item.amount);
 
-    if (!title || !subtitle || !date) return false;
+    if (!title || !date) return false;
     if (!Number.isFinite(amount)) return false;
     if (item.type === "transfer" && amount <= 0) return false;
 

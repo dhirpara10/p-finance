@@ -238,55 +238,54 @@
   }
 
   function getSettlementAccountMovement(
-    lendingTransactions: LendingTransactionRecord[]
-  ) {
-    const totals = {
-      bankIn: 0,
-      bankOut: 0,
-      cashIn: 0,
-      cashOut: 0,
-    };
-    const transactionsByPerson = new Map<string, LendingTransactionRecord[]>();
+  lendingTransactions: LendingTransactionRecord[]
+) {
+  const totals = {
+    bankIn: 0,
+    bankOut: 0,
+    cashIn: 0,
+    cashOut: 0,
+  };
 
-    lendingTransactions.forEach((transaction) => {
-      const key = String(transaction.personId);
-      const transactions = transactionsByPerson.get(key) || [];
-      transactions.push(transaction);
-      transactionsByPerson.set(key, transactions);
+  const transactionsByPerson = new Map<string, LendingTransactionRecord[]>();
+
+  lendingTransactions.forEach((transaction) => {
+    const key = String(transaction.personId);
+    const transactions = transactionsByPerson.get(key) || [];
+    transactions.push(transaction);
+    transactionsByPerson.set(key, transactions);
+  });
+
+  transactionsByPerson.forEach((transactions) => {
+    const totalLent = transactions
+      .filter((item) => item.type === "lent")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const totalBorrowed = transactions
+      .filter((item) => item.type === "borrowed")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const settlements = transactions.filter(
+      (item) => item.type === "settlement"
+    );
+
+    const grossBalance = totalLent - totalBorrowed;
+
+    settlements.forEach((settlement) => {
+      const isCash = settlement.account === "Cash";
+
+      if (grossBalance > 0) {
+        totals[isCash ? "cashIn" : "bankIn"] += settlement.amount;
+      }
+
+      if (grossBalance < 0) {
+        totals[isCash ? "cashOut" : "bankOut"] += settlement.amount;
+      }
     });
+  });
 
-    transactionsByPerson.forEach((transactions) => {
-      let balance = 0;
-      [...transactions]
-        .sort(
-          (a, b) =>
-            getActivityTime(a.date) - getActivityTime(b.date) ||
-            compareActivityIds(a.id, b.id)
-        )
-        .forEach((transaction) => {
-          if (transaction.type === "lent") {
-            balance += transaction.amount;
-            return;
-          }
-
-          if (transaction.type === "borrowed") {
-            balance -= transaction.amount;
-            return;
-          }
-
-          const cashAccount = transaction.account === "Cash";
-          if (balance > 0) {
-            totals[cashAccount ? "cashIn" : "bankIn"] += transaction.amount;
-            balance = Math.max(0, balance - transaction.amount);
-          } else if (balance < 0) {
-            totals[cashAccount ? "cashOut" : "bankOut"] += transaction.amount;
-            balance = Math.min(0, balance + transaction.amount);
-          }
-        });
-    });
-
-    return totals;
-  }
+  return totals;
+}
 
   function analyticsMonthKey(dateString: string) {
     const date = new Date(dateString);

@@ -579,46 +579,65 @@ export function useLiabilities() {
     }
   }
 
-  async function deleteRepaymentSchedule(id: string) {
-    if (!window.confirm("Delete this repayment?")) return;
-    const schedule = repaymentSchedules.find((item) => item.id === id);
-    if (schedule?.status === "paid") {
-      const liability = liabilities.find(
-        (item) => item.id === schedule.liabilityId
+  async function deleteRepaymentSchedule(scheduleId: string) {
+  const schedule = repaymentSchedules.find(
+    (item) => String(item.id) === String(scheduleId)
+  );
+
+  if (!schedule) return;
+
+  const liability = liabilities.find(
+    (item) => String(item.id) === String(schedule.liabilityId)
+  );
+
+  const confirmed = confirm(
+    schedule.status === "paid"
+      ? "Delete this paid repayment? This will also add the repayment amount back to the liability outstanding balance."
+      : "Delete this repayment schedule?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    let nextLiabilities = liabilities;
+
+    if (liability && schedule.status === "paid") {
+      const restoredOutstanding =
+        Number(liability.outstandingBalance || 0) +
+        Number(schedule.principalAmount || schedule.amount || 0);
+
+      const restoredLiability = {
+        ...liability,
+        outstandingBalance: restoredOutstanding,
+        status: restoredOutstanding > 0 ? "active" : liability.status,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await updateSheetRecord(
+        "Liabilities",
+        restoredLiability.id,
+        restoredLiability
       );
-      if (liability) {
-        const restoredAmount =
-          liability.type === "loan"
-            ? schedule.principalAmount
-            : schedule.amount;
-        const outstandingBalance =
-          liability.outstandingBalance + restoredAmount;
-        const restored: Liability = {
-          ...liability,
-          outstandingBalance,
-          currentBalance:
-            liability.type === "credit_card"
-              ? outstandingBalance
-              : liability.currentBalance,
-          outstandingPrincipal:
-            liability.type === "loan"
-              ? outstandingBalance
-              : liability.outstandingPrincipal,
-          status: "active",
-          updatedAt: new Date().toISOString(),
-        };
-        await updateSheetRecord("Liabilities", liability.id, restored);
-        setLiabilities((current) =>
-          current.map((item) =>
-            item.id === liability.id ? restored : item
-          )
-        );
-      }
+
+      nextLiabilities = liabilities.map((item) =>
+        String(item.id) === String(restoredLiability.id)
+          ? restoredLiability
+          : item
+      );
     }
-    await deleteSheetRecord("RepaymentSchedules", id);
-    setRepaymentSchedules((current) => current.filter((item) => item.id !== id));
-    setEditingScheduleId(null);
+
+    await deleteSheetRecord("RepaymentSchedules", schedule.id);
+
+    setRepaymentSchedules((current) =>
+      current.filter((item) => String(item.id) !== String(schedule.id))
+    );
+
+    setLiabilities(nextLiabilities);
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message || "Failed to delete repayment schedule.");
   }
+}
 
   async function saveLiabilitySettings() {
     const clean = (items: string[]) =>
