@@ -237,6 +237,16 @@ export function RecentActivity({
                           {item.paymentProgress}
                         </span>
                       )}
+
+                      {item.addedBy && (
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 ${
+                          item.addedBy === "spouse"
+                            ? "bg-pink-500/15 text-pink-300 ring-pink-400/20"
+                            : "bg-blue-500/15 text-blue-300 ring-blue-400/20"
+                        }`}>
+                          {item.addedBy === "spouse" ? state.userNameSpouse : state.userNameMe}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

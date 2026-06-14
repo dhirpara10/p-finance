@@ -914,6 +914,7 @@ const recentActivity: RecentActivityItem[] = [
     date: item.date,
     createdAt: (item as any).createdAt,
     updatedAt: (item as any).updatedAt,
+    addedBy: item.addedBy,
   })),
 
   ...validExpenses.map((item, index) => {
@@ -958,6 +959,7 @@ const recentActivity: RecentActivityItem[] = [
       createdAt: (item as any).createdAt,
       updatedAt: (item as any).updatedAt,
       paymentProgress,
+      addedBy: item.addedBy,
     };
   }),
 
@@ -979,6 +981,7 @@ const recentActivity: RecentActivityItem[] = [
       date: item.date,
       createdAt: (item as any).createdAt,
       updatedAt: (item as any).updatedAt,
+      addedBy: item.addedBy,
     };
   }),
 
@@ -1005,6 +1008,7 @@ const recentActivity: RecentActivityItem[] = [
       createdAt: item.createdAt,
       updatedAt: (item as any).updatedAt,
       source: "lendingTransaction" as const,
+      addedBy: (item as any).addedBy,
     };
   }),
 

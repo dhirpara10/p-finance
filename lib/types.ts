@@ -310,4 +310,5 @@ export type RecentActivityItem = {
   source?: "lendingTransaction";
   isRecurring?: boolean;
   paymentProgress?: string;
+  addedBy?: AppUser;
 };
