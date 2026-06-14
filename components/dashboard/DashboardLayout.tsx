@@ -32,6 +32,7 @@ import {
   PiggyBank,
   Plane,
   ReceiptText,
+  ScrollText,
   Search,
   Settings,
   TrendingDown,
@@ -53,9 +54,10 @@ import { SettingsLiabilitiesPage } from "@/components/settings/SettingsLiabiliti
 import { SelectField } from "@/components/forms/SelectField";
 import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
 import { RemittanceView } from "@/components/remittance/RemittanceView";
+import { LogsView } from "@/components/logs/LogsView";
 
 type Props = { state: FinanceDashboardState };
-type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings";
+type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs";
 type NavTab = Exclude<Tab, "settings">;
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
@@ -66,6 +68,7 @@ const tabs: { id: NavTab; label: string; mobileLabel: string; icon: React.Elemen
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: List },
   { id: "remittance", label: "Remittance", mobileLabel: "Remit", icon: Plane },
   { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
+  { id: "logs", label: "Logs", mobileLabel: "Logs", icon: ScrollText },
 ];
 
 export function DashboardLayout({ state }: Props) {
@@ -152,6 +155,7 @@ export function DashboardLayout({ state }: Props) {
           )}
           {activeTab === "remittance" && <RemittanceView state={state} />}
           {activeTab === "stats" && <Statistics state={state} />}
+          {activeTab === "logs" && <LogsView state={state} />}
           {activeTab === "settings" && <SettingsWorkspace state={state} />}
         </div>
       </div>
@@ -192,6 +196,13 @@ function AppHeader({
             year: "numeric",
           })}
         </p>
+        {state.isUnlocked && (
+          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+            state.currentUser === "spouse" ? "bg-pink-500/15 text-pink-300" : "bg-blue-500/15 text-blue-300"
+          }`}>
+            {state.currentUser === "spouse" ? state.userNameSpouse : state.userNameMe}
+          </span>
+        )}
       </div>
       <div className="relative flex items-center gap-2">
         <NotificationBell
@@ -235,7 +246,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-6 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-7 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -1024,7 +1035,7 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-7 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;

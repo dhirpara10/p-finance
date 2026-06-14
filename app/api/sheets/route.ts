@@ -434,6 +434,7 @@ export async function POST(request: Request) {
         "RepaymentSchedules",
         "remittances",
         "app_notifications",
+        "app_logs",
       ];
       for (const sheet of financeSheets) {
         const { error } = await supabase

@@ -1,4 +1,17 @@
 export type Status = "Pending" | "Partly Paid" | "Fully Settled";
+
+export type AppUser = "me" | "spouse";
+
+export type ActivityLog = {
+  id: string;
+  user: AppUser;
+  userName: string;
+  action: "created" | "deleted";
+  entityType: "income" | "expense" | "transfer" | "remittance" | "lent" | "borrowed" | "liability";
+  entityId: string | number;
+  description: string;
+  timestamp: string;
+};
 export type IncomeType = "Hourly" | "Fixed Amount";
 export type ExpenseAccount = "Bank" | "Cash";
 export type AccountBucket = "Bank" | "Cash";
@@ -52,6 +65,7 @@ export type Income = {
   cash_received: number;
   date: string;
   notes: string;
+  addedBy?: AppUser;
 };
 
 export type IncomeSourceRate = {
@@ -103,6 +117,7 @@ export type Expense = {
   recurringStatus?: "active" | "paused" | "cancelled";
   createdAt: string;
   updatedAt?: string;
+  addedBy?: AppUser;
 };
 
 export type Transfer = {
@@ -113,6 +128,7 @@ export type Transfer = {
   date: string;
   notes: string;
   trackerId?: string;
+  addedBy?: AppUser;
 };
 
 export type MoneyRecord = {
@@ -124,6 +140,7 @@ export type MoneyRecord = {
   notes: string;
   status: Status;
   affectsAccountBalance?: boolean;
+  addedBy?: AppUser;
 };
 
 export type Person = {
@@ -157,6 +174,7 @@ export type LendingTransaction = {
   note?: string;
   createdAt?: string;
   legacy?: boolean;
+  addedBy?: AppUser;
 };
 
 export type Liability = {
@@ -270,6 +288,7 @@ export type Remittance = {
   createdAt: string;
   fromFund?: boolean;
   preExisting?: boolean;
+  addedBy?: AppUser;
 };
 
 export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer" | "remittance";

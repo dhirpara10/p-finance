@@ -11,7 +11,7 @@ export function AuthGate({ state }: AuthGateProps) {
       <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 text-white">
         <div className="w-full max-w-sm rounded-3xl bg-neutral-900 p-6">
           <h1 className="mb-2 text-2xl font-bold">Money Control</h1>
-          <p className="mb-5 text-sm text-neutral-400">Enter your passcode</p>
+          <p className="mb-5 text-sm text-neutral-400">Enter your passcode to unlock</p>
 
           <input
             type="password"

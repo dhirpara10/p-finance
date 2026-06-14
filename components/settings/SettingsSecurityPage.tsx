@@ -7,9 +7,26 @@ type Props = { state: FinanceDashboardState };
 
 export function SettingsSecurityPage({ state }: Props) {
   return (
-    <SettingsPanel title="Security" onBack={state.goBackSettingsPage}>
-      <Field label="Change passcode">
-        <input type="password" inputMode="numeric" maxLength={6} value={state.newPasscode} onChange={(event) => state.setNewPasscode(event.target.value)} placeholder="Enter new passcode" className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+    <SettingsPanel title="Security & Users" onBack={state.goBackSettingsPage}>
+      <div className="space-y-2">
+        <h3 className="font-semibold text-neutral-200">User Names</h3>
+        <p className="text-sm text-neutral-500">These appear in activity logs to show who added each transaction.</p>
+      </div>
+      <Field label="Your name">
+        <input value={state.userNameMe} onChange={(e) => state.setUserNameMe(e.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" placeholder="e.g. Dhruv" />
+      </Field>
+      <Field label="Partner name">
+        <input value={state.userNameSpouse} onChange={(e) => state.setUserNameSpouse(e.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" placeholder="e.g. Wife" />
+      </Field>
+      <div className="space-y-2 pt-2">
+        <h3 className="font-semibold text-neutral-200">Passcodes</h3>
+        <p className="text-sm text-neutral-500">Each person logs in with their own passcode. Both see all data.</p>
+      </div>
+      <Field label="Your passcode">
+        <input type="password" inputMode="numeric" maxLength={6} value={state.newPasscode} onChange={(e) => state.setNewPasscode(e.target.value)} placeholder="New passcode (leave blank to keep current)" className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+      </Field>
+      <Field label="Partner passcode">
+        <input type="password" inputMode="numeric" maxLength={6} value={state.newSpousePasscode} onChange={(e) => state.setNewSpousePasscode(e.target.value)} placeholder="New partner passcode (leave blank to keep current)" className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
       </Field>
       <Actions state={state} />
     </SettingsPanel>
