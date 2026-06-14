@@ -227,3 +227,13 @@ export async function updateRow(sheet: string, id: string, data: unknown) {
 export async function deleteRow(sheet: string, id: string) {
   return callSheetsApi({ action: "deleteRow", sheet, id });
 }
+
+export async function resetAllData() {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "resetAllData" }),
+  });
+  await parseJsonResponse(res);
+  return true;
+}

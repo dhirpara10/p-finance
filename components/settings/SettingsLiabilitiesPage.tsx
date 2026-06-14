@@ -4,7 +4,8 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 import { SettingsPanel } from "@/components/settings/SettingsAccountsPage";
 import { SelectField } from "@/components/forms/SelectField";
 import { formTokens } from "@/lib/designTokens";
-import type { LiabilitySettings } from "@/lib/types";
+import type { LiabilityChannel, LiabilitySettings } from "@/lib/types";
+import { defaultLiabilityChannels } from "@/lib/liabilities";
 import { Plus, Trash2 } from "lucide-react";
 
 export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardState }) {
@@ -38,11 +39,99 @@ export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardStat
     }));
   }
 
+  const channels: LiabilityChannel[] = (state.liabilitySettings.liabilityChannels?.length
+    ? state.liabilitySettings.liabilityChannels
+    : defaultLiabilityChannels);
+
+  function updateChannel(id: string, patch: Partial<LiabilityChannel>) {
+    state.setLiabilitySettings((current: LiabilitySettings) => ({
+      ...current,
+      liabilityChannels: (current.liabilityChannels || defaultLiabilityChannels).map((ch) =>
+        ch.id === id ? { ...ch, ...patch } : ch
+      ),
+    }));
+  }
+
   return (
     <SettingsPanel title="Liabilities" onBack={state.goBackSettingsPage}>
       <p className="text-sm text-neutral-500">
         Manage the provider and calculation defaults used by all liability forms.
       </p>
+
+      {/* Liability Channel Defaults */}
+      <section className="rounded-2xl border border-white/[0.055] bg-white/[0.025] p-4 space-y-4">
+        <h3 className="font-semibold">Liability Channel Defaults</h3>
+        {channels.filter((ch) => ch.id === "afterpay" || ch.id === "steppay").map((ch) => (
+          <div key={ch.id} className="space-y-3 border-t border-white/[0.04] pt-4 first:border-t-0 first:pt-0">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{ch.name}</span>
+              <label className="flex items-center gap-2 text-sm text-neutral-400">
+                Enabled
+                <input type="checkbox" checked={ch.enabled} onChange={(e) => updateChannel(ch.id, { enabled: e.target.checked })} />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="mb-1 text-xs text-neutral-500">Installments</p>
+                <input type="number" min={1} max={12} value={ch.installmentCount ?? 4} onChange={(e) => updateChannel(ch.id, { installmentCount: Number(e.target.value) })} className={formTokens.input} />
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-neutral-500">Frequency</p>
+                <select value={ch.installmentFrequency ?? "fortnightly"} onChange={(e) => updateChannel(ch.id, { installmentFrequency: e.target.value as LiabilityChannel["installmentFrequency"] })} className={formTokens.input}>
+                  <option value="weekly">Weekly</option>
+                  <option value="fortnightly">Fortnightly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </div>
+            <label className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <span>
+                <span className="block text-sm font-medium">No payment upfront</span>
+                <span className="block text-xs text-neutral-500 mt-0.5">
+                  {ch.noPaymentUpfrontEnabled ?? false
+                    ? "First repayment is delayed."
+                    : "First repayment is paid on purchase date."}
+                </span>
+              </span>
+              <input type="checkbox" checked={ch.noPaymentUpfrontEnabled ?? false} onChange={(e) => updateChannel(ch.id, { noPaymentUpfrontEnabled: e.target.checked })} className="mt-0.5 shrink-0" />
+            </label>
+            {(ch.noPaymentUpfrontEnabled ?? false) && (
+              <div>
+                <p className="mb-1 text-xs text-neutral-500">First payment delay (days)</p>
+                <input type="number" min={1} max={90} value={ch.noPaymentUpfrontFirstDelayDays ?? 14} onChange={(e) => updateChannel(ch.id, { noPaymentUpfrontFirstDelayDays: Number(e.target.value) })} className={formTokens.input} />
+              </div>
+            )}
+            <div>
+              <p className="mb-1 text-xs text-neutral-500">Linked repayment account</p>
+              <select value={ch.linkedRepaymentAccount ?? "Bank"} onChange={(e) => updateChannel(ch.id, { linkedRepaymentAccount: e.target.value as "Bank" | "Cash" })} className={formTokens.input}>
+                <option value="Bank">Bank</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
+            {ch.id === "steppay" && (
+              <>
+                <div>
+                  <p className="mb-1 text-xs text-neutral-500">Minimum split amount ($)</p>
+                  <input type="number" min={0} value={ch.minimumSplitAmount ?? 100} onChange={(e) => updateChannel(ch.id, { minimumSplitAmount: Number(e.target.value) })} className={formTokens.input} />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-neutral-500">Under-minimum behaviour</p>
+                  <select value={ch.underMinimumBehaviour ?? "single_deduction"} onChange={(e) => updateChannel(ch.id, { underMinimumBehaviour: e.target.value as "single_deduction" | "block" })} className={formTokens.input}>
+                    <option value="single_deduction">Single deduction</option>
+                    <option value="block">Block purchase</option>
+                  </select>
+                </div>
+                {(ch.underMinimumBehaviour ?? "single_deduction") === "single_deduction" && (
+                  <div>
+                    <p className="mb-1 text-xs text-neutral-500">Single deduction delay (days)</p>
+                    <input type="number" min={0} max={30} value={ch.underMinimumDeductionDelayDays ?? 2} onChange={(e) => updateChannel(ch.id, { underMinimumDeductionDelayDays: Number(e.target.value) })} className={formTokens.input} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </section>
       {([
         ["bnplProviders", "BNPL providers"],
         ["creditCardProviders", "Credit card providers"],

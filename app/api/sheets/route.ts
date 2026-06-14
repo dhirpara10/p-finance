@@ -421,6 +421,30 @@ export async function POST(request: Request) {
       });
     }
 
+    if (action === "resetAllData") {
+      const financeSheets = [
+        "income",
+        "expenses",
+        "transfers",
+        "lent",
+        "borrowed",
+        "People",
+        "LendingTransactions",
+        "Liabilities",
+        "RepaymentSchedules",
+        "remittances",
+        "app_notifications",
+      ];
+      for (const sheet of financeSheets) {
+        const { error } = await supabase
+          .from("app_rows")
+          .delete()
+          .eq("sheet", sheet);
+        if (error) throw error;
+      }
+      return jsonResponse({ success: true, data: true });
+    }
+
     return jsonResponse(
       {
         success: false,

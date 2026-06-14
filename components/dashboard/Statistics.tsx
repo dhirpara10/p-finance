@@ -102,6 +102,7 @@ export function Statistics({ state }: Props) {
           </div>
         }
       />
+      <p className="text-xs text-neutral-600">Data available from FY 26-27</p>
 
       <div className="grid gap-5 xl:grid-cols-12">
         <AnalyticsCard title="Net Worth Trend" subtitle="Cumulative financial movement" className="xl:col-span-7">

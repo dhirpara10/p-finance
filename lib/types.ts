@@ -59,6 +59,32 @@ export type IncomeSourceRate = {
   rate: number;
 };
 
+export type ExpensePaymentMethod = "Bank" | "Cash" | "Afterpay" | "StepPay" | "CreditCard";
+
+export type LiabilityChannel = {
+  id: string;
+  name: string;
+  type: "bnpl" | "bnpl_card" | "credit_card";
+  enabled: boolean;
+  installmentCount?: number;
+  installmentFrequency?: "weekly" | "fortnightly" | "monthly";
+  // Payment upfront control
+  noPaymentUpfrontEnabled?: boolean;
+  noPaymentUpfrontFirstDelayDays?: number;
+  linkedRepaymentAccount?: "Bank" | "Cash";
+  // StepPay under-minimum behavior
+  minimumSplitAmount?: number;
+  underMinimumBehaviour?: "single_deduction" | "block";
+  underMinimumDeductionDelayDays?: number;
+  // Legacy / credit card fields
+  firstPaymentDelayDays?: number;
+  upfrontPaymentRequired?: boolean;
+  minimumPurchaseAmount?: number;
+  statementCycleDay?: number;
+  paymentDueDay?: number;
+  notes?: string;
+};
+
 export type Expense = {
   id: string | number;
   type?: "expense";
@@ -66,6 +92,7 @@ export type Expense = {
   category: string;
   categoryId: string;
   account: ExpenseAccount;
+  paymentMethod?: ExpensePaymentMethod;
   date: string;
   notes: string;
   isRecurring: boolean;
@@ -95,6 +122,7 @@ export type MoneyRecord = {
   phone: string;
   notes: string;
   status: Status;
+  affectsAccountBalance?: boolean;
 };
 
 export type Person = {
@@ -180,11 +208,26 @@ export type RepaymentSchedule = {
   feeAmount: number;
   status: "upcoming" | "paid" | "missed";
   paidDate: string;
+  linkedRepaymentAccount?: "Bank" | "Cash";
   processedAt?: string;
   repaymentTransactionId?: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AppNotification = {
+  id: string;
+  type: "repayment_due" | "repayment_overdue" | "repayment_upcoming" | "insufficient_usable_balance" | "general";
+  title: string;
+  message: string;
+  relatedEntityType?: "repayment_schedule" | "liability";
+  relatedEntityId?: string;
+  isRead: boolean;
+  createdAt: string;
+  scheduledFor?: string;
+  pushedAt?: string;
+  dedupeKey: string;
 };
 
 export type LiabilitySettings = {
@@ -194,6 +237,7 @@ export type LiabilitySettings = {
   repaymentFrequencies: LiabilityPaymentFrequency[];
   defaultInterestType: LiabilityInterestType;
   defaultCompoundingFrequency: LiabilityCompoundingFrequency;
+  liabilityChannels?: LiabilityChannel[];
 };
 
 export type PersonProfile = {
@@ -211,7 +255,19 @@ export type PersonProfile = {
   status: string;
 };
 
-export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer";
+export type Remittance = {
+  id: string | number;
+  audAmount: number;
+  exchangeRate: number;
+  inrAmount: number;
+  account: ExpenseAccount;
+  date: string;
+  provider?: string;
+  notes?: string;
+  createdAt: string;
+};
+
+export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer" | "remittance";
 export type RecentActivityType =
   | EditingItemType
   | "settlement"

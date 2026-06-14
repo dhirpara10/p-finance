@@ -1,9 +1,45 @@
 import type {
   Liability,
+  LiabilityChannel,
   LiabilityPaymentFrequency,
   LiabilitySettings,
   RepaymentSchedule,
 } from "@/lib/types";
+
+export type BnplScheduleResult = {
+  schedule: Omit<RepaymentSchedule, "id">[];
+  deductedToday: number;
+  remainingLiability: number;
+};
+
+export const defaultLiabilityChannels: LiabilityChannel[] = [
+  {
+    id: "afterpay",
+    name: "Afterpay",
+    type: "bnpl",
+    enabled: true,
+    installmentCount: 4,
+    installmentFrequency: "fortnightly",
+    noPaymentUpfrontEnabled: false,
+    noPaymentUpfrontFirstDelayDays: 14,
+    linkedRepaymentAccount: "Bank",
+    minimumPurchaseAmount: 0,
+  },
+  {
+    id: "steppay",
+    name: "CommBank StepPay",
+    type: "bnpl_card",
+    enabled: true,
+    installmentCount: 4,
+    installmentFrequency: "fortnightly",
+    noPaymentUpfrontEnabled: false,
+    noPaymentUpfrontFirstDelayDays: 14,
+    linkedRepaymentAccount: "Bank",
+    minimumSplitAmount: 100,
+    underMinimumBehaviour: "single_deduction",
+    underMinimumDeductionDelayDays: 2,
+  },
+];
 
 export const defaultLiabilitySettings: LiabilitySettings = {
   bnplProviders: ["Afterpay", "StepPay", "Other"],
@@ -18,6 +54,7 @@ export const defaultLiabilitySettings: LiabilitySettings = {
   repaymentFrequencies: ["weekly", "fortnightly", "monthly", "yearly"],
   defaultInterestType: "simple",
   defaultCompoundingFrequency: "monthly",
+  liabilityChannels: defaultLiabilityChannels,
 };
 
 function roundMoney(value: number) {
@@ -85,6 +122,72 @@ function scheduleRow(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export function generateBnplSchedule({
+  liabilityId,
+  amount,
+  purchaseDate,
+  installmentCount,
+  frequency,
+  noPaymentUpfrontEnabled,
+  noPaymentUpfrontFirstDelayDays = 14,
+  linkedRepaymentAccount = "Bank",
+}: {
+  liabilityId: string;
+  amount: number;
+  purchaseDate: string;
+  installmentCount: number;
+  frequency: LiabilityPaymentFrequency;
+  noPaymentUpfrontEnabled: boolean;
+  noPaymentUpfrontFirstDelayDays?: number;
+  linkedRepaymentAccount?: "Bank" | "Cash";
+}): BnplScheduleResult {
+  const count = Math.max(installmentCount, 1);
+  const baseInstallment = Math.floor((amount / count) * 100) / 100;
+  const lastInstallment = roundMoney(amount - baseInstallment * (count - 1));
+  const now = new Date().toISOString();
+
+  let firstDueDate: string;
+  let deductedToday: number;
+
+  if (noPaymentUpfrontEnabled) {
+    const d = new Date(`${purchaseDate}T12:00:00`);
+    d.setDate(d.getDate() + noPaymentUpfrontFirstDelayDays);
+    firstDueDate = d.toISOString().split("T")[0];
+    deductedToday = 0;
+  } else {
+    firstDueDate = purchaseDate;
+    deductedToday = count === 1 ? lastInstallment : baseInstallment;
+  }
+
+  const schedule: Omit<RepaymentSchedule, "id">[] = [];
+  let dueDate = firstDueDate;
+
+  for (let i = 0; i < count; i++) {
+    const installmentAmount = i === count - 1 ? lastInstallment : baseInstallment;
+    const isPaid = !noPaymentUpfrontEnabled && i === 0;
+
+    schedule.push({
+      liabilityId,
+      dueDate,
+      amount: installmentAmount,
+      principalAmount: installmentAmount,
+      interestAmount: 0,
+      feeAmount: 0,
+      status: isPaid ? "paid" : "upcoming",
+      paidDate: isPaid ? purchaseDate : "",
+      linkedRepaymentAccount: isPaid ? linkedRepaymentAccount : undefined,
+      notes: "",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    dueDate = addFrequency(dueDate, frequency);
+  }
+
+  const remainingLiability = roundMoney(amount - deductedToday);
+  return { schedule, deductedToday, remainingLiability };
 }
 
 export function generateRepaymentSchedule(
@@ -180,6 +283,16 @@ for (let index = 0; index < maxPeriods && outstanding > 0; index += 1) {
 return rows;
 }
 
+function mergeChannelDefaults(saved: LiabilityChannel[]): LiabilityChannel[] {
+  if (!saved.length) return defaultLiabilityChannels;
+  // Merge saved channels with defaults so new fields are filled in
+  return defaultLiabilityChannels.map((def) => {
+    const existing = saved.find((ch) => ch.id === def.id);
+    if (!existing) return def;
+    return { ...def, ...existing };
+  });
+}
+
 export function parseLiabilitySettings(value: unknown): LiabilitySettings {
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
@@ -199,6 +312,9 @@ export function parseLiabilitySettings(value: unknown): LiabilitySettings {
       defaultCompoundingFrequency:
         settings.defaultCompoundingFrequency ||
         defaultLiabilitySettings.defaultCompoundingFrequency,
+      liabilityChannels: mergeChannelDefaults(
+        (settings.liabilityChannels as LiabilityChannel[] | undefined) || []
+      ),
     };
   } catch {
     return defaultLiabilitySettings;

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   applyRepaymentToLiability,
   defaultLiabilitySettings,
+  generateBnplSchedule,
   generateRepaymentSchedule,
   getDueBnplRepayments,
   parseLiabilitySettings,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/sheetsApi";
 import type {
   Liability,
+  LiabilityChannel,
   LiabilitySettings,
   LiabilityType,
   RepaymentSchedule,
@@ -639,6 +641,133 @@ export function useLiabilities() {
   }
 }
 
+  function resetLiabilityData() {
+    setLiabilities([]);
+    setRepaymentSchedules([]);
+  }
+
+  async function createLiabilityFromExpense(params: {
+    channel: LiabilityChannel;
+    amount: number;
+    expenseDate: string;
+    expenseCategory: string;
+    expenseNotes?: string;
+  }) {
+    console.log("[createLiabilityFromExpense] called with", params);
+    const { channel, amount, expenseDate, expenseCategory } = params;
+    const now = new Date().toISOString();
+
+    const noPaymentUpfront = channel.noPaymentUpfrontEnabled ?? false;
+    const delayDays = channel.noPaymentUpfrontFirstDelayDays ?? 14;
+    const linkedAccount = channel.linkedRepaymentAccount ?? "Bank";
+    const installmentCount = channel.installmentCount || 4;
+    const frequency = channel.installmentFrequency || "fortnightly";
+
+    // Handle StepPay under-minimum as single pending deduction
+    const minSplit = channel.minimumSplitAmount ?? 0;
+    if (minSplit > 0 && amount < minSplit) {
+      const deductDelayDays = channel.underMinimumDeductionDelayDays ?? 2;
+      const d = new Date(`${expenseDate}T12:00:00`);
+      d.setDate(d.getDate() + deductDelayDays);
+      const dueDateStr = d.toISOString().split("T")[0];
+
+      const draft: Omit<Liability, "id"> = {
+        type: "bnpl",
+        name: `${channel.name} – ${expenseCategory}`,
+        provider: channel.name,
+        originalAmount: amount,
+        outstandingBalance: amount,
+        status: "active",
+        category: expenseCategory,
+        notes: params.expenseNotes || "",
+        purchaseDate: expenseDate,
+        firstPaymentDate: dueDateStr,
+        numberOfPayments: 1,
+        paymentFrequency: frequency,
+        installmentAmount: amount,
+        purchaseAmount: amount,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const created = await createSheetRecord<Liability>("Liabilities", draft as unknown as Record<string, unknown>);
+      if (!created.id) throw new Error("Created liability is missing an id.");
+
+      const schedRow: Omit<RepaymentSchedule, "id"> = {
+        liabilityId: created.id,
+        dueDate: dueDateStr,
+        amount,
+        principalAmount: amount,
+        interestAmount: 0,
+        feeAmount: 0,
+        status: "upcoming",
+        paidDate: "",
+        linkedRepaymentAccount: linkedAccount,
+        notes: "",
+        createdAt: now,
+        updatedAt: now,
+      };
+      const savedSched = await createSheetRecord<RepaymentSchedule>("RepaymentSchedules", schedRow as unknown as Record<string, unknown>);
+      setLiabilities((prev) => [created, ...prev]);
+      setRepaymentSchedules((prev) => [savedSched, ...prev]);
+      console.log("[createLiabilityFromExpense] under-minimum single deduction created");
+      return { liability: created, deductedToday: 0 };
+    }
+
+    // Normal 4-installment BNPL — use generateBnplSchedule
+    // We need a placeholder id first so we can reference it in schedules
+    const tempId = crypto.randomUUID();
+    const { schedule, deductedToday, remainingLiability } = generateBnplSchedule({
+      liabilityId: tempId,
+      amount,
+      purchaseDate: expenseDate,
+      installmentCount,
+      frequency,
+      noPaymentUpfrontEnabled: noPaymentUpfront,
+      noPaymentUpfrontFirstDelayDays: delayDays,
+      linkedRepaymentAccount: linkedAccount,
+    });
+
+    const firstPaymentDate = schedule[0]?.dueDate || expenseDate;
+    const installmentAmount = installmentCount > 0 ? Math.floor((amount / installmentCount) * 100) / 100 : amount;
+
+    const draft: Omit<Liability, "id"> = {
+      type: "bnpl",
+      name: `${channel.name} – ${expenseCategory}`,
+      provider: channel.name,
+      originalAmount: amount,
+      outstandingBalance: remainingLiability,
+      status: remainingLiability <= 0 ? "paid" : "active",
+      category: expenseCategory,
+      notes: params.expenseNotes || "",
+      purchaseDate: expenseDate,
+      firstPaymentDate,
+      numberOfPayments: installmentCount,
+      paymentFrequency: frequency,
+      installmentAmount,
+      purchaseAmount: amount,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    console.log("[createLiabilityFromExpense] saving draft:", draft);
+    const created = await createSheetRecord<Liability>("Liabilities", draft as unknown as Record<string, unknown>);
+    console.log("[createLiabilityFromExpense] created:", created);
+    if (!created.id) throw new Error("Created liability is missing an id.");
+
+    // Save schedule rows using the real id
+    const scheduleWithRealId = schedule.map((row) => ({ ...row, liabilityId: created.id }));
+    const savedSchedules: RepaymentSchedule[] = [];
+    for (const row of scheduleWithRealId) {
+      const saved = await createSheetRecord<RepaymentSchedule>("RepaymentSchedules", row as unknown as Record<string, unknown>);
+      savedSchedules.push(saved);
+    }
+
+    setLiabilities((prev) => [created, ...prev]);
+    setRepaymentSchedules((prev) => [...savedSchedules, ...prev]);
+    console.log("[createLiabilityFromExpense] done. deductedToday=", deductedToday, "remainingLiability=", remainingLiability);
+    return { liability: created, deductedToday };
+  }
+
   async function saveLiabilitySettings() {
     const clean = (items: string[]) =>
       [...new Set(items.map((item) => item.trim()).filter(Boolean))];
@@ -691,6 +820,8 @@ export function useLiabilities() {
     saveRepaymentSchedule,
     deleteRepaymentSchedule,
     saveLiabilitySettings,
+    resetLiabilityData,
+    createLiabilityFromExpense,
   };
 }
 

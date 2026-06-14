@@ -5,6 +5,7 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { NotificationBell, NotificationPanel } from "@/components/notifications/NotificationPanel";
 import Statistics from "@/components/dashboard/Statistics";
 import { SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
@@ -29,6 +30,7 @@ import {
   Lock,
   Menu,
   PiggyBank,
+  Plane,
   ReceiptText,
   Search,
   Settings,
@@ -50,9 +52,10 @@ import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage
 import { SettingsLiabilitiesPage } from "@/components/settings/SettingsLiabilitiesPage";
 import { SelectField } from "@/components/forms/SelectField";
 import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
+import { RemittanceView } from "@/components/remittance/RemittanceView";
 
 type Props = { state: FinanceDashboardState };
-type Tab = "home" | "buckets" | "liabilities" | "activity" | "stats" | "settings";
+type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings";
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
 const tabs = [
@@ -60,6 +63,7 @@ const tabs = [
   { id: "buckets", label: "Buckets", mobileLabel: "Buckets", icon: Layers3 },
   { id: "liabilities", label: "Liabilities", mobileLabel: "Debt", icon: ReceiptText },
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: List },
+  { id: "remittance", label: "Remittance", mobileLabel: "Remit", icon: Plane },
   { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
   { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings },
 ] as const;
@@ -146,6 +150,7 @@ export function DashboardLayout({ state }: Props) {
               onToggle={() => setShowAllActivity(!showAllActivity)}
             />
           )}
+          {activeTab === "remittance" && <RemittanceView state={state} />}
           {activeTab === "stats" && <Statistics state={state} />}
           {activeTab === "settings" && <SettingsWorkspace state={state} />}
         </div>
@@ -186,7 +191,19 @@ function AppHeader({
           })}
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="relative flex items-center gap-2">
+        <NotificationBell
+          count={state.appNotifications.filter((n) => !n.isRead).length}
+          onClick={() => state.setShowNotificationPanel((v: boolean) => !v)}
+        />
+        {state.showNotificationPanel && (
+          <NotificationPanel
+            notifications={state.appNotifications}
+            onMarkRead={state.markNotificationRead}
+            onMarkAllRead={state.markAllNotificationsRead}
+            onClose={() => state.setShowNotificationPanel(false)}
+          />
+        )}
         <button
           type="button"
           aria-label="Lock app"
@@ -208,7 +225,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-6 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-7 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -997,7 +1014,7 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-7 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;

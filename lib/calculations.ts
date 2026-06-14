@@ -8,7 +8,7 @@
   } from "@/lib/buckets";
   import { buildPersonProfiles } from "@/lib/lending";
   import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
-  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
+  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
 
   export function toNumber(value: unknown) {
     const number = Number(value);
@@ -447,7 +447,7 @@
     };
   }
 
-  export function calculateDashboardValues({ incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
+  export function calculateDashboardValues({ incomes, expenses, transfers, remittances = [], people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; remittances?: Remittance[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
     const expenseRangeStart = new Date();
     expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
     const expenseRangeEnd = new Date();
@@ -474,8 +474,13 @@
     const totalIncomeAll = incomes.reduce((sum, item) => sum + item.amount, 0);
     const totalCashReceivedFromIncome = incomes.reduce((sum, item) => sum + item.cash_received, 0);
     const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
-    const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
-    const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
+    function isImmediateDeduction(item: { account: string; paymentMethod?: string }) {
+      const pm = item.paymentMethod;
+      if (pm === "BNPL" || pm === "Afterpay" || pm === "StepPay" || pm === "CreditCard") return false;
+      return true;
+    }
+    const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
+    const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
     const lentFromBank = lendingTransactions
       .filter((item) => item.type === "lent" && item.account !== "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
@@ -499,8 +504,12 @@
       )
       .reduce((sum, item) => sum + item.amount, 0);
     const settlementMovement = getSettlementAccountMovement(lendingTransactions);
-    const paidLiabilityRepayments = repaymentSchedules
-      .filter((item) => item.status === "paid")
+    // Paid repayments with no linkedRepaymentAccount default to Bank (backward compatible)
+    const paidRepaymentsFromBank = repaymentSchedules
+      .filter((item) => item.status === "paid" && item.linkedRepaymentAccount !== "Cash")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const paidRepaymentsFromCash = repaymentSchedules
+      .filter((item) => item.status === "paid" && item.linkedRepaymentAccount === "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
     const activeLiabilities = liabilities.filter(
       (item) => item.status === "active" && item.outstandingBalance > 0
@@ -553,6 +562,15 @@
         .reduce((sum, item) => sum + item.amount, 0);
     }
 
+    const remittanceFromBank = remittances
+      .filter((r) => r.account !== "Cash")
+      .reduce((sum, r) => sum + r.audAmount, 0);
+    const remittanceFromCash = remittances
+      .filter((r) => r.account === "Cash")
+      .reduce((sum, r) => sum + r.audAmount, 0);
+    const totalRemittedAud = remittances.reduce((sum, r) => sum + r.audAmount, 0);
+    const totalRemittedInr = remittances.reduce((sum, r) => sum + r.inrAmount, 0);
+
     const bankBalance =
       initialBankBalance +
       totalUsableIncome +
@@ -560,8 +578,9 @@
       settlementMovement.bankIn -
       lentFromBank -
       expenseFromBank -
-      paidLiabilityRepayments -
+      paidRepaymentsFromBank -
       settlementMovement.bankOut -
+      remittanceFromBank -
       bucketOut("Bank") +
       bucketIn("Bank");
     const savingsBucketBalances = savingsBuckets.map((bucket) => {
@@ -587,7 +606,9 @@
       settlementMovement.cashOut +
       bucketIn("Cash") -
       bucketOut("Cash") -
-      expenseFromCash;
+      expenseFromCash -
+      paidRepaymentsFromCash -
+      remittanceFromCash;
     const accountBalance = bankBalance + cashBalance;
     const usableBalance = accountBalance - bnplOwed - creditCardOwed;
     const safeToSpend = usableBalance - upcomingLoanCommitment;
@@ -999,5 +1020,7 @@ const recentActivity: RecentActivityItem[] = [
       recentActivity,
       effectiveExpenses,
       upcomingRecurringExpenses: getUpcomingRecurringExpenses(expenses),
+      totalRemittedAud,
+      totalRemittedInr,
     };
   }
