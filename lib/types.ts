@@ -256,16 +256,20 @@ export type PersonProfile = {
   status: string;
 };
 
+export type RemittanceAccount = "Bank" | "Cash" | "RemittanceFund";
+
 export type Remittance = {
   id: string | number;
   audAmount: number;
   exchangeRate: number;
   inrAmount: number;
-  account: ExpenseAccount;
+  account: RemittanceAccount;
   date: string;
   provider?: string;
   notes?: string;
   createdAt: string;
+  fromFund?: boolean;
+  preExisting?: boolean;
 };
 
 export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer" | "remittance";

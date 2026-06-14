@@ -8,7 +8,7 @@
   } from "@/lib/buckets";
   import { buildPersonProfiles } from "@/lib/lending";
   import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
-  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
+  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
 
   export function toNumber(value: unknown) {
     const number = Number(value);
@@ -563,10 +563,13 @@
     }
 
     const remittanceFromBank = remittances
-      .filter((r) => r.account !== "Cash")
+      .filter((r) => !r.preExisting && r.account === "Bank")
       .reduce((sum, r) => sum + r.audAmount, 0);
     const remittanceFromCash = remittances
-      .filter((r) => r.account === "Cash")
+      .filter((r) => !r.preExisting && r.account === "Cash")
+      .reduce((sum, r) => sum + r.audAmount, 0);
+    const remittanceFromFundTotal = remittances
+      .filter((r) => !r.preExisting && (r.account === "RemittanceFund" || r.fromFund))
       .reduce((sum, r) => sum + r.audAmount, 0);
     const totalRemittedAud = remittances.reduce((sum, r) => sum + r.audAmount, 0);
     const totalRemittedInr = remittances.reduce((sum, r) => sum + r.inrAmount, 0);
@@ -584,8 +587,10 @@
       bucketOut("Bank") +
       bucketIn("Bank");
     const savingsBucketBalances = savingsBuckets.map((bucket) => {
+      const fundUsage =
+        bucket.id === "savings_remittance" ? remittanceFromFundTotal : 0;
       const currentBalance =
-        toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket);
+        toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket) - fundUsage;
 
       return {
         ...bucket,
