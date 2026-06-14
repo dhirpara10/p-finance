@@ -873,12 +873,26 @@ const validLendingTransactions = lendingTransactions.filter((item) => {
   );
 });
 
+// BNPL repayments are shown inline on their expense row, not as separate activity items
+const bnplLiabilityIds = new Set(
+  liabilities.filter((l) => l.type === "bnpl").map((l) => l.id)
+);
+
+// Count paid/total schedule installments per liability (for progress tag)
+const scheduleProgressByLiability = new Map<string, { paid: number; total: number }>();
+repaymentSchedules.forEach((sched) => {
+  if (!bnplLiabilityIds.has(sched.liabilityId)) return;
+  const entry = scheduleProgressByLiability.get(sched.liabilityId) ?? { paid: 0, total: 0 };
+  entry.total++;
+  if (sched.status === "paid") entry.paid++;
+  scheduleProgressByLiability.set(sched.liabilityId, entry);
+});
+
 const validPaidRepaymentSchedules = repaymentSchedules.filter((item) => {
-  return (
-    item.status === "paid" &&
-    hasValidDate(item.paidDate || item.dueDate) &&
-    isPositiveAmount(item.amount)
-  );
+  if (item.status !== "paid") return false;
+  // Hide auto-generated BNPL installment rows — they're shown on the expense
+  if (bnplLiabilityIds.has(item.liabilityId)) return false;
+  return hasValidDate(item.paidDate || item.dueDate) && isPositiveAmount(item.amount);
 });
 
 const recentActivity: RecentActivityItem[] = [
@@ -897,18 +911,50 @@ const recentActivity: RecentActivityItem[] = [
     updatedAt: (item as any).updatedAt,
   })),
 
-  ...validExpenses.map((item, index) => ({
-    id: item.id || `expense-${item.date}-${item.amount}-${index}`,
-    type: "expense" as const,
-    title: cleanText(item.category),
-    subtitle: "",
-    account: item.account === "Cash" ? "Cash" : "Bank",
-    amount: Number(item.amount),
-    date: item.date,
-    isRecurring: item.isRecurring,
-    createdAt: (item as any).createdAt,
-    updatedAt: (item as any).updatedAt,
-  })),
+  ...validExpenses.map((item, index) => {
+    const pm = item.paymentMethod;
+    const isBnpl = pm === "Afterpay" || pm === "StepPay";
+    const isCard = pm === "CreditCard";
+    const accountLabel =
+      pm === "Afterpay" ? "Afterpay"
+      : pm === "StepPay" ? "StepPay"
+      : pm === "CreditCard" ? "Credit Card"
+      : item.account === "Cash" ? "Cash"
+      : "Bank";
+
+    // Find matching BNPL liability to show payment progress
+    let paymentProgress: string | undefined;
+    if (isBnpl) {
+      const providerKey = String(pm).toLowerCase();
+      const matchedLiability = liabilities.find(
+        (l) =>
+          l.type === "bnpl" &&
+          l.category === item.category &&
+          l.purchaseDate === item.date &&
+          l.provider.toLowerCase().includes(providerKey)
+      );
+      if (matchedLiability) {
+        const prog = scheduleProgressByLiability.get(matchedLiability.id);
+        if (prog && prog.total > 0) {
+          paymentProgress = `${prog.paid}/${prog.total} paid`;
+        }
+      }
+    }
+
+    return {
+      id: item.id || `expense-${item.date}-${item.amount}-${index}`,
+      type: "expense" as const,
+      title: cleanText(item.category),
+      subtitle: "",
+      account: accountLabel,
+      amount: Number(item.amount),
+      date: item.date,
+      isRecurring: item.isRecurring,
+      createdAt: (item as any).createdAt,
+      updatedAt: (item as any).updatedAt,
+      paymentProgress,
+    };
+  }),
 
   ...validTransfers.map((item, index) => {
     const fromLabel = cleanText(getBucketLabel(item.from_bucket, savingsBuckets));

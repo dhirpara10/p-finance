@@ -280,9 +280,10 @@ export type RecentActivityItem = {
   subtitle: string;
   amount: number;
   account?: string;
-createdAt?: string;
-updatedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
   date: string;
   source?: "lendingTransaction";
   isRecurring?: boolean;
+  paymentProgress?: string;
 };

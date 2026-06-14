@@ -26,21 +26,15 @@ type ActivityItem = FinanceDashboardState["recentActivity"][number] & {
 function getActivityAccount(item: ActivityItem) {
   const account = String(item.account || "").trim();
 
-  // Keep exact split labels from calculations.ts
-  // Example: "$50 Cash • $150 Bank"
-  if (account.includes("$") || account.includes("•")) {
-    return account;
-  }
-
+  if (account.includes("$") || account.includes("•")) return account;
+  if (account === "Afterpay" || account === "StepPay" || account === "Credit Card") return account;
   if (account === "Cash") return "Cash";
   if (account === "Bank" || account === "Usable Balance") return "Bank";
 
   const subtitle = String(item.subtitle || "").toLowerCase();
   const title = String(item.title || "").toLowerCase();
-
   if (subtitle.includes("cash") || title.includes("cash")) return "Cash";
   if (subtitle.includes("bank") || title.includes("bank")) return "Bank";
-
   if (item.type === "liability_repayment") return "Bank";
 
   return "";
@@ -50,15 +44,14 @@ function getAccountBadgeClass(account: string) {
   if (account.includes("$") || account.includes("•")) {
     return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20";
   }
-
-  if (account === "Cash") {
-    return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/20";
+  if (account === "Cash") return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/20";
+  if (account === "Bank") return "bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/20";
+  if (account === "Afterpay" || account === "StepPay") {
+    return "bg-purple-500/15 text-purple-300 ring-1 ring-purple-400/20";
   }
-
-  if (account === "Bank") {
-    return "bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/20";
+  if (account === "Credit Card") {
+    return "bg-orange-500/15 text-orange-300 ring-1 ring-orange-400/20";
   }
-
   return "bg-neutral-700/60 text-neutral-300 ring-1 ring-white/10";
 }
 
@@ -236,6 +229,12 @@ export function RecentActivity({
                       {item.isRecurring && (
                         <span className="flex items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] text-purple-200">
                           <RefreshCw size={10} /> Recurring
+                        </span>
+                      )}
+
+                      {item.paymentProgress && (
+                        <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-[9px] font-semibold text-purple-300 ring-1 ring-purple-400/20">
+                          {item.paymentProgress}
                         </span>
                       )}
                     </div>
