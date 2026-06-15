@@ -22,7 +22,6 @@ import {
   BarChart3,
   ChevronRight,
   CircleDollarSign,
-  Gem,
   HandCoins,
   Home,
   Landmark,
@@ -56,11 +55,9 @@ import { SelectField } from "@/components/forms/SelectField";
 import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
 import { RemittanceView } from "@/components/remittance/RemittanceView";
 import { LogsView } from "@/components/logs/LogsView";
-import { AssetsView } from "@/components/assets/AssetsView";
-import { SettingsAssetsPage } from "@/components/settings/SettingsAssetsPage";
 
 type Props = { state: FinanceDashboardState };
-type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs" | "assets";
+type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs";
 type NavTab = Exclude<Tab, "settings">;
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
@@ -72,7 +69,6 @@ const tabs: { id: NavTab; label: string; mobileLabel: string; icon: React.Elemen
   { id: "remittance", label: "Remittance", mobileLabel: "Remit", icon: Plane },
   { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
   { id: "logs", label: "Logs", mobileLabel: "Logs", icon: ScrollText },
-  { id: "assets", label: "Assets", mobileLabel: "Assets", icon: Gem },
 ];
 
 export function DashboardLayout({ state }: Props) {
@@ -160,7 +156,6 @@ export function DashboardLayout({ state }: Props) {
           {activeTab === "remittance" && <RemittanceView state={state} />}
           {activeTab === "stats" && <Statistics state={state} />}
           {activeTab === "logs" && <LogsView state={state} />}
-          {activeTab === "assets" && <AssetsView state={state} />}
           {activeTab === "settings" && <SettingsWorkspace state={state} />}
         </div>
       </div>
@@ -251,7 +246,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-8 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-7 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -957,7 +952,6 @@ function ActivityView({
             { value: "borrowed", label: "Borrowing" },
             { value: "settlement", label: "Settlements" },
             { value: "liability_repayment", label: "Liability repayments" },
-            { value: "asset", label: "Assets" },
           ]}
         />
       </div>
@@ -976,7 +970,6 @@ const settingsItems = [
   ["notifications", "Notifications"],
   ["security", "Security"],
   ["appearance", "Appearance"],
-  ["assets", "Assets"],
 ] as const;
 
 function SettingsWorkspace({ state }: Props) {
@@ -1037,7 +1030,6 @@ function SettingsRouter({ state }: Props) {
   if (state.settingsPage === "liabilities") return <SettingsLiabilitiesPage state={state} />;
   if (state.settingsPage === "appearance") return <SettingsAppearancePage state={state} />;
   if (state.settingsPage === "bucket-history") return <SettingsBucketHistoryPage state={state} />;
-  if (state.settingsPage === "assets") return <SettingsAssetsPage state={state} />;
   return <SettingsHub state={state} />;
 }
 

@@ -7,7 +7,7 @@ export type ActivityLog = {
   user: AppUser;
   userName: string;
   action: "created" | "deleted";
-  entityType: "income" | "expense" | "transfer" | "remittance" | "lent" | "borrowed" | "liability" | "asset";
+  entityType: "income" | "expense" | "transfer" | "remittance" | "lent" | "borrowed" | "liability";
   entityId: string | number;
   description: string;
   timestamp: string;
@@ -291,31 +291,11 @@ export type Remittance = {
   addedBy?: AppUser;
 };
 
-export type OtherAsset = {
-  id: string;
-  name: string;
-  category: string;
-  valueAud: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt?: string;
-  addedBy?: AppUser;
-};
-
-export type AssetPrices = {
-  goldAud: number;
-  goldInr: number;
-  silverAud: number;
-  silverInr: number;
-  updatedAt: string | null;
-};
-
 export type EditingItemType = "income" | "expense" | "lent" | "borrowed" | "transfer" | "remittance";
 export type RecentActivityType =
   | EditingItemType
   | "settlement"
-  | "liability_repayment"
-  | "asset";
+  | "liability_repayment";
 
 export type RecentActivityItem = {
   id: string | number;

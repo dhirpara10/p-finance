@@ -4,7 +4,6 @@ import {
   ArrowDownLeft,
   ArrowRightLeft,
   ArrowUpRight,
-  Gem,
   HandCoins,
   Pencil,
   RefreshCw,
@@ -153,9 +152,7 @@ export function RecentActivity({
                     ? ArrowRightLeft
                     : item.type === "liability_repayment"
                       ? RefreshCw
-                      : item.type === "asset"
-                        ? Gem
-                        : HandCoins;
+                      : HandCoins;
 
             const amountClass =
               item.type === "income" ||
@@ -192,9 +189,7 @@ export function RecentActivity({
                             ? "bg-cyan-500/15 text-cyan-300"
                             : item.type === "liability_repayment"
                               ? "bg-orange-500/15 text-orange-300"
-                              : item.type === "asset"
-                                ? "bg-amber-500/15 text-amber-300"
-                                : "bg-red-500/15 text-red-300"
+                              : "bg-red-500/15 text-red-300"
                     }`}
                   >
                     <Icon size={18} />
@@ -276,7 +271,7 @@ export function RecentActivity({
                           ? setEditingScheduleId(String(item.id))
                           : startEdit(item)
                       }
-                      disabled={item.source === "lendingTransaction" || item.type === "asset"}
+                      disabled={item.source === "lendingTransaction"}
                       className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-400 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
                     >
                       <Pencil size={15} />
@@ -317,11 +312,6 @@ export function RecentActivity({
 
                         if (item.type === "transfer") {
                           deleteTransfer(item.id);
-                          return;
-                        }
-
-                        if (item.type === "asset") {
-                          state.deleteOtherAssetWithLog(String(item.id));
                           return;
                         }
                       }}
