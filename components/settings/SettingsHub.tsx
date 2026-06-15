@@ -16,6 +16,7 @@ const pages = [
   ["recurring", "Recurring Expenses", "Upcoming rules, pause, edit, or cancel"],
   ["liabilities", "Liabilities", "BNPL, cards, loans, and repayment defaults"],
   ["appearance", "Appearance", "Theme preferences"],
+  ["assets", "Assets", "Gold, silver, vehicles, and other physical assets"],
 ] as const;
 
 export function SettingsHub({ state }: SettingsHubProps) {

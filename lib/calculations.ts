@@ -8,7 +8,7 @@
   } from "@/lib/buckets";
   import { buildPersonProfiles } from "@/lib/lending";
   import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
-  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
+  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, OtherAsset, Person, RecentActivityItem, Remittance, RemittanceAccount, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
 
   export function toNumber(value: unknown) {
     const number = Number(value);
@@ -447,7 +447,7 @@
     };
   }
 
-  export function calculateDashboardValues({ incomes, expenses, transfers, remittances = [], people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; remittances?: Remittance[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
+  export function calculateDashboardValues({ incomes, expenses, transfers, remittances = [], people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay, totalAssetsAud = 0, otherAssets = [] }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; remittances?: Remittance[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; totalAssetsAud?: number; otherAssets?: OtherAsset[]; }) {
     const expenseRangeStart = new Date();
     expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
     const expenseRangeEnd = new Date();
@@ -712,7 +712,7 @@
     const totalMoney =
       accountBalance + totalSavingsBuckets + sharedJarStoredBalance;
     const netWorth =
-      totalMoney + activeLent - activeBorrowed - totalLiabilities;
+      totalMoney + activeLent - activeBorrowed - totalLiabilities + totalAssetsAud;
     const totalTrackedSpending = effectiveExpenses
       .filter(
         (expense) =>
@@ -1031,6 +1031,20 @@ const recentActivity: RecentActivityItem[] = [
       updatedAt: (item as any).updatedAt,
     };
   }),
+
+  ...otherAssets
+    .filter((a) => hasValidDate(a.createdAt))
+    .map((a) => ({
+      id: a.id,
+      type: "asset" as const,
+      title: cleanText(a.name),
+      subtitle: cleanText(a.category),
+      amount: a.valueAud,
+      date: a.createdAt.split("T")[0],
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+      addedBy: a.addedBy,
+    })),
 ].sort((a, b) => {
   const timeDifference = getActivitySortTime(b) - getActivitySortTime(a);
   if (timeDifference !== 0) return timeDifference;
@@ -1077,5 +1091,6 @@ const recentActivity: RecentActivityItem[] = [
       upcomingRecurringExpenses: getUpcomingRecurringExpenses(expenses),
       totalRemittedAud,
       totalRemittedInr,
+      totalAssetsAud,
     };
   }
