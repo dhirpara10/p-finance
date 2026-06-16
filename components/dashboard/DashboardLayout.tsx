@@ -217,6 +217,8 @@ function AppHeader({
             notifications={state.appNotifications}
             onMarkRead={state.markNotificationRead}
             onMarkAllRead={state.markAllNotificationsRead}
+            onDelete={state.deleteNotification}
+            onClearAll={state.clearAllNotifications}
             onClose={() => state.setShowNotificationPanel(false)}
           />
         )}

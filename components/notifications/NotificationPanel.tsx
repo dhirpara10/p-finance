@@ -8,6 +8,8 @@ type Props = {
   notifications: AppNotification[];
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
+  onDelete: (id: string) => void;
+  onClearAll: () => void;
   onClose: () => void;
 };
 
@@ -26,7 +28,7 @@ function notifBg(type: AppNotification["type"]) {
   return "border-white/[0.05] bg-white/[0.02]";
 }
 
-export function NotificationPanel({ notifications, onMarkRead, onMarkAllRead, onClose }: Props) {
+export function NotificationPanel({ notifications, onMarkRead, onMarkAllRead, onDelete, onClearAll, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,6 +64,15 @@ export function NotificationPanel({ notifications, onMarkRead, onMarkAllRead, on
               Mark all read
             </button>
           )}
+          {notifications.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="text-xs text-neutral-400 hover:text-red-400"
+            >
+              Clear all
+            </button>
+          )}
           <button type="button" onClick={onClose} className="text-neutral-500 hover:text-white">
             <X size={16} />
           </button>
@@ -88,16 +99,26 @@ export function NotificationPanel({ notifications, onMarkRead, onMarkAllRead, on
                     {new Date(notif.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
                   </p>
                 </div>
-                {!notif.isRead && (
+                <div className="flex flex-col items-center gap-1.5 self-start mt-2">
+                  {!notif.isRead && (
+                    <button
+                      type="button"
+                      onClick={() => onMarkRead(notif.id)}
+                      aria-label="Mark as read"
+                      className="text-neutral-600 hover:text-emerald-400"
+                    >
+                      <Check size={14} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => onMarkRead(notif.id)}
-                    aria-label="Mark as read"
-                    className="self-start mt-2 text-neutral-600 hover:text-emerald-400"
+                    onClick={() => onDelete(notif.id)}
+                    aria-label="Dismiss"
+                    className="text-neutral-700 hover:text-red-400"
                   >
-                    <Check size={14} />
+                    <X size={13} />
                   </button>
-                )}
+                </div>
               </div>
             ))}
           </div>
