@@ -559,7 +559,7 @@ function BalanceCard({
     warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-200",
   };
   return (
-    <article className={`flex min-h-[168px] w-[calc(100vw-32px)] shrink-0 snap-start flex-col rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:w-auto sm:min-w-0 ${tones[tone]}`}>
+    <article className={`flex min-h-[168px] w-[84vw] shrink-0 snap-start flex-col rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:w-auto sm:min-w-0 ${tones[tone]}`}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-neutral-400">{label}</p>
         <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.07]">
