@@ -172,10 +172,13 @@ function LiabilityCard({
   liability: Liability;
   archived?: boolean;
 }) {
-  const schedules = state.repaymentSchedules
-    .filter((item) => item.liabilityId === liability.id && item.status !== "paid")
+  const allSchedules = state.repaymentSchedules
+    .filter((item) => item.liabilityId === liability.id)
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const schedules = allSchedules.filter((item) => item.status !== "paid");
   const next = schedules[0];
+  const payoffDate = schedules.length > 0 ? schedules[schedules.length - 1].dueDate : null;
+  const totalInterestRemaining = schedules.reduce((sum, s) => sum + (s.interestAmount || 0), 0);
   const progress =
     liability.originalAmount > 0
       ? Math.min(
@@ -224,6 +227,18 @@ function LiabilityCard({
             <p className="text-xs text-neutral-500">Due</p>
             <p className="mt-1 font-semibold">{next?.dueDate || "Settled"}</p>
           </div>
+          {payoffDate && (
+            <div>
+              <p className="text-xs text-neutral-500">Payoff date</p>
+              <p className="mt-1 font-semibold text-emerald-300">{payoffDate}</p>
+            </div>
+          )}
+          {totalInterestRemaining > 0 && (
+            <div>
+              <p className="text-xs text-neutral-500">Remaining interest</p>
+              <p className="mt-1 font-semibold text-orange-300">{money(state.currencySymbol, totalInterestRemaining)}</p>
+            </div>
+          )}
         </div>
       )}
       {archived ? (

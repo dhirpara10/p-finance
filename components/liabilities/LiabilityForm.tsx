@@ -11,6 +11,7 @@ import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
 import type { LiabilityDraft } from "@/components/liabilities/useLiabilities";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { formTokens } from "@/lib/designTokens";
 import type {
   LiabilityCompoundingFrequency,
@@ -92,16 +93,20 @@ export function LiabilityForm({ state }: Props) {
   const [fees, setFees] = useState(String(existing?.fees || ""));
   const [discount, setDiscount] = useState(String(existing?.discount || ""));
 
-  const input = (label: string, value: string, setter: (value: string) => void) => (
+  const sym = state.currencySymbol;
+  const input = (label: string, value: string, setter: (value: string) => void, kind: "currency" | "number" = "currency") => (
     <FormField label={label}>
-      <input
-        type="number"
-        min="0"
-        step="0.01"
-        value={value}
-        onChange={(event) => setter(event.target.value)}
-        className={formTokens.input}
-      />
+      {kind === "currency" ? (
+        <CurrencyInput value={value} onChange={setter} symbol={sym} placeholder="0.00" />
+      ) : (
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(event) => setter(event.target.value.replace(/[^\d.]/g, ""))}
+          className={formTokens.input}
+        />
+      )}
     </FormField>
   );
 
@@ -205,7 +210,7 @@ export function LiabilityForm({ state }: Props) {
             <>
               <DateField label="Purchase date" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} />
               <DateField label="First payment date" value={firstPaymentDate} onChange={(event) => setFirstPaymentDate(event.target.value)} />
-              {input("Number of payments", numberOfPayments, setNumberOfPayments)}
+              {input("Number of payments", numberOfPayments, setNumberOfPayments, "number")}
               <SelectField label="Frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as LiabilityPaymentFrequency)} options={["weekly", "fortnightly", "monthly"].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))} />
             </>
           )}
@@ -224,14 +229,14 @@ export function LiabilityForm({ state }: Props) {
 
           {type === "loan" && (
             <>
-              {input("Interest rate (%)", interestRate, setInterestRate)}
+              {input("Interest rate (%)", interestRate, setInterestRate, "number")}
               <SelectField label="Interest type" value={interestType} onChange={(event) => setInterestType(event.target.value as LiabilityInterestType)} options={[{ value: "simple", label: "Simple" }, { value: "compound", label: "Compound" }]} />
               <SelectField label="Compounding frequency" value={compoundingFrequency} onChange={(event) => setCompoundingFrequency(event.target.value as LiabilityCompoundingFrequency)} options={[{ value: "monthly", label: "Monthly" }, { value: "yearly", label: "Yearly" }]} />
               {input("Repayment amount", repaymentAmount, setRepaymentAmount)}
               <SelectField label="Repayment frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as LiabilityPaymentFrequency)} options={state.liabilitySettings.repaymentFrequencies.map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))} />
               <DateField label="Start date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
               <DateField label="End date optional" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-              {input("Term months", termMonths, setTermMonths)}
+              {input("Term months", termMonths, setTermMonths, "number")}
               {input("Fees / charges", fees, setFees)}
               {input("Other charges", charges, setCharges)}
               {input("Discount / rebate", discount, setDiscount)}

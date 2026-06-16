@@ -8,6 +8,7 @@ import { ModalContent } from "@/components/forms/ModalContent";
 import { ModalFooter } from "@/components/forms/ModalFooter";
 import { ModalHeader } from "@/components/forms/ModalHeader";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { formTokens } from "@/lib/designTokens";
 
 export function RepaymentForm({ state }: { state: FinanceDashboardState }) {
@@ -24,13 +25,14 @@ export function RepaymentForm({ state }: { state: FinanceDashboardState }) {
   const [notes, setNotes] = useState(schedule?.notes || "");
   if (!schedule) return null;
 
+  const sym = state.currencySymbol;
   const amountField = (
     label: string,
     value: string,
     setter: (value: string) => void
   ) => (
     <FormField label={label}>
-      <input type="number" min="0" step="0.01" value={value} onChange={(event) => setter(event.target.value)} className={formTokens.input} />
+      <CurrencyInput value={value} onChange={setter} symbol={sym} placeholder="0.00" />
     </FormField>
   );
 

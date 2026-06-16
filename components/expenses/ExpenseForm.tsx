@@ -8,6 +8,7 @@ import { ModalHeader } from "@/components/forms/ModalHeader";
 import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { ExpenseAccount, ExpensePaymentMethod, LiabilityChannel } from "@/lib/types";
 import { defaultLiabilityChannels } from "@/lib/liabilities";
@@ -70,7 +71,7 @@ function BnplRepaymentPreview({ channel, amount, purchaseDate }: { channel: Liab
 type ExpenseFormProps = { state: FinanceDashboardState };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
-  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory } = state;
+  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory, currencySymbol } = state;
   const isLiabilityPayment = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay" || expensePaymentMethod === "CreditCard";
   const isBnpl = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay";
 
@@ -98,7 +99,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
       <ModalContent>
         <ModalSection>
           <FormField label="Amount">
-            <input type="number" value={expenseAmount} onChange={(event) => setExpenseAmount(event.target.value)} className={formTokens.input} />
+            <CurrencyInput value={expenseAmount} onChange={setExpenseAmount} symbol={currencySymbol} placeholder="0.00" autoFocus={!editingItem} />
           </FormField>
           <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={categoryOptions} />
           <div className="flex gap-2">

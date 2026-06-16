@@ -11,6 +11,7 @@ import { ModalFooter } from "@/components/forms/ModalFooter";
 import { ModalHeader } from "@/components/forms/ModalHeader";
 import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { formTokens } from "@/lib/designTokens";
 
 type Props = { state: FinanceDashboardState };
@@ -44,9 +45,14 @@ export function RemittanceView({ state }: Props) {
   const remittanceBucket = savingsBucketBalances.find((b) => b.id === "savings_remittance");
   const fundBalance = remittanceBucket?.currentBalance ?? 0;
 
-  const totalAud = remittances.filter((r) => !r.preExisting).reduce((sum, r) => sum + r.audAmount, 0);
-  const totalInr = remittances.filter((r) => !r.preExisting).reduce((sum, r) => sum + r.inrAmount, 0);
+  const activeRemittances = remittances.filter((r) => !r.preExisting);
+  const totalAud = activeRemittances.reduce((sum, r) => sum + r.audAmount, 0);
+  const totalInr = activeRemittances.reduce((sum, r) => sum + r.inrAmount, 0);
   const preExistingCount = remittances.filter((r) => r.preExisting).length;
+  const rates = activeRemittances.map((r) => r.exchangeRate).filter((r) => r > 0);
+  const bestRate = rates.length > 0 ? Math.max(...rates) : null;
+  const worstRate = rates.length > 0 ? Math.min(...rates) : null;
+  const avgRate = rates.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
 
   const inrPreview =
     remittanceAudAmount && remittanceExchangeRate
@@ -83,7 +89,7 @@ export function RemittanceView({ state }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="Total sent (AUD)" value={`${currencySymbol}${totalAud.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
         <SummaryCard label="Total sent (INR)" value={`₹${Math.round(totalInr).toLocaleString()}`} />
-        <SummaryCard label="Transfers" value={String(remittances.filter((r) => !r.preExisting).length)} />
+        <SummaryCard label="Transfers" value={String(activeRemittances.length)} />
         <SummaryCard
           label="Remittance Fund"
           value={`${currencySymbol}${fundBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
@@ -91,6 +97,14 @@ export function RemittanceView({ state }: Props) {
           subtitle={remittanceBucket ? `of ${currencySymbol}${remittanceBucket.targetAmount.toLocaleString()}` : undefined}
         />
       </div>
+
+      {rates.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <SummaryCard label="Best rate" value={`${bestRate?.toFixed(2)} ₹/A$`} highlight />
+          <SummaryCard label="Avg rate" value={`${avgRate?.toFixed(2)} ₹/A$`} />
+          <SummaryCard label="Worst rate" value={`${worstRate?.toFixed(2)} ₹/A$`} />
+        </div>
+      )}
 
       <section className="surface-card rounded-[28px] border border-white/[0.055] p-5">
         {sorted.length === 0 ? (
@@ -163,19 +177,14 @@ export function RemittanceView({ state }: Props) {
               </label>
 
               <FormField label="AUD amount">
-                <input
-                  type="number"
-                  value={remittanceAudAmount}
-                  onChange={(e) => setRemittanceAudAmount(e.target.value)}
-                  className={formTokens.input}
-                  placeholder="0.00"
-                />
+                <CurrencyInput value={remittanceAudAmount} onChange={setRemittanceAudAmount} symbol="$" placeholder="0.00" />
               </FormField>
               <FormField label="AUD → INR exchange rate">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={remittanceExchangeRate}
-                  onChange={(e) => setRemittanceExchangeRate(e.target.value)}
+                  onChange={(e) => setRemittanceExchangeRate(e.target.value.replace(/[^\d.]/g, ""))}
                   className={formTokens.input}
                   placeholder="e.g. 55.50"
                 />

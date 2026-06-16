@@ -1789,6 +1789,7 @@ async function addTransfer() {
   }
 
   async function deleteRemittance(id: string | number) {
+    if (!await showConfirm("Delete this remittance?")) return;
     await deleteFromSheet("remittances", id);
     setRemittances(remittances.filter((r) => String(r.id) !== String(id)));
     await writeLog("deleted", "remittance", id, "Remittance");

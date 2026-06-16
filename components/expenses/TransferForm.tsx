@@ -8,6 +8,7 @@ import { ModalHeader } from "@/components/forms/ModalHeader";
 import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { Bucket } from "@/lib/types";
 import { formTokens } from "@/lib/designTokens";
@@ -15,7 +16,7 @@ import { formTokens } from "@/lib/designTokens";
 type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
-  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers } = state;
+  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers, currencySymbol } = state;
   const accountAndSavingsOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
@@ -48,7 +49,7 @@ export function TransferForm({ state }: TransferFormProps) {
             />
           )}
           <FormField label="Amount">
-            <input type="number" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} className={formTokens.input} />
+            <CurrencyInput value={transferAmount} onChange={setTransferAmount} symbol={currencySymbol} placeholder="0.00" />
           </FormField>
           <DateField label="Date" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
           <FormField label="Notes">

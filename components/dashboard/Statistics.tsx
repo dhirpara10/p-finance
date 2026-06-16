@@ -68,11 +68,14 @@ export function Statistics({ state }: Props) {
     monthlyHours,
     savingsBucketBalances,
     financialAnalytics,
+    monthlyIncome,
+    monthlyExpenses,
   } = state;
   const monthly = financialAnalytics.monthly;
   const categories = financialAnalytics.categories;
   const hasData = monthly.some((m) => m.income > 0 || m.expenses > 0);
   const hasCategories = categories.length > 0;
+  const savingsRate = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : null;
   const jarData = monthly.map((row, index) => ({
     month: row.month,
     allocation: row.jarInflow,
@@ -102,6 +105,13 @@ export function Statistics({ state }: Props) {
           <div className="flex gap-6 rounded-2xl border border-white/[0.055] bg-white/[0.025] px-5 py-3">
             <MiniStat label="Hours" value={`${monthlyHours.toLocaleString()}h`} />
             <MiniStat label="Savings" value={`${currencySymbol}${savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}`} />
+            {savingsRate !== null && (
+              <MiniStat
+                label="Savings rate"
+                value={`${savingsRate}%`}
+                tone={savingsRate >= 20 ? "text-emerald-300" : savingsRate >= 0 ? "text-amber-300" : "text-red-300"}
+              />
+            )}
           </div>
         }
       />
@@ -173,7 +183,7 @@ export function Statistics({ state }: Props) {
             <MiniStat label="Monthly" value={`${currencySymbol}${sharedRolloverJar.monthlyAllocation.toLocaleString()}`} />
             <MiniStat label="Result" value={`${currencySymbol}${sharedRolloverJar.monthlyResult.toLocaleString()}`} tone={sharedRolloverJar.monthlyResult >= 0 ? "text-emerald-300" : "text-orange-300"} />
           </div>
-          <ChartFrame height="h-64">
+          <ChartFrame height="h-64" empty={!hasData}>
             <AreaChart data={jarData} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
@@ -216,19 +226,20 @@ export function Statistics({ state }: Props) {
 
         <AnalyticsCard title="Monthly Summary" subtitle="Income, spending, and work history" className="xl:col-span-7">
           <div className="divide-y divide-white/[0.05]">
-            {monthly.slice(-6).reverse().map((row) => (
-              <div key={row.month} className="grid grid-cols-[1fr_repeat(3,auto)] items-center gap-4 py-3 text-sm">
-                <span className="font-medium">{row.month}</span>
-                <span className="text-emerald-300">+{currencySymbol}{row.income.toLocaleString()}</span>
-                <span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span>
-                {row.financeCosts > 0 && (
-                  <span className="text-orange-300">
-                    Finance -{currencySymbol}{row.financeCosts.toLocaleString()}
-                  </span>
-                )}
-                <span className="text-neutral-500">{row.hours}h</span>
-              </div>
-            ))}
+            {monthly.slice(-6).reverse().map((row) => {
+              const rowRate = row.income > 0 ? Math.round(((row.income - row.expenses) / row.income) * 100) : null;
+              return (
+                <div key={row.month} className="grid grid-cols-[1fr_repeat(4,auto)] items-center gap-4 py-3 text-sm">
+                  <span className="font-medium">{row.month}</span>
+                  <span className="text-emerald-300">+{currencySymbol}{row.income.toLocaleString()}</span>
+                  <span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span>
+                  {rowRate !== null ? (
+                    <span className={rowRate >= 20 ? "text-emerald-400" : rowRate >= 0 ? "text-amber-300" : "text-red-300"}>{rowRate}%</span>
+                  ) : <span />}
+                  <span className="text-neutral-500">{row.hours}h</span>
+                </div>
+              );
+            })}
           </div>
         </AnalyticsCard>
       </div>

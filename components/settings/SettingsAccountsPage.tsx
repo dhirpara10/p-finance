@@ -10,13 +10,13 @@ export function SettingsAccountsPage({ state }: Props) {
   return (
     <SettingsPanel title="Accounts" onBack={state.goBackSettingsPage}>
       <Field label="Initial Bank balance">
-        <input type="number" value={String(state.initialBankBalance)} onChange={(event) => state.setInitialBankBalance(Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+        <input type="text" inputMode="decimal" value={String(state.initialBankBalance)} onChange={(event) => state.setInitialBankBalance(Number(event.target.value.replace(/[^\d.]/g, "")))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
       </Field>
       <Field label="Initial Cash balance">
-        <input type="number" value={String(state.initialCashBalance)} onChange={(event) => state.setInitialCashBalance(Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+        <input type="text" inputMode="decimal" value={String(state.initialCashBalance)} onChange={(event) => state.setInitialCashBalance(Number(event.target.value.replace(/[^\d.]/g, "")))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
       </Field>
       <Field label="Monthly reset day">
-        <input type="number" min={1} max={28} value={String(state.monthlyResetDay)} onChange={(event) => state.setMonthlyResetDay(Math.min(Math.max(Number(event.target.value), 1), 28))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+        <input type="text" inputMode="numeric" value={String(state.monthlyResetDay)} onChange={(event) => state.setMonthlyResetDay(Math.min(Math.max(Number(event.target.value.replace(/\D/g, "")), 1), 28))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
       </Field>
       <SelectField
         label="Currency"

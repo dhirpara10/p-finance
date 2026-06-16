@@ -10,12 +10,13 @@ import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { formTokens } from "@/lib/designTokens";
 
 type LendingFormProps = { state: FinanceDashboardState };
 
 export function LendingForm({ state }: LendingFormProps) {
-  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, closeAllForms, addLent, addBorrowed } = state;
+  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, closeAllForms, addLent, addBorrowed, currencySymbol } = state;
   const searchQuery = normalizePersonName(personSearch);
   const filteredPeople = people.filter((person) => searchQuery && (normalizePersonName(person.name).includes(searchQuery) || normalizePersonName(person.phone || "").includes(searchQuery)));
   const selectedPerson = people.find((person) => String(person.id) === String(selectedPersonId));
@@ -82,7 +83,7 @@ export function LendingForm({ state }: LendingFormProps) {
           )}
 
           <FormField label="Amount">
-            <input type="number" value={moneyAmount} onChange={(event) => setMoneyAmount(event.target.value)} className={formTokens.input} />
+            <CurrencyInput value={moneyAmount} onChange={setMoneyAmount} symbol={currencySymbol} placeholder="0.00" />
           </FormField>
           <SelectField label="Account" value={moneyAccount} onChange={(event) => setMoneyAccount(event.target.value === "Cash" ? "Cash" : "Bank")} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
           {!showLentForm && (

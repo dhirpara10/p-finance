@@ -10,6 +10,7 @@ import { ModalSection } from "@/components/forms/ModalSection";
 import { ModalWrapper } from "@/components/forms/ModalWrapper";
 import { SelectField } from "@/components/forms/SelectField";
 import { SummaryField } from "@/components/forms/SummaryField";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { IncomeType } from "@/lib/types";
 import { formTokens } from "@/lib/designTokens";
@@ -17,7 +18,7 @@ import { formTokens } from "@/lib/designTokens";
 type IncomeFormProps = { state: FinanceDashboardState };
 
 export function IncomeForm({ state }: IncomeFormProps) {
-  const { editingItem, incomeSources, incomeType, handleIncomeTypeChange, incomeSource, handleIncomeSourceChange, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeCashReceived, setIncomeCashReceived, toNumber, incomeAmount, setIncomeAmount, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, closeAllForms, addIncome } = state;
+  const { editingItem, incomeSources, incomeType, handleIncomeTypeChange, incomeSource, handleIncomeSourceChange, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeCashReceived, setIncomeCashReceived, toNumber, incomeAmount, setIncomeAmount, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, closeAllForms, addIncome, currencySymbol } = state;
   const calculatedAmount = incomeType === "Hourly" ? toNumber(incomeRate) * toNumber(incomeHours) : toNumber(incomeAmount);
   const bankPortion = Math.max(0, calculatedAmount - toNumber(incomeCashReceived));
 
@@ -31,19 +32,19 @@ export function IncomeForm({ state }: IncomeFormProps) {
           {incomeType === "Hourly" ? (
             <InputGroup>
               <FormField label="Rate">
-                <input type="number" value={incomeRate} onChange={(event) => setIncomeRate(event.target.value)} className={formTokens.input} />
+                <CurrencyInput value={incomeRate} onChange={setIncomeRate} symbol={currencySymbol} placeholder="0.00" />
               </FormField>
               <FormField label="Hours">
-                <input type="number" value={incomeHours} onChange={(event) => setIncomeHours(event.target.value)} className={formTokens.input} />
+                <input type="text" inputMode="decimal" value={incomeHours} onChange={(event) => setIncomeHours(event.target.value.replace(/[^\d.]/g, ""))} className={formTokens.input} placeholder="0" />
               </FormField>
             </InputGroup>
           ) : (
             <FormField label="Amount">
-              <input type="number" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} className={formTokens.input} />
+              <CurrencyInput value={incomeAmount} onChange={setIncomeAmount} symbol={currencySymbol} placeholder="0.00" />
             </FormField>
           )}
           <FormField label="Cash received">
-            <input type="number" value={incomeCashReceived} onChange={(event) => setIncomeCashReceived(event.target.value)} className={formTokens.input} />
+            <CurrencyInput value={incomeCashReceived} onChange={setIncomeCashReceived} symbol={currencySymbol} placeholder="0.00" />
           </FormField>
           <InputGroup>
             <SummaryField label="Calculated Amount" value={`$${calculatedAmount.toLocaleString()}`} />
