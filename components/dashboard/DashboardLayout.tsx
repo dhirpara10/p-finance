@@ -1046,15 +1046,12 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
     <>
       {/* More drawer backdrop */}
       {drawerOpen && (
-        <div
-          className="fixed inset-0 z-40 md:hidden"
-          onClick={() => setDrawerOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setDrawerOpen(false)} />
       )}
 
       {/* More drawer */}
       {drawerOpen && (
-        <div className="fixed bottom-20 right-3 z-50 w-52 origin-bottom-right rounded-2xl border border-white/[0.09] bg-[#101318]/98 p-2 shadow-2xl backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-24 right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-white/[0.09] bg-[#101318]/98 p-2 shadow-2xl backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
           {overflowTabs.map((id) => {
             const tab = tabs.find((t) => t.id === id)!;
             const Icon = tab.icon;
@@ -1074,8 +1071,8 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
         </div>
       )}
 
-      {/* Bottom tab bar */}
-      <nav className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+      {/* Pill nav bar */}
+      <nav className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.08] bg-[#101318]/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl md:hidden">
         {primaryTabs.map((id) => {
           const tab = tabs.find((t) => t.id === id)!;
           const Icon = tab.icon;
@@ -1086,28 +1083,47 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
               type="button"
               onClick={() => handleSelect(id)}
               title={tab.label}
-              className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}
+              className={`flex h-10 items-center justify-center gap-2 rounded-full text-sm font-semibold transition-all duration-300
+                ${selected
+                  ? "bg-white px-4 text-neutral-950"
+                  : "w-10 text-neutral-500 hover:text-neutral-300"
+                }`}
             >
-              <Icon size={15} />
-              {selected && <span className="leading-none">{tab.mobileLabel}</span>}
+              <Icon size={18} strokeWidth={selected ? 2.2 : 1.8} />
+              {selected && (
+                <span className="animate-in fade-in slide-in-from-left-1 whitespace-nowrap text-[13px] duration-200">
+                  {tab.mobileLabel}
+                </span>
+              )}
             </button>
           );
         })}
 
-        {/* More button — white only when overflow tab is active; accent ring when drawer open */}
+        {/* More / hamburger */}
         <button
           type="button"
           onClick={() => setDrawerOpen((v) => !v)}
           title="More"
-          className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-medium transition
-            ${overflowActive ? "bg-white text-neutral-950" : drawerOpen ? "bg-white/[0.1] text-white ring-1 ring-white/20" : "text-neutral-500"}`}
+          className={`flex h-10 items-center justify-center rounded-full transition-all duration-300
+            ${overflowActive
+              ? "bg-white px-4 text-neutral-950"
+              : drawerOpen
+                ? "w-10 bg-white/[0.12] text-white"
+                : "w-10 text-neutral-500 hover:text-neutral-300"
+            }`}
         >
-          <div className="relative flex h-[15px] w-[15px] items-center justify-center">
-            <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-[3px]"}`} />
-            <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "opacity-0" : "top-1/2 -translate-y-1/2"}`} />
-            <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-[3px]"}`} />
-          </div>
-          {overflowActive && <span className="leading-none">More</span>}
+          {overflowActive ? (
+            <span className="flex items-center gap-2 text-[13px] font-semibold">
+              <Menu size={18} strokeWidth={2.2} />
+              More
+            </span>
+          ) : (
+            <div className="relative flex h-[16px] w-[16px] items-center justify-center">
+              <span className={`absolute block h-[1.5px] w-[14px] rounded-full bg-current transition-all duration-250 ${drawerOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-[3px]"}`} />
+              <span className={`absolute block h-[1.5px] w-[14px] rounded-full bg-current transition-all duration-250 ${drawerOpen ? "opacity-0 scale-x-0" : "top-1/2 -translate-y-1/2"}`} />
+              <span className={`absolute block h-[1.5px] w-[14px] rounded-full bg-current transition-all duration-250 ${drawerOpen ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-[3px]"}`} />
+            </div>
+          )}
         </button>
       </nav>
     </>
