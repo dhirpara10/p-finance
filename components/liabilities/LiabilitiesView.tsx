@@ -85,7 +85,7 @@ export function LiabilitiesView({ state }: Props) {
 
       <div className="no-scrollbar  flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-6">
         {summaries.map(([label, value, Icon, color]) => (
-          <article key={label} className="surface-card w-[78vw] shrink-0 snap-start rounded-2xl border border-white/[0.055] p-4 sm:w-auto">
+          <article key={label} className="surface-card w-[calc(100vw-32px)] shrink-0 snap-start rounded-2xl border border-white/[0.055] p-4 sm:w-auto">
             <Icon size={18} className={color} />
             <p className="mt-4 text-xs text-neutral-500">{label}</p>
             <p className={`mt-1 text-xl font-semibold ${color}`}>
@@ -193,7 +193,7 @@ function LiabilityCard({
       : 0;
 
   return (
-    <article className={`surface-card w-[84vw] shrink-0 snap-start rounded-3xl border border-white/[0.055] p-5 md:w-auto ${archived ? "opacity-70" : ""}`}>
+    <article className={`surface-card w-[calc(100vw-32px)] shrink-0 snap-start rounded-3xl border border-white/[0.055] p-5 md:w-auto ${archived ? "opacity-70" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold">{liability.name}</p>
