@@ -1094,20 +1094,20 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
           );
         })}
 
-        {/* More button */}
+        {/* More button — white only when overflow tab is active; accent ring when drawer open */}
         <button
           type="button"
           onClick={() => setDrawerOpen((v) => !v)}
           title="More"
-          className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-medium transition ${overflowActive || drawerOpen ? "bg-white text-neutral-950" : "text-neutral-500"}`}
+          className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-medium transition
+            ${overflowActive ? "bg-white text-neutral-950" : drawerOpen ? "bg-white/[0.1] text-white ring-1 ring-white/20" : "text-neutral-500"}`}
         >
           <div className="relative flex h-[15px] w-[15px] items-center justify-center">
-            {/* Animated hamburger → X */}
             <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-[3px]"}`} />
             <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "opacity-0" : "top-1/2 -translate-y-1/2"}`} />
             <span className={`absolute block h-[1.5px] w-[13px] rounded-full bg-current transition-all duration-200 ${drawerOpen ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-[3px]"}`} />
           </div>
-          {(overflowActive || drawerOpen) && <span className="leading-none">{drawerOpen ? "Close" : "More"}</span>}
+          {overflowActive && <span className="leading-none">More</span>}
         </button>
       </nav>
     </>
