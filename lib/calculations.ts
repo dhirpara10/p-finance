@@ -673,11 +673,13 @@
         remainingThisMonth: tracker.monthlyBudget - spentThisMonth,
         progress: getProgress(spentThisMonth, tracker.monthlyBudget),
         status:
-          spentThisMonth > tracker.monthlyBudget
-            ? "Overspent"
-            : spentThisMonth >= tracker.monthlyBudget * 0.8
-              ? "Near Limit"
-              : "On Track",
+          tracker.monthlyBudget === 0
+            ? "On Track"
+            : spentThisMonth > tracker.monthlyBudget
+              ? "Overspent"
+              : spentThisMonth >= tracker.monthlyBudget * 0.8
+                ? "Near Limit"
+                : "On Track",
         monthlyAllocation: monthlyAllocationForTracker(tracker),
       };
     });

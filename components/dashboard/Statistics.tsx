@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3 } from "lucide-react";
 
 type Props = { state: FinanceDashboardState };
 const categoryColors = ["#34d399", "#38bdf8", "#a78bfa", "#fb923c", "#f472b6", "#22d3ee"];
@@ -70,6 +71,8 @@ export function Statistics({ state }: Props) {
   } = state;
   const monthly = financialAnalytics.monthly;
   const categories = financialAnalytics.categories;
+  const hasData = monthly.some((m) => m.income > 0 || m.expenses > 0);
+  const hasCategories = categories.length > 0;
   const jarData = monthly.map((row, index) => ({
     month: row.month,
     allocation: row.jarInflow,
@@ -106,7 +109,7 @@ export function Statistics({ state }: Props) {
 
       <div className="grid gap-5 xl:grid-cols-12">
         <AnalyticsCard title="Net Worth Trend" subtitle="Cumulative financial movement" className="xl:col-span-7">
-          <ChartFrame height="h-80">
+          <ChartFrame height="h-80" empty={!hasData}>
             <AreaChart data={monthly} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
@@ -124,7 +127,7 @@ export function Statistics({ state }: Props) {
         </AnalyticsCard>
 
         <AnalyticsCard title="Category Mix" subtitle="Where spending concentrates" className="xl:col-span-5">
-          <ChartFrame height="h-80">
+          <ChartFrame height="h-80" empty={!hasCategories}>
             <PieChart>
               <Pie data={categories.length ? categories : [{ name: "No spending", value: 1 }]} dataKey="value" nameKey="name" innerRadius={70} outerRadius={104} paddingAngle={4} cornerRadius={6}>
                 {(categories.length ? categories : [{ name: "No spending", value: 1 }]).map((item, index) => (
@@ -138,7 +141,7 @@ export function Statistics({ state }: Props) {
         </AnalyticsCard>
 
         <AnalyticsCard title="Income vs Expense" subtitle="Cash flow by recorded month" className="xl:col-span-7">
-          <ChartFrame height="h-72">
+          <ChartFrame height="h-72" empty={!hasData}>
             <LineChart data={monthly} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
@@ -153,7 +156,7 @@ export function Statistics({ state }: Props) {
         </AnalyticsCard>
 
         <AnalyticsCard title="Monthly Spending" subtitle="Outgoing intensity over time" className="xl:col-span-5">
-          <ChartFrame height="h-72">
+          <ChartFrame height="h-72" empty={!hasData}>
             <BarChart data={monthly} margin={{ left: 0, right: 6, top: 8 }}>
               <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
@@ -233,15 +236,18 @@ export function Statistics({ state }: Props) {
   );
 }
 
-function ChartFrame({ height, children }: { height: string; children: ReactNode }) {
+function ChartFrame({ height, children, empty }: { height: string; children: ReactNode; empty?: boolean }) {
+  if (empty) {
+    return (
+      <div className={`${height} flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02]`}>
+        <BarChart3 size={24} className="text-neutral-700" />
+        <p className="text-sm text-neutral-600">No data yet</p>
+      </div>
+    );
+  }
   return (
     <div className={`min-h-px min-w-0 w-full ${height}`}>
-      <ResponsiveContainer
-        width="100%"
-        height="100%"
-        minWidth={0}
-        initialDimension={{ width: 640, height: 288 }}
-      >
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         {children as never}
       </ResponsiveContainer>
     </div>

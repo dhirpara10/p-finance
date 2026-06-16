@@ -15,6 +15,8 @@ import {
   saveSetting,
   updateSheetRecord,
 } from "@/lib/sheetsApi";
+import { toast } from "@/lib/toast";
+import { showConfirm } from "@/lib/confirm";
 import type {
   Liability,
   LiabilityChannel,
@@ -439,7 +441,7 @@ export function useLiabilities() {
   }
 
   async function deleteLiability(id: string) {
-    if (!window.confirm("Delete this liability and its repayment schedule?")) return;
+    if (!await showConfirm("Delete this liability and its repayment schedule?")) return;
     await deleteLiabilityNoConfirm(id);
   }
 
@@ -596,7 +598,7 @@ export function useLiabilities() {
     (item) => String(item.id) === String(schedule.liabilityId)
   );
 
-  const confirmed = confirm(
+  const confirmed = await showConfirm(
     schedule.status === "paid"
       ? "Delete this paid repayment? This will also add the repayment amount back to the liability outstanding balance."
       : "Delete this repayment schedule?"
@@ -641,7 +643,7 @@ export function useLiabilities() {
     setLiabilities(nextLiabilities);
   } catch (error: any) {
     console.error(error);
-    alert(error.message || "Failed to delete repayment schedule.");
+    toast(error.message || "Failed to delete repayment schedule.", "error");
   }
 }
 

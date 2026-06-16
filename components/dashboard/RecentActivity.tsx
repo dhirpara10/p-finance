@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
+import { toast } from "@/lib/toast";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 
 type RecentActivityProps = {
@@ -286,7 +287,7 @@ export function RecentActivity({
                           item.id === null ||
                           String(item.id).trim() === ""
                         ) {
-                          alert("Missing row id");
+                          toast("Missing row id", "error");
                           return;
                         }
 

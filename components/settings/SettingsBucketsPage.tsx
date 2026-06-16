@@ -7,6 +7,8 @@ import { Archive, Plus, Tags, Trash2 } from "lucide-react";
 import { categoryIdFromName, findDuplicateTrackerCategory, normalizeCategoryId } from "@/lib/buckets";
 import type { AllocationFrequency, BucketListTracker } from "@/lib/types";
 import { SelectField } from "@/components/forms/SelectField";
+import { toast } from "@/lib/toast";
+import { showConfirm } from "@/lib/confirm";
 
 type Props = { state: FinanceDashboardState };
 
@@ -34,7 +36,7 @@ function CategoryLinksEditor({
 
     const duplicate = findDuplicateTrackerCategory(state.bucketListTrackers, tracker.id, newIds);
     if (duplicate) {
-      alert(`A category is already linked to "${duplicate.owner.name}". Each category can only belong to one tracker.`);
+      toast(`A category is already linked to "${duplicate.owner.name}". Each category can only belong to one tracker.`, "error");
       return;
     }
 
@@ -164,19 +166,19 @@ export function SettingsBucketsPage({ state }: Props) {
   function toggleSavingsBucket(id: string, active: boolean) {
     const balance = state.savingsBucketBalances.find((bucket) => bucket.id === id)?.currentBalance || 0;
     if (!active && balance !== 0) {
-      alert("Withdraw this bucket's money before archiving it.");
+      toast("Withdraw this bucket's money before archiving it.", "error");
       return;
     }
     updateSavingsBucket(id, "active", active);
   }
 
-  function deleteSavingsBucket(id: string) {
+  async function deleteSavingsBucket(id: string) {
     const balance = state.savingsBucketBalances.find((b) => b.id === id)?.currentBalance || 0;
     if (balance !== 0) {
-      alert("Withdraw this bucket's money before deleting it.");
+      toast("Withdraw this bucket's money before deleting it.", "error");
       return;
     }
-    if (!window.confirm("Delete this savings bucket permanently?")) return;
+    if (!await showConfirm("Delete this savings bucket permanently?")) return;
     state.setSavingsBuckets(state.savingsBuckets.filter((b) => b.id !== id));
   }
 
@@ -185,15 +187,15 @@ export function SettingsBucketsPage({ state }: Props) {
     if (active && tracker) {
       const duplicate = findDuplicateTrackerCategory(state.bucketListTrackers, id, tracker.linkedCategoryIds);
       if (duplicate) {
-        alert(`Cannot restore this tracker because ${duplicate.owner.name} already uses one of its categories.`);
+        toast(`Cannot restore this tracker because ${duplicate.owner.name} already uses one of its categories.`, "error");
         return;
       }
     }
     updateTracker(id, "active", active);
   }
 
-  function deleteTracker(id: string) {
-    if (!window.confirm("Delete this tracker permanently?")) return;
+  async function deleteTracker(id: string) {
+    if (!await showConfirm("Delete this tracker permanently?")) return;
     state.setBucketListTrackers(state.bucketListTrackers.filter((t) => t.id !== id));
   }
 

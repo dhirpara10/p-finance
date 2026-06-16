@@ -95,7 +95,10 @@ export function DashboardLayout({ state }: Props) {
     state.clearBucketHistory();
     if (tab === "settings") {
       state.closeSettings();
-      state.navigateToSettingsPage("hub");
+      // Preserve the last visited settings page; only default to accounts on first open
+      if (!state.settingsPage || state.settingsPage === "hub") {
+        state.navigateToSettingsPage("accounts");
+      }
     } else {
       state.closeSettings();
     }
@@ -255,14 +258,15 @@ function DesktopNavigation({
             key={tab.id}
             type="button"
             onClick={() => onSelect(tab.id)}
-            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition ${
+            title={tab.label}
+            className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-medium transition lg:px-3 ${
               selected
                 ? "bg-white text-neutral-950 shadow-sm"
                 : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
             }`}
           >
             <Icon size={17} />
-            {tab.label}
+            <span className="hidden lg:inline">{tab.label}</span>
           </button>
         );
       })}
@@ -1002,15 +1006,8 @@ function SettingsWorkspace({ state }: Props) {
         </nav>
       </aside>
       <div className="no-scrollbar min-w-0">
-        {state.settingsPage === "hub" || !state.settingsPage ? (
-          <>
-            <div className="lg:hidden">
-              <SettingsHub state={state} />
-            </div>
-            <div className="hidden lg:block">
-              <SettingsAccountsPage state={state} />
-            </div>
-          </>
+        {(!state.settingsPage || state.settingsPage === "hub") ? (
+          <SettingsHub state={state} />
         ) : (
           <SettingsRouter state={state} />
         )}
@@ -1035,14 +1032,20 @@ function SettingsRouter({ state }: Props) {
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-7 rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/[0.07] bg-[#101318]/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
         return (
-          <button key={tab.id} type="button" onClick={() => onSelect(tab.id)} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}>
-            <Icon size={16} />
-            {tab.mobileLabel}
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onSelect(tab.id)}
+            title={tab.label}
+            className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl text-[9px] font-medium transition ${selected ? "bg-white text-neutral-950" : "text-neutral-500"}`}
+          >
+            <Icon size={15} />
+            {selected && <span className="leading-none">{tab.mobileLabel}</span>}
           </button>
         );
       })}

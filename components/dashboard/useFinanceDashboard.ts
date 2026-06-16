@@ -8,6 +8,8 @@ import { defaultLiabilityChannels } from "@/lib/liabilities";
 import { createSheetRecord,updateSheetRecord,addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow, resetAllData as apiResetAllData } from "@/lib/sheetsApi";
 import type { ActivityLog, AppNotification, AppUser, Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, ExpensePaymentMethod, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
 import { useLiabilities } from "@/components/liabilities/useLiabilities";
+import { toast } from "@/lib/toast";
+import { showConfirm } from "@/lib/confirm";
 
 
 
@@ -1090,7 +1092,7 @@ function isValidTransferRow(item: Transfer) {
       .filter((source) => source.name);
 
     if (!cleanIncomeSources.length) {
-      alert("Add at least one income source.");
+      toast("Add at least one income source.", "error");
       return;
     }
 
@@ -1119,7 +1121,7 @@ function isValidTransferRow(item: Transfer) {
 
     if (newPasscode.trim()) {
       if (newPasscode.length < 4) {
-        alert("Passcode must be at least 4 digits.");
+        toast("Passcode must be at least 4 digits.", "error");
         return;
       }
 
@@ -1130,7 +1132,7 @@ function isValidTransferRow(item: Transfer) {
 
     if (newSpousePasscode.trim()) {
       if (newSpousePasscode.length < 4) {
-        alert("Partner passcode must be at least 4 digits.");
+        toast("Partner passcode must be at least 4 digits.", "error");
         return;
       }
       setSpousePasscode(newSpousePasscode);
@@ -1183,27 +1185,27 @@ async function addIncome() {
   const cashReceived = Number(incomeCashReceived || 0);
 
   if (!cleanSource) {
-    alert("Select an income source.");
+    toast("Select an income source.", "error");
     return;
   }
 
   if (!cleanDate) {
-    alert("Select a date.");
+    toast("Select a date.", "error");
     return;
   }
 
   if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
-    alert("Enter a valid income amount.");
+    toast("Enter a valid income amount.", "error");
     return;
   }
 
   if (!Number.isFinite(cashReceived) || cashReceived < 0) {
-    alert("Cash received cannot be negative.");
+    toast("Cash received cannot be negative.", "error");
     return;
   }
 
   if (cashReceived > totalAmount) {
-    alert("Cash received cannot be more than total income.");
+    toast("Cash received cannot be more than total income.", "error");
     return;
   }
 
@@ -1230,7 +1232,7 @@ async function addIncome() {
   console.log("SAVED INCOME RESULT", saved);
 
   if (!saved) {
-    alert("Income was not saved to database.");
+    toast("Income was not saved to database.", "error");
     return;
   }
 
@@ -1260,7 +1262,7 @@ function blockNegativeCash(amount: number, previousAmount = 0) {
   const availableCash = getEditableCashBalance(previousAmount);
 
   if (amount > availableCash) {
-    alert("Not enough cash balance.");
+    toast("Not enough cash balance.", "error");
     return true;
   }
 
@@ -1285,7 +1287,7 @@ function blockNegativeAccountBalance(
   const available = getAvailableAccountBalance(account, previousAmount);
 
   if (amount > available) {
-    alert(`Not enough ${account} balance.`);
+    toast(`Not enough ${account} balance.`, "error");
     return true;
   }
 
@@ -1316,7 +1318,7 @@ function blockNegativeAccountBalance(
       const minSplit = channel.minimumSplitAmount ?? 0;
       if (minSplit > 0 && amount < minSplit) {
         if ((channel.underMinimumBehaviour ?? "block") === "block") {
-          alert(`${channel.name} split repayment is only available for purchases of $${minSplit} or more.`);
+          toast(`${channel.name} split repayment is only available for purchases of $${minSplit} or more.`, "error");
           return;
         }
         // else single_deduction — allow, handled in createLiabilityFromExpense
@@ -1328,7 +1330,7 @@ function blockNegativeAccountBalance(
         const linkedAccount = channel.linkedRepaymentAccount ?? "Bank";
         const availableBalance = linkedAccount === "Cash" ? dashboardValues.cashBalance : dashboardValues.bankBalance;
         if (firstInstallment > availableBalance) {
-          alert(`Not enough ${linkedAccount} balance for the first repayment of $${firstInstallment.toFixed(2)} due today.`);
+          toast(`Not enough ${linkedAccount} balance for the first repayment of $${firstInstallment.toFixed(2)} due today.`, "error");
           return;
         }
       }
@@ -1462,7 +1464,7 @@ function blockNegativeAccountBalance(
         }
       } catch (err: any) {
         console.error("[addExpense] Failed to auto-create liability:", err);
-        alert(`Expense saved, but liability creation failed: ${err?.message || "unknown error"}`);
+        toast(`Expense saved, but liability creation failed: ${err?.message || "unknown error"}`, "error");
       }
     } else {
       console.warn("[addExpense] No enabled channel found for", expensePaymentMethod, "- skipping liability creation");
@@ -1483,7 +1485,7 @@ async function addTransfer() {
   if (!amount || amount <= 0) return;
 
   if (fromBucket === toBucket) {
-    alert("From and To bucket cannot be same.");
+    toast("From and To bucket cannot be same.", "error");
     return;
   }
 
@@ -1521,11 +1523,12 @@ async function addTransfer() {
       : 0);
 
   if (amount > availableBalance) {
-    alert(
+    toast(
       `Only ${currencySymbolFor(currency)}${availableBalance.toLocaleString()} is available in ${getBucketLabel(
         fromBucket,
         savingsBuckets
-      )}.`
+      )}.`,
+      "error"
     );
     return;
   }
@@ -1584,7 +1587,7 @@ async function addTransfer() {
     const cleanedPhone = phone.trim();
 
     if (!cleanedName) {
-      alert("Person name is required.");
+      toast("Person name is required.", "error");
       return null;
     }
 
@@ -1649,17 +1652,17 @@ async function addTransfer() {
   const personId = getPersonId(person);
 
   if (!personId) {
-    alert("Person profile is missing an id.");
+    toast("Person profile is missing an id.", "error");
     return null;
   }
 
   if (!validTypes.includes(type)) {
-    alert("Invalid lending transaction type.");
+    toast("Invalid lending transaction type.", "error");
     return null;
   }
 
   if (!amount || amount <= 0) {
-    alert("Amount must be greater than 0.");
+    toast("Amount must be greater than 0.", "error");
     return null;
   }
 
@@ -1690,7 +1693,7 @@ async function addTransfer() {
   const amount = Number(moneyAmount);
 
   if (!amount || amount <= 0) {
-    alert("Amount must be greater than 0.");
+    toast("Amount must be greater than 0.", "error");
     return;
   }
 
@@ -1710,14 +1713,14 @@ async function addTransfer() {
       person = getSelectedPerson();
 
       if (!getPersonId(person)) {
-        alert("Select an existing person profile.");
+        toast("Select an existing person profile.", "error");
         return;
       }
     } else {
       const existing = findPersonByName(people, moneyName);
 
       if (existing) {
-        alert("This person already exists. Select existing profile instead.");
+        toast("This person already exists. Select existing profile instead.", "error");
         return;
       }
 
@@ -1745,7 +1748,7 @@ async function addTransfer() {
     setShowBorrowedForm(false);
   } catch (error: any) {
     console.error(error);
-    alert(error.message || "Failed to save lending transaction.");
+    toast(error.message || "Failed to save lending transaction.", "error");
   }
 }
 
@@ -1760,8 +1763,8 @@ async function addTransfer() {
   async function addRemittance() {
     const aud = toNumber(remittanceAudAmount);
     const rate = toNumber(remittanceExchangeRate);
-    if (!aud || aud <= 0) { alert("Enter a valid AUD amount."); return; }
-    if (!rate || rate <= 0) { alert("Enter a valid exchange rate."); return; }
+    if (!aud || aud <= 0) { toast("Enter a valid AUD amount.", "error"); return; }
+    if (!rate || rate <= 0) { toast("Enter a valid exchange rate.", "error"); return; }
     const inr = parseFloat((aud * rate).toFixed(2));
     const id = Date.now();
     const record: Remittance = {
@@ -1810,7 +1813,7 @@ async function addTransfer() {
   const openBalance = Math.abs(profile.netBalance);
 
   if (openBalance > 0 && amount > openBalance) {
-    alert("Settlement amount cannot be more than the open balance.");
+    toast("Settlement amount cannot be more than the open balance.", "error");
     return;
   }
 
@@ -1841,7 +1844,7 @@ async function addTransfer() {
 }
 
   async function deleteSettlement(id: string | number) {
-    if (!window.confirm("Delete this settlement?")) return;
+    if (!await showConfirm("Delete this settlement?")) return;
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
@@ -1850,7 +1853,7 @@ async function addTransfer() {
   }
 
   async function deleteLendingTransaction(id: string | number) {
-    if (!window.confirm("Delete this lending transaction?")) return;
+    if (!await showConfirm("Delete this lending transaction?")) return;
     const deleted = await deleteFromSheet("LendingTransactions", id);
     if (!deleted) return;
     setLendingTransactions(
@@ -1859,7 +1862,7 @@ async function addTransfer() {
   }
 
   async function deleteIncome(id: string | number) {
-    if (!window.confirm("Delete this income transaction?")) return;
+    if (!await showConfirm("Delete this income transaction?")) return;
     const deleted = await deleteFromSheet("income", id);
     if (!deleted) return;
     setIncomes(incomes.filter((item) => String(item.id) !== String(id)));
@@ -1872,7 +1875,7 @@ async function addTransfer() {
     const confirmMsg = hasLinkedLiability
       ? "Delete this expense and its linked BNPL liability + repayment schedule?"
       : "Delete this expense transaction?";
-    if (!window.confirm(confirmMsg)) return;
+    if (!await showConfirm(confirmMsg)) return;
     const deleted = await deleteFromSheet("expenses", id);
     if (!deleted) return;
     setExpenses(expenses.filter((item) => String(item.id) !== String(id)));
@@ -1887,7 +1890,7 @@ async function addTransfer() {
     const confirmMsg = linkedExpense
       ? "Delete this liability, its repayment schedule, and the linked expense?"
       : "Delete this liability and its repayment schedule?";
-    if (!window.confirm(confirmMsg)) return;
+    if (!await showConfirm(confirmMsg)) return;
     if (linkedExpense) {
       await deleteFromSheet("expenses", linkedExpense.id);
       setExpenses((prev) => prev.filter((e) => String(e.id) !== String(linkedExpense.id)));
@@ -1896,7 +1899,7 @@ async function addTransfer() {
   }
 
   async function deleteTransfer(id: string | number) {
-    if (!window.confirm("Delete this transfer?")) return;
+    if (!await showConfirm("Delete this transfer?")) return;
     const deleted = await deleteFromSheet("transfers", id);
     if (!deleted) return;
     setTransfers(transfers.filter((item) => String(item.id) !== String(id)));
@@ -1904,14 +1907,14 @@ async function addTransfer() {
   }
 
   async function deleteLent(id: string | number) {
-    if (!window.confirm("Delete this legacy lending record?")) return;
+    if (!await showConfirm("Delete this legacy lending record?")) return;
     const deleted = await deleteFromSheet("lent", id);
     if (!deleted) return;
     setLentRecords(lentRecords.filter((item) => String(item.id) !== String(id)));
   }
 
   async function deleteBorrowed(id: string | number) {
-    if (!window.confirm("Delete this legacy borrowing record?")) return;
+    if (!await showConfirm("Delete this legacy borrowing record?")) return;
     const deleted = await deleteFromSheet("borrowed", id);
     if (!deleted) return;
     setBorrowedRecords(
@@ -2057,7 +2060,7 @@ async function addTransfer() {
     );
 
     if (alreadyExists) {
-      alert("Category already exists.");
+      toast("Category already exists.", "error");
       return;
     }
 
@@ -2116,7 +2119,7 @@ async function addTransfer() {
     try {
       await apiResetAllData();
     } catch (err: any) {
-      alert(`Reset failed: ${err?.message || "Supabase delete error. Check console."}`);
+      toast(`Reset failed: ${err?.message || "Supabase delete error. Check console."}`, "error");
       console.error("[Reset] API delete failed:", err);
       throw err;
     }
@@ -2166,8 +2169,9 @@ async function addTransfer() {
     );
 
     if (duplicate) {
-      alert(
-        `This category is already linked to ${duplicate.owner.name}. Remove it there first.`
+      toast(
+        `This category is already linked to ${duplicate.owner.name}. Remove it there first.`,
+        "error"
       );
       return;
     }

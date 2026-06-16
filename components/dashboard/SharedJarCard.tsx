@@ -78,7 +78,7 @@ export function SharedJarCard({
           )}
         </div>
 
-        <div className="flex items-center gap-4 md:flex-col">
+        <div className="flex items-center justify-center">
           <div className="relative h-28 w-28 shrink-0">
             <svg viewBox="0 0 120 120" className="-rotate-90">
               <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="9" />
@@ -112,17 +112,17 @@ export function SharedJarCard({
               <span className="text-[10px] uppercase text-neutral-500">used</span>
             </div>
           </div>
-          {onAllocate && (
-            <button
-              type="button"
-              onClick={onAllocate}
-              className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-purple-100"
-            >
-              Add allocation
-            </button>
-          )}
         </div>
       </div>
+      {onAllocate && (
+        <button
+          type="button"
+          onClick={onAllocate}
+          className="mt-5 w-full rounded-xl border border-purple-400/20 bg-purple-400/10 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-purple-400/20 hover:border-purple-400/30"
+        >
+          + Add allocation
+        </button>
+      )}
     </section>
   );
 }

@@ -45,7 +45,7 @@ async function callSheetsApi(body: object) {
     await parseJsonResponse(res);
     return true;
   } catch (error: any) {
-    alert(error.message || "Google Sheets request failed.");
+    import("@/lib/toast").then(({ toast }) => toast(error.message || "Google Sheets request failed.", "error"));
     return false;
   }
 }
@@ -121,7 +121,7 @@ async function postSheetsApi<T>(body: object): Promise<T | null> {
     return payload as T;
   } catch (error: any) {
     console.error("[sheetsApi] request failed", error);
-    alert(error.message || "Google Sheets request failed.");
+    import("@/lib/toast").then(({ toast }) => toast(error.message || "Google Sheets request failed.", "error"));
     return null;
   }
 }
