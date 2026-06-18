@@ -26,6 +26,8 @@
 html {
   background: var(--background);
   scrollbar-width: none;
+  /* Prevent rubber-band scroll exposing the nav bar position */
+  overscroll-behavior: none;
 }
 
 body {
@@ -36,6 +38,25 @@ body {
   text-rendering: optimizeLegibility;
   -ms-overflow-style: none;
   scrollbar-width: none;
+  overscroll-behavior: none;
+}
+
+/* Safe-area bottom helpers used by the pill nav and FAB */
+.safe-bottom-nav {
+  bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
+}
+
+.safe-bottom-fab {
+  bottom: max(112px, calc(112px + env(safe-area-inset-bottom)));
+}
+
+.safe-bottom-drawer {
+  bottom: max(96px, calc(96px + env(safe-area-inset-bottom)));
+}
+
+/* Main content padding so nothing hides behind the nav */
+.page-bottom-clearance {
+  padding-bottom: max(144px, calc(144px + env(safe-area-inset-bottom)));
 }
 
 html::-webkit-scrollbar,

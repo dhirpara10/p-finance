@@ -95,10 +95,7 @@ export function DashboardLayout({ state }: Props) {
     state.clearBucketHistory();
     if (tab === "settings") {
       state.closeSettings();
-      // Preserve the last visited settings page; only default to accounts on first open
-      if (!state.settingsPage || state.settingsPage === "hub") {
-        state.navigateToSettingsPage("accounts");
-      }
+      state.navigateToSettingsPage("hub");
     } else {
       state.closeSettings();
     }
@@ -111,7 +108,7 @@ export function DashboardLayout({ state }: Props) {
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#080a0d] pb-36 text-white md:pb-8">
+    <main className="page-bottom-clearance min-h-screen overflow-x-clip bg-[#080a0d] text-white md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
         <AppHeader state={state} onOpenSettings={() => selectTab("settings")} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
@@ -1053,7 +1050,7 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
 
       {/* More drawer */}
       {drawerOpen && (
-        <div className="fixed bottom-24 right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-white/[0.09] bg-[#101318]/98 p-2 shadow-2xl backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="safe-bottom-drawer fixed right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-white/[0.09] bg-[#101318]/98 p-2 shadow-2xl backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
           {overflowTabs.map((id) => {
             const tab = tabs.find((t) => t.id === id)!;
             const Icon = tab.icon;
@@ -1074,7 +1071,7 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
       )}
 
       {/* Pill nav bar */}
-      <nav className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.08] bg-[#101318]/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl md:hidden">
+      <nav className="safe-bottom-nav fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.08] bg-[#101318]/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl md:hidden">
         {primaryTabs.map((id) => {
           const tab = tabs.find((t) => t.id === id)!;
           const Icon = tab.icon;

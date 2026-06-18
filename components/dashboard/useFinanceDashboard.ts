@@ -794,10 +794,14 @@ function isValidTransferRow(item: Transfer) {
       toNumber(getSettingValue(settings, "remittance_goal", "0"))
     );
 
-    const loadedSavingsBuckets = parseJsonArray<SavingsBucket>(
-      getSettingValue(settings, "savings_buckets", "[]"),
-      []
-    );
+    // Use a sentinel to distinguish "key was never saved" from "key was saved as []"
+    const UNSET = "\x00";
+
+    const rawBucketsStr = getSettingValue(settings, "savings_buckets", UNSET);
+    const bucketsEverSaved = rawBucketsStr !== UNSET;
+    const loadedSavingsBuckets = bucketsEverSaved
+      ? parseJsonArray<SavingsBucket>(rawBucketsStr, [])
+      : null;
 
     const legacyEmergencyGoal = toNumber(
       getSettingValue(settings, "emergency_goal", "0")
@@ -812,33 +816,29 @@ function isValidTransferRow(item: Transfer) {
     );
 
     setSavingsBuckets(
-      loadedSavingsBuckets.length
+      loadedSavingsBuckets !== null
         ? normalizeSavingsBuckets(loadedSavingsBuckets)
         : defaultSavingsBuckets.map((bucket) => {
             if (bucket.id === "savings_emergency_fund") {
               return { ...bucket, targetAmount: legacyEmergencyGoal };
             }
-
             if (bucket.id === "savings_debt_collection") {
               return { ...bucket, targetAmount: legacyDebtGoal };
             }
-
             if (bucket.id === "savings_remittance") {
               return { ...bucket, targetAmount: legacyRemittanceGoal };
             }
-
             return bucket;
           })
     );
 
-    setBucketListTrackers(
-      normalizeTrackerLinks(
-        parseJsonArray<BucketListTracker>(
-          getSettingValue(settings, "bucket_list_trackers", "[]"),
-          defaultBucketListTrackers
-        )
-      )
-    );
+    const rawTrackersStr = getSettingValue(settings, "bucket_list_trackers", UNSET);
+    const trackersEverSaved = rawTrackersStr !== UNSET;
+    const loadedTrackers = trackersEverSaved
+      ? parseJsonArray<BucketListTracker>(rawTrackersStr, [])
+      : defaultBucketListTrackers;
+
+    setBucketListTrackers(normalizeTrackerLinks(loadedTrackers));
 
     setSharedRolloverJarBalance(
       toNumber(getSettingValue(settings, "shared_rollover_jar_balance", "0"))
