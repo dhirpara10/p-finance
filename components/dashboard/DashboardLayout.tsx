@@ -1033,8 +1033,8 @@ function SettingsRouter({ state }: Props) {
   return <SettingsHub state={state} />;
 }
 
-const primaryTabs: NavTab[] = ["home", "buckets", "liabilities", "activity", "stats"];
-const overflowTabs: NavTab[] = ["remittance", "vault", "logs"];
+const primaryTabs: NavTab[] = ["home", "vault", "liabilities", "activity", "stats"];
+const overflowTabs: NavTab[] = ["buckets", "remittance", "logs"];
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
