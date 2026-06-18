@@ -35,7 +35,7 @@ function headStyles() {
   return {
     fillColor: HEADER_BG,
     textColor: TEXT_LIGHT,
-    fontStyle: "bold",
+    fontStyle: "bold" as const,
     fontSize: 8,
   };
 }
@@ -61,9 +61,11 @@ function findPersonName(id: unknown, people: { id: string | number; name: string
 }
 
 export async function generatePDF(data: ReportData, state: FinanceDashboardState): Promise<void> {
-  // Dynamic imports to avoid SSR issues
-  const { jsPDF } = await import("jspdf");
-  await import("jspdf-autotable");
+  // Import both together so autoTable patches the same jsPDF prototype instance
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
 
   const {
     range,
@@ -106,7 +108,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
   }
 
   function ensureSpace(needed: number): number {
-    const lastY = doc.lastAutoTable?.finalY ?? 20;
+    const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 20;
     if (lastY + needed > PAGE_H - 20) {
       doc.addPage();
       return 20;
@@ -157,7 +159,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
   let y = 20;
   y = sectionTitle("Financial Summary", y);
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [["Metric", "Value"]],
     body: [
       ["Bank Balance", fmt(bankBalance, sym)],
@@ -182,7 +184,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
   if (monthly.length > 0) {
     y = ensureSpace(30);
     y = sectionTitle("Monthly Income vs Expenses", y);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Month", "Income", "Expenses", "Net"]],
       body: monthly.map((m) => [
         m.month,
@@ -204,7 +206,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
   if (categories.length > 0) {
     y = ensureSpace(30);
     y = sectionTitle("Category Spending", y);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Category", "Amount"]],
       body: categories.map((c) => [c.name, fmt(c.value, sym)]),
       startY: y,
@@ -223,7 +225,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle(`Income (${range.label})`, 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Date", "Type", "Source", "Amount", "Bank", "Cash", "Added By"]],
       body: filteredIncomes.map((i) => [
         i.date,
@@ -250,7 +252,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle(`Expenses (${range.label})`, 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Date", "Category", "Amount", "Account", "Method", "Recurring", "Notes"]],
       body: filteredExpenses.map((e) => [
         e.date,
@@ -278,7 +280,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle(`Transfers (${range.label})`, 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Date", "From", "To", "Amount", "Notes"]],
       body: filteredTransfers.map((t) => [
         t.date,
@@ -303,7 +305,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle(`Lending / Borrowing (${range.label})`, 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Date", "Person", "Type", "Amount", "Account", "Affects Balance", "Notes"]],
       body: filteredLending.map((l) => [
         l.date,
@@ -329,7 +331,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle("Liabilities (Full Snapshot)", 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Name", "Type", "Provider", "Original", "Outstanding", "Status"]],
       body: liabilities.map((l) => [
         l.name,
@@ -354,7 +356,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle("Savings Buckets (Full Snapshot)", 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Name", "Storage Label", "Balance", "Target", "Progress"]],
       body: savingsBuckets.map((b) => {
         const pct = b.targetAmount > 0
@@ -377,7 +379,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle("Asset Vault (Full Snapshot)", 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Title", "Type", "Location Tags", "Date"]],
       body: assets.map((a) => {
         const tagNames = a.locationTagIds
@@ -401,7 +403,7 @@ export async function generatePDF(data: ReportData, state: FinanceDashboardState
     doc.setFillColor(...HEADER_BG);
     doc.rect(0, 0, PAGE_W, PAGE_H, "F");
     y = sectionTitle("Dreams & Goals (Full Snapshot)", 20);
-    doc.autoTable({
+    autoTable(doc, {
       head: [["Title", "Category", "Target Date", "Days Left", "Status"]],
       body: goals.map((g) => {
         const daysLeft = g.targetDate ? getDaysLeft(g.targetDate) : null;
