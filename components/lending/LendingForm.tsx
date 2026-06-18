@@ -16,7 +16,7 @@ import { formTokens } from "@/lib/designTokens";
 type LendingFormProps = { state: FinanceDashboardState };
 
 export function LendingForm({ state }: LendingFormProps) {
-  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, closeAllForms, addLent, addBorrowed, currencySymbol } = state;
+  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, closeAllForms, addLent, addBorrowed, currencySymbol } = state;
   const searchQuery = normalizePersonName(personSearch);
   const filteredPeople = people.filter((person) => searchQuery && (normalizePersonName(person.name).includes(searchQuery) || normalizePersonName(person.phone || "").includes(searchQuery)));
   const selectedPerson = people.find((person) => String(person.id) === String(selectedPersonId));
@@ -86,12 +86,20 @@ export function LendingForm({ state }: LendingFormProps) {
             <CurrencyInput value={moneyAmount} onChange={setMoneyAmount} symbol={currencySymbol} placeholder="0.00" />
           </FormField>
           <SelectField label="Account" value={moneyAccount} onChange={(event) => setMoneyAccount(event.target.value === "Cash" ? "Cash" : "Bank")} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
-          {!showLentForm && (
+          {showLentForm ? (
+            <label className="flex items-start gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
+              <input type="checkbox" checked={lentAffectsAccountBalance} onChange={(event) => setLentAffectsAccountBalance(event.target.checked)} className="mt-1 h-4 w-4" />
+              <span>
+                <span className="block font-semibold text-white">Deduct from my balance</span>
+                <span className="mt-1 block text-xs text-neutral-500">Leave unchecked for money already lent before using this app.</span>
+              </span>
+            </label>
+          ) : (
             <label className="flex items-start gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
               <input type="checkbox" checked={borrowedAffectsAccountBalance} onChange={(event) => setBorrowedAffectsAccountBalance(event.target.checked)} className="mt-1 h-4 w-4" />
               <span>
                 <span className="block font-semibold text-white">Add this money to my balance</span>
-                <span className="mt-1 block text-xs text-neutral-500">Leave unchecked for money already spent before this app.</span>
+                <span className="mt-1 block text-xs text-neutral-500">Leave unchecked for money already received before this app.</span>
               </span>
             </label>
           )}

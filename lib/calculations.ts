@@ -482,10 +482,10 @@
     const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
     const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
     const lentFromBank = lendingTransactions
-      .filter((item) => item.type === "lent" && item.account !== "Cash")
+      .filter((item) => item.type === "lent" && item.affectsAccountBalance && item.account !== "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
     const lentFromCash = lendingTransactions
-      .filter((item) => item.type === "lent" && item.account === "Cash")
+      .filter((item) => item.type === "lent" && item.affectsAccountBalance && item.account === "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
     const borrowedToBank = lendingTransactions
       .filter(
