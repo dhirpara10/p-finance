@@ -2,6 +2,7 @@
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ReportsSection } from "@/components/stats/ReportsSection";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import {
@@ -98,6 +99,7 @@ export function Statistics({ state }: Props) {
 
   return (
     <div className="space-y-6">
+      <ReportsSection state={state} />
       <PageHeader
         title="Stats & Analytics"
         description="Trends and behavior without spreadsheet noise."
