@@ -38,10 +38,12 @@ import {
   Settings,
   TrendingDown,
   TrendingUp,
+  Sparkles,
   Wallet,
   X,
 } from "lucide-react";
 import { AssetVaultView } from "@/components/vault/AssetVaultView";
+import { GoalsView } from "@/components/goals/GoalsView";
 import { SettingsAccountsPage } from "@/components/settings/SettingsAccountsPage";
 import { SettingsAppearancePage } from "@/components/settings/SettingsAppearancePage";
 import { SettingsBucketHistoryPage } from "@/components/settings/SettingsBucketHistoryPage";
@@ -59,7 +61,7 @@ import { RemittanceView } from "@/components/remittance/RemittanceView";
 import { LogsView } from "@/components/logs/LogsView";
 
 type Props = { state: FinanceDashboardState };
-type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs" | "vault";
+type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs" | "vault" | "goals";
 type NavTab = Exclude<Tab, "settings">;
 type BucketHistory = { type: "savings" | "tracker"; id: string } | null;
 
@@ -72,6 +74,7 @@ const tabs: { id: NavTab; label: string; mobileLabel: string; icon: React.Elemen
   { id: "stats", label: "Stats", mobileLabel: "Stats", icon: BarChart3 },
   { id: "vault", label: "Asset Vault", mobileLabel: "Vault", icon: Archive },
   { id: "logs", label: "Logs", mobileLabel: "Logs", icon: ScrollText },
+  { id: "goals", label: "Goals", mobileLabel: "Goals", icon: Sparkles },
 ];
 
 export function DashboardLayout({ state }: Props) {
@@ -159,6 +162,7 @@ export function DashboardLayout({ state }: Props) {
           {activeTab === "remittance" && <RemittanceView state={state} />}
           {activeTab === "stats" && <Statistics state={state} />}
           {activeTab === "vault" && <AssetVaultView />}
+          {activeTab === "goals" && <GoalsView />}
           {activeTab === "logs" && <LogsView state={state} />}
           {activeTab === "settings" && <SettingsWorkspace state={state} />}
         </div>
@@ -252,7 +256,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-8 rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid">
+    <nav className="mt-7 hidden grid-cols-9 rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -1034,7 +1038,7 @@ function SettingsRouter({ state }: Props) {
 }
 
 const primaryTabs: NavTab[] = ["home", "vault", "liabilities", "activity", "stats"];
-const overflowTabs: NavTab[] = ["buckets", "remittance", "logs"];
+const overflowTabs: NavTab[] = ["buckets", "remittance", "goals", "logs"];
 
 function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
