@@ -81,7 +81,7 @@ export function SharedJarCard({
         <div className="flex items-center justify-center">
           <div className="relative h-28 w-28 shrink-0">
             <svg viewBox="0 0 120 120" className="-rotate-90">
-              <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="9" />
+              <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(128,128,128,.15)" strokeWidth="9" />
               <motion.circle
                 cx="60"
                 cy="60"
@@ -141,7 +141,7 @@ function JarMetric({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-black/20 p-3 ${className}`}>
+    <div className={`min-w-0 rounded-2xl border border-black/[0.08] bg-black/[0.08] p-3 dark:border-white/[0.06] dark:bg-black/20 ${className}`}>
       <Icon size={14} className={tone} />
       <p className="mt-3 text-[11px] text-neutral-500">{label}</p>
       <p className={`mt-1 break-words text-sm font-semibold ${tone}`}>{value}</p>

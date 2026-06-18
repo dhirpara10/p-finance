@@ -57,7 +57,7 @@ function CategoryLinksEditor({
               className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
                 linked
                   ? "border-purple-400/30 bg-purple-500/15 text-purple-200"
-                  : "border-white/[0.06] bg-white/[0.025] text-neutral-400 hover:border-white/[0.1] hover:text-neutral-200"
+                  : "border-black/[0.08] bg-black/[0.05] text-neutral-600 hover:border-black/[0.12] hover:text-neutral-800 dark:border-white/[0.06] dark:bg-white/[0.025] dark:text-neutral-400 dark:hover:border-white/[0.1] dark:hover:text-neutral-200"
               }`}
             >
               <input
@@ -219,15 +219,15 @@ export function SettingsBucketsPage({ state }: Props) {
           Real money containers funded through transfers. Funding reduces usable balance while net worth stays unchanged.
         </p>
         <div className="flex gap-2">
-          <input value={newSavingsName} onChange={(event) => setNewSavingsName(event.target.value)} placeholder="New savings bucket" className="min-w-0 flex-1 rounded-2xl bg-neutral-800 p-4 outline-none" />
+          <input value={newSavingsName} onChange={(event) => setNewSavingsName(event.target.value)} placeholder="New savings bucket" className="min-w-0 flex-1 rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
           <button type="button" onClick={addSavingsBucket} className="flex items-center gap-2 rounded-2xl bg-blue-500 px-4 font-semibold text-black"><Plus size={18}/> Add</button>
         </div>
         {state.savingsBuckets.map((bucket) => (
-          <div key={bucket.id} className={`rounded-2xl bg-neutral-950 p-4 ${bucket.active ? "" : "opacity-60"}`}>
+          <div key={bucket.id} className={`rounded-2xl bg-neutral-100 p-4 dark:bg-neutral-950 ${bucket.active ? "" : "opacity-60"}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300">Real money</span>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => toggleSavingsBucket(bucket.id, !bucket.active)} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-200">
+                <button type="button" onClick={() => toggleSavingsBucket(bucket.id, !bucket.active)} className="flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200">
                   <Archive size={14}/>{bucket.active ? "Archive" : "Restore"}
                 </button>
                 <button type="button" onClick={() => deleteSavingsBucket(bucket.id)} className="flex items-center gap-1 text-xs text-neutral-500 hover:text-red-300">
@@ -236,15 +236,15 @@ export function SettingsBucketsPage({ state }: Props) {
               </div>
             </div>
             <Field label="Name">
-              <input value={bucket.name} onChange={(event) => updateSavingsBucket(bucket.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input value={bucket.name} onChange={(event) => updateSavingsBucket(bucket.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
             </Field>
             <Field label="Target amount">
-              <input type="number" value={String(bucket.targetAmount)} onChange={(event) => updateSavingsBucket(bucket.id, "targetAmount", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input type="number" value={String(bucket.targetAmount)} onChange={(event) => updateSavingsBucket(bucket.id, "targetAmount", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
             </Field>
             <Field label="Storage label">
-              <input value={bucket.linkedStorageLabel} onChange={(event) => updateSavingsBucket(bucket.id, "linkedStorageLabel", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input value={bucket.linkedStorageLabel} onChange={(event) => updateSavingsBucket(bucket.id, "linkedStorageLabel", event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
             </Field>
-            <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "savings", id: bucket.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-800 p-3 text-sm font-semibold text-blue-200">View History</button>
+            <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "savings", id: bucket.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-200 p-3 text-sm font-semibold text-blue-600 dark:bg-neutral-800 dark:text-blue-200">View History</button>
           </div>
         ))}
       </div>
@@ -256,19 +256,19 @@ export function SettingsBucketsPage({ state }: Props) {
         </p>
         <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
           <p className="text-sm font-semibold text-purple-200">One Shared Rollover Jar</p>
-          <p className="mt-1 text-xs text-neutral-400">Opening carry-forward balance used by every active tracker.</p>
-          <input type="number" value={String(state.sharedRolloverJarBalance)} onChange={(event) => state.setSharedRolloverJarBalance(Number(event.target.value))} className="mt-3 w-full rounded-2xl bg-neutral-950 p-4 outline-none" />
+          <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">Opening carry-forward balance used by every active tracker.</p>
+          <input type="number" value={String(state.sharedRolloverJarBalance)} onChange={(event) => state.setSharedRolloverJarBalance(Number(event.target.value))} className="mt-3 w-full rounded-2xl bg-neutral-100 p-4 outline-none dark:bg-neutral-950" />
         </div>
         <div className="flex gap-2">
-          <input value={newTrackerName} onChange={(event) => setNewTrackerName(event.target.value)} placeholder="New virtual tracker" className="min-w-0 flex-1 rounded-2xl bg-neutral-800 p-4 outline-none" />
+          <input value={newTrackerName} onChange={(event) => setNewTrackerName(event.target.value)} placeholder="New virtual tracker" className="min-w-0 flex-1 rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
           <button type="button" onClick={addTracker} className="flex items-center gap-2 rounded-2xl bg-purple-500 px-4 font-semibold text-black"><Plus size={18}/> Add</button>
         </div>
         {state.bucketListTrackers.map((tracker) => (
-          <div key={tracker.id} className={`rounded-2xl bg-neutral-950 p-4 ${tracker.active ? "" : "opacity-60"}`}>
+          <div key={tracker.id} className={`rounded-2xl bg-neutral-100 p-4 dark:bg-neutral-950 ${tracker.active ? "" : "opacity-60"}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-purple-500/15 px-2 py-1 text-xs font-semibold text-purple-300">Virtual tracker</span>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => toggleTracker(tracker.id, !tracker.active)} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-200">
+                <button type="button" onClick={() => toggleTracker(tracker.id, !tracker.active)} className="flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200">
                   <Archive size={14}/>{tracker.active ? "Archive" : "Restore"}
                 </button>
                 <button type="button" onClick={() => deleteTracker(tracker.id)} className="flex items-center gap-1 text-xs text-neutral-500 hover:text-red-300">
@@ -277,15 +277,15 @@ export function SettingsBucketsPage({ state }: Props) {
               </div>
             </div>
             <Field label="Name">
-              <input value={tracker.name} onChange={(event) => updateTracker(tracker.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input value={tracker.name} onChange={(event) => updateTracker(tracker.id, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
             </Field>
             <Field label="Monthly cap">
-              <input type="number" value={String(tracker.monthlyBudget)} onChange={(event) => updateTracker(tracker.id, "monthlyBudget", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none" />
+              <input type="number" value={String(tracker.monthlyBudget)} onChange={(event) => updateTracker(tracker.id, "monthlyBudget", Number(event.target.value))} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
             </Field>
             <div className="mt-4 rounded-2xl border border-purple-500/15 bg-purple-500/[0.06] p-4">
               <label className="flex items-center justify-between gap-3">
                 <span>
-                  <span className="block text-sm font-semibold">Recurring Allocation</span>
+                  <span className="block text-sm font-semibold text-neutral-900 dark:text-white">Recurring Allocation</span>
                   <span className="mt-1 block text-xs text-neutral-500">Plan automatic contributions into the one shared jar.</span>
                 </span>
                 <input
@@ -308,7 +308,7 @@ export function SettingsBucketsPage({ state }: Props) {
                       type="number"
                       value={String(tracker.recurringAllocation.allocationAmount)}
                       onChange={(event) => updateRecurringAllocation(tracker.id, { allocationAmount: Number(event.target.value) })}
-                      className="w-full rounded-xl bg-neutral-800 p-3 outline-none"
+                      className="w-full rounded-xl bg-neutral-200 p-3 outline-none dark:bg-neutral-800"
                     />
                   </Field>
                   <SelectField
@@ -340,7 +340,7 @@ export function SettingsBucketsPage({ state }: Props) {
                 <Tags size={13}/> Manage Category Links
               </button>
             </div>
-            <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "tracker", id: tracker.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-800 p-3 text-sm font-semibold text-purple-200">View History & Budget Math</button>
+            <button type="button" onClick={() => { state.setSettingsBucketHistory({ type: "tracker", id: tracker.id }); state.navigateToSettingsPage("bucket-history"); }} className="mt-3 w-full rounded-2xl bg-neutral-200 p-3 text-sm font-semibold text-purple-600 dark:bg-neutral-800 dark:text-purple-200">View History & Budget Math</button>
           </div>
         ))}
       </div>

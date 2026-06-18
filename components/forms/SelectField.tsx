@@ -22,7 +22,7 @@ export function SelectField({ label, options, helper, ...props }: Props) {
           <option
             key={option.value}
             value={option.value}
-            className="bg-[#111419] text-white"
+            className="bg-white text-neutral-900 dark:bg-[#111419] dark:text-white"
           >
             {option.label}
           </option>

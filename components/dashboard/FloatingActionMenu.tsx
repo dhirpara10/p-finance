@@ -47,13 +47,13 @@ export function FloatingActionMenu({
 
       <div className="safe-bottom-fab fixed right-5 z-50 md:hidden">
         {isOpen && (
-          <div className="mb-4 w-56 origin-bottom-right rounded-3xl border border-white/10 bg-neutral-900/95 p-2 shadow-xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
+          <div className="mb-4 w-56 origin-bottom-right rounded-3xl border border-black/[0.10] bg-white/95 p-2 shadow-xl backdrop-blur animate-in fade-in slide-in-from-bottom-2 dark:border-white/10 dark:bg-neutral-900/95">
             {actions.map((action, index) => (
               <button
                 key={action.label}
                 type="button"
                 onClick={() => runAction(handlers[index])}
-                className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold text-white hover:bg-neutral-800"
+                className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-white dark:hover:bg-neutral-800"
               >
                 <span>{action.label}</span>
                 <span className={action.accent}>+</span>

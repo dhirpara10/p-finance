@@ -58,14 +58,14 @@ export function LendingDetails({ state }: LendingDetailsProps) {
   );
 
   return (
-    <div className="no-scrollbar fixed inset-0 z-50 overflow-y-auto bg-neutral-950 px-4 py-6 text-white">
+    <div className="no-scrollbar fixed inset-0 z-50 overflow-y-auto bg-[#f0f2f5] px-4 py-6 text-neutral-900 dark:bg-neutral-950 dark:text-white">
       <div className="mx-auto max-w-md">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
               {detailsView === "lent" ? "Money I Lent" : "Money I Borrowed"}
             </h2>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
               {detailsView === "lent"
                 ? "People who owe you money"
                 : "People you owe money to"}
@@ -75,7 +75,7 @@ export function LendingDetails({ state }: LendingDetailsProps) {
           <button
             type="button"
             onClick={() => setDetailsView(null)}
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm"
+            className="rounded-full bg-neutral-200 px-4 py-2 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-white"
           >
             Close
           </button>
@@ -83,17 +83,17 @@ export function LendingDetails({ state }: LendingDetailsProps) {
 
         <div className="space-y-3">
           {profiles.length === 0 ? (
-            <p className="rounded-2xl bg-neutral-900 p-4 text-sm text-neutral-500">
+            <p className="rounded-2xl bg-neutral-200 p-4 text-sm text-neutral-500 dark:bg-neutral-900">
               No profiles yet.
             </p>
           ) : (
             profiles.map((profile) => (
-              <div key={profile.id} className="rounded-3xl bg-neutral-900 p-5">
+              <div key={profile.id} className="rounded-3xl bg-neutral-200 p-5 dark:bg-neutral-900">
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-lg font-semibold">{profile.name}</p>
+                    <p className="text-lg font-semibold text-neutral-900 dark:text-white">{profile.name}</p>
                     {profile.phone && (
-                      <p className="text-sm text-neutral-400">
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
                         Phone: {profile.phone}
                       </p>
                     )}
@@ -116,27 +116,27 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-2xl bg-neutral-800 p-3">
-                    <p className="text-neutral-400">Total Lent</p>
+                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
+                    <p className="text-neutral-600 dark:text-neutral-400">Total Lent</p>
                     <p className="mt-1 font-semibold text-green-400">
                       ${profile.totalLent.toLocaleString()}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-neutral-800 p-3">
-                    <p className="text-neutral-400">Total Borrowed</p>
+                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
+                    <p className="text-neutral-600 dark:text-neutral-400">Total Borrowed</p>
                     <p className="mt-1 font-semibold text-red-400">
                       ${profile.totalBorrowed.toLocaleString()}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-neutral-800 p-3">
-                    <p className="text-neutral-400">Total Settled</p>
+                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
+                    <p className="text-neutral-600 dark:text-neutral-400">Total Settled</p>
                     <p className="mt-1 font-semibold text-blue-400">
                       ${profile.totalSettled.toLocaleString()}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-neutral-800 p-3">
-                    <p className="text-neutral-400">Net Balance</p>
-                    <p className="mt-1 font-semibold">
+                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
+                    <p className="text-neutral-600 dark:text-neutral-400">Net Balance</p>
+                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
                       ${Math.abs(profile.netBalance).toLocaleString()}
                     </p>
                   </div>
@@ -148,27 +148,27 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                     openSettlement(profile.id, Math.abs(profile.netBalance))
                   }
                   disabled={profile.netBalance === 0}
-                  className="mt-4 w-full rounded-2xl bg-blue-500 p-3 font-semibold text-black disabled:bg-neutral-800 disabled:text-neutral-500"
+                  className="mt-4 w-full rounded-2xl bg-blue-500 p-3 font-semibold text-black disabled:bg-neutral-300 disabled:text-neutral-500 dark:disabled:bg-neutral-800"
                 >
                   Settle Up
                 </button>
 
                 {settlementProfile?.id === profile.id && (
-                  <div className="mt-4 space-y-3 rounded-2xl bg-neutral-800 p-4">
+                  <div className="mt-4 space-y-3 rounded-2xl bg-neutral-300 p-4 dark:bg-neutral-800">
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() =>
                           setSettlementAmount(String(Math.abs(profile.netBalance)))
                         }
-                        className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold"
+                        className="rounded-xl bg-neutral-200 p-3 text-sm font-semibold text-neutral-800 dark:bg-neutral-700 dark:text-white"
                       >
                         Full
                       </button>
                       <button
                         type="button"
                         onClick={() => setSettlementAmount("")}
-                        className="rounded-xl bg-neutral-700 p-3 text-sm font-semibold"
+                        className="rounded-xl bg-neutral-200 p-3 text-sm font-semibold text-neutral-800 dark:bg-neutral-700 dark:text-white"
                       >
                         Partial
                       </button>
@@ -179,7 +179,7 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                       placeholder="Settlement amount"
                       value={settlementAmount}
                       onChange={(e) => setSettlementAmount(e.target.value)}
-                      className="w-full rounded-2xl bg-neutral-900 p-4 outline-none"
+                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
                     />
 
                     <SelectField
@@ -198,14 +198,14 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                       type="date"
                       value={settlementDate}
                       onChange={(e) => setSettlementDate(e.target.value)}
-                      className="w-full rounded-2xl bg-neutral-900 p-4 outline-none"
+                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
                     />
 
                     <textarea
                       placeholder="Note optional"
                       value={settlementNotes}
                       onChange={(e) => setSettlementNotes(e.target.value)}
-                      className="w-full rounded-2xl bg-neutral-900 p-4 outline-none"
+                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
                     />
 
                     <button
@@ -222,14 +222,14 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                   {profile.transactions.map((transaction) => (
                     <div
                       key={`${transaction.type}-${transaction.id}`}
-                      className="rounded-2xl bg-neutral-800 p-3 text-sm"
+                      className="rounded-2xl bg-neutral-300 p-3 text-sm dark:bg-neutral-800"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium">
+                          <p className="font-medium text-neutral-900 dark:text-white">
                             {getTransactionLabel(transaction)}
                           </p>
-                          <p className="text-xs text-neutral-400">
+                          <p className="text-xs text-neutral-600 dark:text-neutral-400">
                             {transaction.date}
                           </p>
                         </div>
@@ -239,7 +239,7 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                       </div>
 
                       {transaction.note && (
-                        <p className="mt-2 text-neutral-300">
+                        <p className="mt-2 text-neutral-700 dark:text-neutral-300">
                           {transaction.note}
                         </p>
                       )}

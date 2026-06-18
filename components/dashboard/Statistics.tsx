@@ -51,7 +51,7 @@ function AnalyticsCard({
       transition={{ duration: 0.32 }}
       className={`surface-card min-w-0 rounded-[28px] border border-white/[0.055] p-5 sm:p-6 ${className}`}
     >
-      <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+      <h3 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-white">{title}</h3>
       <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
       <div className="mt-6">{children}</div>
     </motion.section>
@@ -102,7 +102,7 @@ export function Statistics({ state }: Props) {
         title="Stats & Analytics"
         description="Trends and behavior without spreadsheet noise."
         actions={
-          <div className="flex gap-6 rounded-2xl border border-white/[0.055] bg-white/[0.025] px-5 py-3">
+          <div className="flex gap-6 rounded-2xl border border-black/[0.07] bg-black/[0.04] px-5 py-3 dark:border-white/[0.055] dark:bg-white/[0.025]">
             <MiniStat label="Hours" value={`${monthlyHours.toLocaleString()}h`} />
             <MiniStat label="Savings" value={`${currencySymbol}${savingsBucketBalances.reduce((sum, item) => sum + item.currentBalance, 0).toLocaleString()}`} />
             {savingsRate !== null && (
@@ -115,7 +115,7 @@ export function Statistics({ state }: Props) {
           </div>
         }
       />
-      <p className="text-xs text-neutral-600">Data available from FY 26-27</p>
+      <p className="text-xs text-neutral-500">Data available from FY 26-27</p>
 
       <div className="grid gap-5 xl:grid-cols-12">
         <AnalyticsCard title="Net Worth Trend" subtitle="Cumulative financial movement" className="xl:col-span-7">
@@ -127,7 +127,7 @@ export function Statistics({ state }: Props) {
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <CartesianGrid stroke="rgba(128,128,128,.12)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
               <YAxis stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} tickFormatter={moneyTick} width={48} />
               <Tooltip contentStyle={tooltipStyle} />
@@ -153,7 +153,7 @@ export function Statistics({ state }: Props) {
         <AnalyticsCard title="Income vs Expense" subtitle="Cash flow by recorded month" className="xl:col-span-7">
           <ChartFrame height="h-72" empty={!hasData}>
             <LineChart data={monthly} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <CartesianGrid stroke="rgba(128,128,128,.12)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
               <YAxis stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} tickFormatter={moneyTick} width={48} />
               <Tooltip contentStyle={tooltipStyle} />
@@ -168,7 +168,7 @@ export function Statistics({ state }: Props) {
         <AnalyticsCard title="Monthly Spending" subtitle="Outgoing intensity over time" className="xl:col-span-5">
           <ChartFrame height="h-72" empty={!hasData}>
             <BarChart data={monthly} margin={{ left: 0, right: 6, top: 8 }}>
-              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <CartesianGrid stroke="rgba(128,128,128,.12)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
               <YAxis hide />
               <Tooltip contentStyle={tooltipStyle} />
@@ -185,7 +185,7 @@ export function Statistics({ state }: Props) {
           </div>
           <ChartFrame height="h-64" empty={!hasData}>
             <AreaChart data={jarData} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+              <CartesianGrid stroke="rgba(128,128,128,.12)" vertical={false} />
               <XAxis dataKey="month" stroke="#65676d" axisLine={false} tickLine={false} fontSize={11} />
               <YAxis hide />
               <Tooltip contentStyle={tooltipStyle} />
@@ -199,10 +199,10 @@ export function Statistics({ state }: Props) {
             {trackerSummaries.slice(0, 6).map((tracker) => (
               <div key={tracker.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">{tracker.name}</span>
+                  <span className="text-sm font-medium text-neutral-900 dark:text-white">{tracker.name}</span>
                   <span className={`text-xs ${tracker.status === "Overspent" ? "text-red-300" : tracker.status === "Near Limit" ? "text-orange-300" : "text-emerald-300"}`}>{tracker.status}</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/[0.06]">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, tracker.progress)}%` }} className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-400" />
                 </div>
                 <p className="mt-1.5 text-xs text-neutral-500">{currencySymbol}{tracker.spentThisMonth.toLocaleString()} of {currencySymbol}{tracker.monthlyBudget.toLocaleString()}</p>
@@ -225,12 +225,12 @@ export function Statistics({ state }: Props) {
         </AnalyticsCard>
 
         <AnalyticsCard title="Monthly Summary" subtitle="Income, spending, and work history" className="xl:col-span-7">
-          <div className="divide-y divide-white/[0.05]">
+          <div className="divide-y divide-black/[0.08] dark:divide-white/[0.05]">
             {monthly.slice(-6).reverse().map((row) => {
               const rowRate = row.income > 0 ? Math.round(((row.income - row.expenses) / row.income) * 100) : null;
               return (
                 <div key={row.month} className="grid grid-cols-[1fr_repeat(4,auto)] items-center gap-4 py-3 text-sm">
-                  <span className="font-medium">{row.month}</span>
+                  <span className="font-medium text-neutral-900 dark:text-white">{row.month}</span>
                   <span className="text-emerald-300">+{currencySymbol}{row.income.toLocaleString()}</span>
                   <span className="text-red-300">-{currencySymbol}{row.expenses.toLocaleString()}</span>
                   {rowRate !== null ? (
@@ -250,9 +250,9 @@ export function Statistics({ state }: Props) {
 function ChartFrame({ height, children, empty }: { height: string; children: ReactNode; empty?: boolean }) {
   if (empty) {
     return (
-      <div className={`${height} flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02]`}>
-        <BarChart3 size={24} className="text-neutral-700" />
-        <p className="text-sm text-neutral-600">No data yet</p>
+      <div className={`${height} flex flex-col items-center justify-center gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.03] dark:border-white/[0.05] dark:bg-white/[0.02]`}>
+        <BarChart3 size={24} className="text-neutral-400 dark:text-neutral-700" />
+        <p className="text-sm text-neutral-500 dark:text-neutral-600">No data yet</p>
       </div>
     );
   }
@@ -265,7 +265,7 @@ function ChartFrame({ height, children, empty }: { height: string; children: Rea
   );
 }
 
-function MiniStat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {
+function MiniStat({ label, value, tone = "text-neutral-900 dark:text-white" }: { label: string; value: string; tone?: string }) {
   return <div><p className="text-[11px] text-neutral-500">{label}</p><p className={`mt-1 text-sm font-semibold ${tone}`}>{value}</p></div>;
 }
 

@@ -79,7 +79,7 @@ export function RemittanceView({ state }: Props) {
         <button
           type="button"
           onClick={() => setShowRemittanceForm(true)}
-          className="flex shrink-0 items-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
+          className="flex shrink-0 items-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-300"
         >
           <Plus size={16} />
           Add
@@ -110,12 +110,12 @@ export function RemittanceView({ state }: Props) {
         {sorted.length === 0 ? (
           <p className="py-10 text-center text-sm text-neutral-500">No remittance records yet.</p>
         ) : (
-          <div className="divide-y divide-white/[0.05]">
+          <div className="divide-y divide-black/[0.08] dark:divide-white/[0.05]">
             {sorted.map((r) => (
               <div key={String(r.id)} className="flex items-start justify-between gap-4 py-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`font-semibold ${r.preExisting ? "text-neutral-400" : ""}`}>
+                    <span className={`font-semibold ${r.preExisting ? "text-neutral-500" : "text-neutral-900 dark:text-white"}`}>
                       {currencySymbol}{r.audAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </span>
                     <span className="text-xs text-neutral-500">→</span>
@@ -123,7 +123,7 @@ export function RemittanceView({ state }: Props) {
                       ₹{Math.round(r.inrAmount).toLocaleString()}
                     </span>
                     {r.preExisting && (
-                      <span className="rounded-full bg-neutral-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-400">
+                      <span className="rounded-full bg-neutral-300/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-500 dark:bg-neutral-700/60 dark:text-neutral-400">
                         pre-existing
                       </span>
                     )}
@@ -137,12 +137,12 @@ export function RemittanceView({ state }: Props) {
                     {r.date} · {r.account === "RemittanceFund" ? "Remittance Fund" : r.account} · Rate {r.exchangeRate}
                     {r.provider ? ` · ${r.provider}` : ""}
                   </p>
-                  {r.notes && <p className="mt-0.5 text-xs text-neutral-600">{r.notes}</p>}
+                  {r.notes && <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-600">{r.notes}</p>}
                 </div>
                 <button
                   type="button"
                   onClick={() => deleteRemittance(r.id)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-neutral-600 hover:bg-red-500/10 hover:text-red-400"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-neutral-500 hover:bg-red-500/10 hover:text-red-400 dark:text-neutral-600"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -161,7 +161,7 @@ export function RemittanceView({ state }: Props) {
           <ModalContent>
             <ModalSection>
               {/* Pre-existing toggle */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-black/[0.09] bg-black/[0.03] p-4 dark:border-white/[0.07] dark:bg-white/[0.025]">
                 <input
                   type="checkbox"
                   checked={remittanceIsPreExisting}
@@ -169,7 +169,7 @@ export function RemittanceView({ state }: Props) {
                   className="mt-0.5 h-4 w-4 accent-amber-500"
                 />
                 <span>
-                  <span className="block text-sm font-semibold text-amber-200">Already remitted</span>
+                  <span className="block text-sm font-semibold text-amber-600 dark:text-amber-200">Already remitted</span>
                   <span className="mt-0.5 block text-xs text-neutral-500">
                     This was sent before you started using the app — record it for history only, no balance will be affected.
                   </span>
@@ -208,7 +208,7 @@ export function RemittanceView({ state }: Props) {
                         className={`rounded-2xl border py-3 text-sm font-semibold transition ${
                           remittanceAccount === acc
                             ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
-                            : "border-white/[0.07] bg-white/[0.025] text-neutral-400 hover:text-neutral-200"
+                            : "border-black/[0.09] bg-black/[0.03] text-neutral-600 hover:text-neutral-800 dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-neutral-400 dark:hover:text-neutral-200"
                         }`}
                       >
                         {acc === "RemittanceFund" ? "Fund" : acc}
@@ -269,8 +269,8 @@ function SummaryCard({
   return (
     <div className={`surface-card rounded-2xl border p-4 ${highlight ? "border-blue-400/20 bg-blue-500/[0.04]" : "border-white/[0.055]"}`}>
       <p className="text-xs text-neutral-500">{label}</p>
-      <p className={`mt-2 text-lg font-semibold ${highlight ? "text-blue-300" : ""}`}>{value}</p>
-      {subtitle && <p className="mt-0.5 text-[10px] text-neutral-600">{subtitle}</p>}
+      <p className={`mt-2 text-lg font-semibold ${highlight ? "text-blue-300" : "text-neutral-900 dark:text-white"}`}>{value}</p>
+      {subtitle && <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-600">{subtitle}</p>}
     </div>
   );
 }

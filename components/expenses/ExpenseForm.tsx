@@ -104,7 +104,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
           <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={categoryOptions} />
           <div className="flex gap-2">
             <input type="text" placeholder="New category name" value={newExpenseCategory} onChange={(event) => setNewExpenseCategory(event.target.value)} className={`${formTokens.input} min-w-0 flex-1`} />
-            <button type="button" onClick={addExpenseCategory} className="rounded-2xl bg-neutral-800 px-4 font-semibold text-emerald-300">Add</button>
+            <button type="button" onClick={addExpenseCategory} className="rounded-2xl bg-neutral-200 px-4 font-semibold text-emerald-600 dark:bg-neutral-800 dark:text-emerald-300">Add</button>
           </div>
           <SelectField
             label="Paid with"
@@ -134,11 +134,11 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
             <SelectField label="Account" value={expenseAccount} onChange={(event) => setExpenseAccount(event.target.value as ExpenseAccount)} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
           )}
           <DateField label="Date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
-          <label className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+          <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <span className="flex items-center gap-3">
               <RefreshCw size={18} className="text-purple-300" />
               <span>
-                <span className="block font-semibold">Make this recurring</span>
+                <span className="block font-semibold text-neutral-900 dark:text-white">Make this recurring</span>
                 <span className="text-xs text-neutral-500">Track future occurrences automatically.</span>
               </span>
             </span>

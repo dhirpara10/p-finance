@@ -130,7 +130,7 @@ export function RecentActivity({
     : filteredActivity.slice(0, 5);
 
   return (
-    <section className="surface-card rounded-[28px] border border-white/[0.055] p-4 sm:p-5">
+    <section className="surface-card rounded-[28px] border border-black/[0.07] p-4 dark:border-white/[0.055] sm:p-5">
       <div className="space-y-3">
         {filteredActivity.length === 0 ? (
           <p className="py-8 text-center text-sm text-neutral-500">
@@ -174,7 +174,7 @@ export function RecentActivity({
                 key={`${item.source ?? "activity"}-${item.type}-${String(
                   item.id ?? "no-id"
                 )}-${index}`}
-                className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-1.5 py-3 transition hover:bg-white/[0.025] sm:px-3"
+                className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-1.5 py-3 transition hover:bg-black/[0.03] dark:hover:bg-white/[0.025] sm:px-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
@@ -211,7 +211,7 @@ export function RecentActivity({
                       )}
                     </div>
 
-<div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+<div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
   <span>{item.date || "No date"}</span>
 
   {item.subtitle && (
@@ -223,7 +223,7 @@ export function RecentActivity({
 </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-full bg-white/[0.055] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-neutral-400">
+                      <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-neutral-500 dark:bg-white/[0.055] dark:text-neutral-400">
                         {item.type.replaceAll("_", " ")}
                       </span>
 
@@ -273,7 +273,7 @@ export function RecentActivity({
                           : startEdit(item)
                       }
                       disabled={item.source === "lendingTransaction"}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-400 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-500 hover:bg-neutral-100 dark:text-blue-400 dark:hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
                     >
                       <Pencil size={15} />
                     </button>
@@ -316,7 +316,7 @@ export function RecentActivity({
                           return;
                         }
                       }}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-700 hover:text-red-300"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-neutral-400 hover:bg-neutral-100 hover:text-red-500 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-red-300"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -332,7 +332,7 @@ export function RecentActivity({
         <button
           type="button"
           onClick={onToggleShowAll}
-          className="mt-4 w-full rounded-xl border border-white/[0.055] bg-white/[0.025] p-2.5 text-sm font-medium text-neutral-400 transition hover:text-white"
+          className="mt-4 w-full rounded-xl border border-black/[0.07] bg-black/[0.03] p-2.5 text-sm font-medium text-neutral-500 transition hover:text-neutral-900 dark:border-white/[0.055] dark:bg-white/[0.025] dark:text-neutral-400 dark:hover:text-white"
         >
           {showAll ? "Show Less" : "Show More"}
         </button>

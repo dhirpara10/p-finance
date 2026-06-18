@@ -242,7 +242,7 @@ function CategoryGrid({
         <button
           type="button"
           onClick={onOpenTagManager}
-          className="mt-1 flex h-10 items-center gap-1.5 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 text-xs font-semibold text-neutral-400 transition hover:bg-white/[0.07] hover:text-neutral-200"
+          className="mt-1 flex h-10 items-center gap-1.5 rounded-xl border border-black/[0.09] bg-black/[0.04] px-3 text-xs font-semibold text-neutral-600 transition hover:bg-black/[0.08] hover:text-neutral-900 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-neutral-400 dark:hover:bg-white/[0.07] dark:hover:text-neutral-200"
         >
           <Settings2 size={13} />
           Tags
@@ -260,8 +260,7 @@ function CategoryGrid({
               key={type.id}
               type="button"
               onClick={() => onSelect(type.id)}
-              className={`group relative overflow-hidden rounded-3xl border text-left transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] ${styles.border} ${styles.glow}`}
-              style={{ background: "linear-gradient(135deg, #121619 0%, #0d1013 100%)" }}
+              className={`group relative overflow-hidden rounded-3xl border bg-white text-left transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] dark:bg-[#0d1013] ${styles.border} ${styles.glow}`}
             >
               {/* Type gradient */}
               <div className={`pointer-events-none absolute inset-0 rounded-3xl ${styles.gradient}`} />
@@ -306,8 +305,7 @@ function RecordCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group w-full overflow-hidden rounded-2xl border p-4 text-left transition-all duration-150 hover:brightness-110 active:scale-[0.99] ${styles.border}`}
-      style={{ background: "linear-gradient(135deg, #111418 0%, #0e1115 100%)" }}
+      className={`group w-full overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all duration-150 hover:brightness-110 active:scale-[0.99] dark:bg-[#0e1115] ${styles.border}`}
     >
       <div className={`pointer-events-none absolute inset-0 rounded-2xl ${styles.gradient} opacity-60`} />
       <div className="relative">
@@ -419,7 +417,7 @@ function CategoryDetailView({
             setActiveTagIds([]);
             setLocalSearch("");
           }}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.04] text-neutral-400 transition hover:bg-white/[0.08] hover:text-white"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-black/[0.08] bg-black/[0.04] text-neutral-600 transition hover:bg-black/[0.08] hover:text-neutral-900 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-neutral-400 dark:hover:bg-white/[0.08] dark:hover:text-white"
         >
           <ArrowLeft size={18} />
         </button>
@@ -452,7 +450,7 @@ function CategoryDetailView({
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
           placeholder={`Search ${typeInfo.label} records…`}
-          className="min-h-11 w-full rounded-xl border border-white/[0.07] bg-white/[0.035] pl-9 pr-4 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-white/[0.15] focus:bg-white/[0.05]"
+          className="min-h-11 w-full rounded-xl border border-black/[0.09] bg-black/[0.04] pl-9 pr-4 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-black/[0.15] focus:bg-black/[0.06] dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-white dark:placeholder:text-neutral-600 dark:focus:border-white/[0.15] dark:focus:bg-white/[0.05]"
         />
         {localSearch && (
           <button
@@ -477,8 +475,8 @@ function CategoryDetailView({
                 onClick={() => toggleTagFilter(tag.id)}
                 className={`shrink-0 flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                   selected
-                    ? "border-white/20 bg-white/[0.1] text-white"
-                    : "border-white/[0.06] bg-white/[0.03] text-neutral-600 hover:bg-white/[0.06] hover:text-neutral-400"
+                    ? "border-black/20 bg-black/[0.09] text-neutral-900 dark:border-white/20 dark:bg-white/[0.1] dark:text-white"
+                    : "border-black/[0.08] bg-black/[0.03] text-neutral-500 hover:bg-black/[0.06] hover:text-neutral-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-neutral-600 dark:hover:bg-white/[0.06] dark:hover:text-neutral-400"
                 }`}
               >
                 <MapPin size={9} />
@@ -503,7 +501,7 @@ function CategoryDetailView({
 
       {/* Records */}
       {categoryAssets.length === 0 ? (
-        <div className="mt-8 rounded-3xl border border-dashed border-white/[0.07] px-6 py-14 text-center">
+        <div className="mt-8 rounded-3xl border border-dashed border-black/[0.09] px-6 py-14 text-center dark:border-white/[0.07]">
           <p className={`font-semibold ${styles.textAccent}`}>
             {assets.filter((a) => a.assetType === categoryType).length === 0
               ? `No ${typeInfo.label} records yet`
@@ -577,11 +575,8 @@ function AssetDetailModal({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className={`no-scrollbar relative mt-auto w-full overflow-y-auto rounded-t-[28px] border sm:mx-auto sm:mt-0 sm:max-w-lg sm:rounded-[28px] ${styles.border}`}
-        style={{
-          maxHeight: "92dvh",
-          background: "linear-gradient(160deg, #111418 0%, #0d1014 100%)",
-        }}
+        className={`no-scrollbar relative mt-auto w-full overflow-y-auto rounded-t-[28px] border bg-white dark:bg-[#0d1014] sm:mx-auto sm:mt-0 sm:max-w-lg sm:rounded-[28px] ${styles.border}`}
+        style={{ maxHeight: "92dvh" }}
       >
         <div className={`pointer-events-none absolute inset-0 rounded-[28px] ${styles.gradient}`} />
         <div className="relative p-6">
@@ -633,7 +628,7 @@ function AssetDetailModal({
           {asset.details && (
             <div className="mt-5">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-600">Details</p>
-              <div className="rounded-2xl border border-white/[0.05] bg-white/[0.03] p-4 text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap">
+              <div className="rounded-2xl border border-black/[0.07] bg-black/[0.03] p-4 text-sm leading-relaxed text-neutral-700 whitespace-pre-wrap dark:border-white/[0.05] dark:bg-white/[0.03] dark:text-neutral-300">
                 {asset.details}
               </div>
             </div>
@@ -699,7 +694,7 @@ function TagManagerModal({ vault }: { vault: ReturnType<typeof useAssetVault> })
       onClick={(e) => e.target === e.currentTarget && vault.setShowTagManager(false)}
     >
       <div
-        className="no-scrollbar mt-auto w-full overflow-y-auto rounded-t-[28px] border border-white/[0.08] bg-[#111419] sm:mx-auto sm:mt-0 sm:max-w-md sm:rounded-[28px]"
+        className="no-scrollbar mt-auto w-full overflow-y-auto rounded-t-[28px] border border-black/[0.10] bg-white dark:border-white/[0.08] dark:bg-[#111419] sm:mx-auto sm:mt-0 sm:max-w-md sm:rounded-[28px]"
         style={{ maxHeight: "85dvh" }}
       >
         <div className="p-5">
@@ -724,7 +719,7 @@ function TagManagerModal({ vault }: { vault: ReturnType<typeof useAssetVault> })
               onChange={(e) => setNewTagName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="New location tag…"
-              className="min-h-11 flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-white/20"
+              className="min-h-11 flex-1 rounded-xl border border-black/[0.09] bg-black/[0.04] px-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-black/20 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white dark:placeholder:text-neutral-600 dark:focus:border-white/20"
             />
             <button
               type="button"
@@ -740,7 +735,7 @@ function TagManagerModal({ vault }: { vault: ReturnType<typeof useAssetVault> })
               <p className="py-6 text-center text-sm text-neutral-600">No tags yet.</p>
             )}
             {vault.locationTags.map((tag) => (
-              <div key={tag.id} className="flex items-center gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.025] px-4 py-3">
+              <div key={tag.id} className="flex items-center gap-2 rounded-2xl border border-black/[0.07] bg-black/[0.03] px-4 py-3 dark:border-white/[0.05] dark:bg-white/[0.025]">
                 {renamingId === tag.id ? (
                   <>
                     <input
@@ -827,7 +822,7 @@ export function AssetVaultView() {
         <button
           type="button"
           onClick={() => openAddForm()}
-          className="safe-bottom-fab fixed right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.12] bg-white text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition hover:scale-105 active:scale-95 md:hidden"
+          className="safe-bottom-fab fixed right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full border border-black/[0.14] bg-neutral-900 text-white shadow-[0_8px_32px_rgba(0,0,0,0.2)] transition hover:scale-105 active:scale-95 dark:border-white/[0.12] dark:bg-white dark:text-neutral-950 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] md:hidden"
           aria-label="Add asset record"
         >
           <Plus size={22} strokeWidth={2.5} />
@@ -838,7 +833,7 @@ export function AssetVaultView() {
         <button
           type="button"
           onClick={() => openAddForm()}
-          className="fixed bottom-8 right-8 z-30 hidden h-14 items-center gap-2 rounded-full border border-white/[0.12] bg-white px-5 text-sm font-semibold text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition hover:scale-105 active:scale-95 md:flex"
+          className="fixed bottom-8 right-8 z-30 hidden h-14 items-center gap-2 rounded-full border border-black/[0.14] bg-neutral-900 px-5 text-sm font-semibold text-white shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition hover:scale-105 active:scale-95 dark:border-white/[0.12] dark:bg-white dark:text-neutral-950 dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] md:flex"
         >
           <Plus size={18} strokeWidth={2.5} />
           Add Record

@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for all Tailwind dark: utilities */
+@custom-variant dark (&:is(.dark *));
+
+/* ── Semantic color tokens ───────────────────────────────────────────────────
+   :root = light mode  |  .dark = dark mode
+   ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #080a0d;
-  --foreground: #f5f5f5;
+  --background:        #f0f2f5;
+  --foreground:        #0d1117;
+  --c-surface:         #ffffff;
+  --c-surface-raised:  #f8f9fc;
+  --c-border:          rgba(0,0,0,0.09);
+  --c-border-subtle:   rgba(0,0,0,0.06);
+}
+
+.dark {
+  --background:        #080a0d;
+  --foreground:        #f5f5f5;
+  --c-surface:         #0e1115;
+  --c-surface-raised:  #111419;
+  --c-border:          rgba(255,255,255,0.08);
+  --c-border-subtle:   rgba(255,255,255,0.06);
 }
 
 @theme inline {
@@ -12,13 +31,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 * {
   box-sizing: border-box;
 }
@@ -26,7 +38,6 @@
 html {
   background: var(--background);
   scrollbar-width: none;
-  /* Prevent rubber-band scroll exposing the nav bar position */
   overscroll-behavior: none;
 }
 
@@ -39,22 +50,19 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
   overscroll-behavior: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Safe-area bottom helpers used by the pill nav and FAB */
+/* Safe-area bottom helpers */
 .safe-bottom-nav {
   bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
 }
-
 .safe-bottom-fab {
   bottom: max(112px, calc(112px + env(safe-area-inset-bottom)));
 }
-
 .safe-bottom-drawer {
   bottom: max(96px, calc(96px + env(safe-area-inset-bottom)));
 }
-
-/* Main content padding so nothing hides behind the nav */
 .page-bottom-clearance {
   padding-bottom: max(144px, calc(144px + env(safe-area-inset-bottom)));
 }
@@ -64,7 +72,6 @@ body::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -76,21 +83,31 @@ select,
 textarea {
   font: inherit;
 }
-
 button {
   cursor: pointer;
 }
 
+/* Select dropdown */
 select {
+  color-scheme: light;
+}
+.dark select {
   color-scheme: dark;
 }
 
 select option {
-  background: #111419;
-  color: #f5f5f5;
+  background: var(--c-surface-raised);
+  color: var(--foreground);
 }
 
+/* ── Card surface classes ────────────────────────────────────────────────── */
+
 .surface-card {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.025), rgba(0,0,0,.01)),
+    var(--c-surface);
+}
+.dark .surface-card {
   background:
     linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.018)),
     #0e1115;
@@ -98,11 +115,21 @@ select option {
 
 .savings-card {
   background:
+    radial-gradient(circle at 90% 0%, rgba(56,189,248,.07), transparent 34%),
+    linear-gradient(160deg, #eef8ff, #f4f7fb 64%);
+}
+.dark .savings-card {
+  background:
     radial-gradient(circle at 90% 0%, rgba(56,189,248,.10), transparent 34%),
     linear-gradient(160deg, #111a22, #0e1217 64%);
 }
 
 .tracker-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(217,70,239,.07), transparent 35%),
+    linear-gradient(160deg, #fdf4ff, #f8f7fc 68%);
+}
+.dark .tracker-card {
   background:
     radial-gradient(circle at 100% 0%, rgba(217,70,239,.12), transparent 35%),
     linear-gradient(160deg, #181222, #111016 68%);
@@ -110,9 +137,16 @@ select option {
 
 .jar-card {
   background:
+    radial-gradient(circle at 80% 15%, rgba(192,132,252,.10), transparent 35%),
+    linear-gradient(135deg, #faf5ff 0%, #f3eeff 52%, #f6f5fc 100%);
+}
+.dark .jar-card {
+  background:
     radial-gradient(circle at 80% 15%, rgba(192,132,252,.16), transparent 35%),
     linear-gradient(135deg, #21142e 0%, #15101d 52%, #101116 100%);
 }
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
 
 .section-kicker {
   font-size: 0.68rem;
@@ -120,37 +154,46 @@ select option {
   letter-spacing: 0.18em;
 }
 
+/* ── Settings panel inputs ───────────────────────────────────────────────── */
+
 .settings-panel input:not([type="checkbox"]),
 .settings-panel select,
 .settings-panel textarea {
   min-height: 48px;
   width: 100%;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid rgba(0,0,0,.09);
   border-radius: 12px;
-  background: rgba(255,255,255,.045);
+  background: rgba(0,0,0,.04);
   padding: 12px 14px;
-  color: #f5f5f5;
+  color: var(--foreground);
   outline: none;
   transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.dark .settings-panel input:not([type="checkbox"]),
+.dark .settings-panel select,
+.dark .settings-panel textarea {
+  border-color: rgba(255,255,255,.07);
+  background: rgba(255,255,255,.045);
 }
 
 .settings-panel input:not([type="checkbox"]):focus,
 .settings-panel select:focus,
 .settings-panel textarea:focus {
   border-color: rgba(110,231,183,.42);
-  background: rgba(255,255,255,.06);
+  background: rgba(0,0,0,.06);
   box-shadow: 0 0 0 3px rgba(52,211,153,.08);
+}
+.dark .settings-panel input:not([type="checkbox"]):focus,
+.dark .settings-panel select:focus,
+.dark .settings-panel textarea:focus {
+  background: rgba(255,255,255,.06);
 }
 
 ::selection {
   background: rgba(52, 211, 153, .25);
 }
 
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
+/* ── Bucket flip card ────────────────────────────────────────────────────── */
 
 .bucket-flip {
   width: 82vw;
@@ -159,7 +202,6 @@ select option {
   scroll-snap-align: start;
   perspective: 1200px;
 }
-
 .bucket-flip-inner {
   position: relative;
   width: 100%;
@@ -167,11 +209,9 @@ select option {
   transform-style: preserve-3d;
   transition: transform 420ms ease;
 }
-
 .bucket-flip.is-flipped .bucket-flip-inner {
   transform: rotateY(180deg);
 }
-
 .bucket-flip-face {
   position: absolute;
   inset: 0;
@@ -180,11 +220,9 @@ select option {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-
 .bucket-flip-face > * {
   height: 100%;
 }
-
 .bucket-flip-back {
   transform: rotateY(180deg);
 }
@@ -194,7 +232,6 @@ select option {
     width: 360px;
   }
 }
-
 @media (min-width: 768px) {
   .bucket-flip {
     width: 100%;
@@ -202,11 +239,8 @@ select option {
   }
 }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

@@ -44,7 +44,7 @@ export function AssetVaultForm({ vault }: Props) {
       <ModalContent>
         {/* Asset Type selector */}
         <div>
-          <p className="mb-2 text-sm font-medium text-neutral-400">Asset Type</p>
+          <p className="mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-400">Asset Type</p>
           <div className="grid grid-cols-4 gap-1.5">
             {ASSET_TYPES.map((type) => {
               const s = ASSET_TYPE_STYLES[type.id];
@@ -57,7 +57,7 @@ export function AssetVaultForm({ vault }: Props) {
                   className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 transition ${
                     selected
                       ? `${s.badge} ${s.border} ring-1 ring-inset ring-white/10`
-                      : "border-white/[0.06] bg-white/[0.03] text-neutral-500 hover:bg-white/[0.06]"
+                      : "border-black/[0.08] bg-black/[0.03] text-neutral-500 hover:bg-black/[0.06] dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
                   }`}
                 >
                   <span className="text-xl leading-none">{type.emoji}</span>
@@ -94,8 +94,8 @@ export function AssetVaultForm({ vault }: Props) {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <Tag size={13} className="text-neutral-500" />
-            <p className="text-sm font-medium text-neutral-400">Location Tags</p>
-            <span className="text-xs text-neutral-600">(optional, multi-select)</span>
+            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Location Tags</p>
+            <span className="text-xs text-neutral-500 dark:text-neutral-600">(optional, multi-select)</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {locationTags.map((tag) => {
@@ -107,8 +107,8 @@ export function AssetVaultForm({ vault }: Props) {
                   onClick={() => toggleFormTag(tag.id)}
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     selected
-                      ? "border-white/20 bg-white/[0.12] text-white"
-                      : "border-white/[0.06] bg-white/[0.03] text-neutral-500 hover:bg-white/[0.07] hover:text-neutral-300"
+                      ? "border-black/20 bg-black/[0.12] text-neutral-900 dark:border-white/20 dark:bg-white/[0.12] dark:text-white"
+                      : "border-black/[0.08] bg-black/[0.03] text-neutral-500 hover:bg-black/[0.07] hover:text-neutral-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.07] dark:hover:text-neutral-300"
                   }`}
                 >
                   {selected && <Check size={10} strokeWidth={3} />}
@@ -117,7 +117,7 @@ export function AssetVaultForm({ vault }: Props) {
               );
             })}
             {locationTags.length === 0 && (
-              <p className="text-xs text-neutral-600">
+              <p className="text-xs text-neutral-500 dark:text-neutral-600">
                 No location tags yet. Add them via Manage Tags.
               </p>
             )}

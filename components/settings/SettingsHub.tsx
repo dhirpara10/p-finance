@@ -48,9 +48,9 @@ export function SettingsHub({ state }: SettingsHubProps) {
             key={page}
             type="button"
             onClick={() => state.navigateToSettingsPage(page)}
-            className="rounded-2xl border border-white/[0.055] bg-white/[0.025] p-4 text-left transition hover:border-white/[0.12] hover:bg-white/[0.04]"
+            className="rounded-2xl border border-black/[0.07] bg-black/[0.04] p-4 text-left transition hover:border-black/[0.12] hover:bg-black/[0.06] dark:border-white/[0.055] dark:bg-white/[0.025] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04]"
           >
-            <span className="block font-semibold">{title}</span>
+            <span className="block font-semibold text-neutral-900 dark:text-white">{title}</span>
             <span className="mt-1 block text-sm text-neutral-500">
               {description}
             </span>
@@ -58,8 +58,8 @@ export function SettingsHub({ state }: SettingsHubProps) {
         ))}
       </div>
 
-      <div className="mt-8 border-t border-white/[0.055] pt-6">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-600">Danger zone</p>
+      <div className="mt-8 border-t border-black/[0.07] pt-6 dark:border-white/[0.055]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-600">Danger zone</p>
         {resetStep === 0 && (
           <button
             type="button"
@@ -72,7 +72,7 @@ export function SettingsHub({ state }: SettingsHubProps) {
         {resetStep === 1 && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 space-y-3">
             <p className="font-semibold text-red-300">Are you sure?</p>
-            <p className="text-sm text-neutral-400">This will permanently delete all financial records — income, expenses, transfers, loans, BNPL, lending history, and more. Your settings, categories, goals, and passcode will be kept.</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">This will permanently delete all financial records — income, expenses, transfers, loans, BNPL, lending history, and more. Your settings, categories, goals, and passcode will be kept.</p>
             <div className="flex gap-3 pt-1">
               <button
                 type="button"
@@ -84,7 +84,7 @@ export function SettingsHub({ state }: SettingsHubProps) {
               <button
                 type="button"
                 onClick={() => setResetStep(0)}
-                className="rounded-xl bg-white/[0.05] px-4 py-2 text-sm font-semibold text-neutral-400 hover:bg-white/[0.08]"
+                className="rounded-xl bg-black/[0.06] px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-black/[0.08] dark:bg-white/[0.05] dark:text-neutral-400 dark:hover:bg-white/[0.08]"
               >
                 Cancel
               </button>
@@ -94,7 +94,7 @@ export function SettingsHub({ state }: SettingsHubProps) {
         {resetStep === 2 && (
           <div className="rounded-2xl border border-red-500/40 bg-red-500/8 p-4 space-y-3">
             <p className="font-semibold text-red-200">Final confirmation</p>
-            <p className="text-sm text-neutral-400">Click the button below to permanently erase all transaction data. This cannot be undone.</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Click the button below to permanently erase all transaction data. This cannot be undone.</p>
             <div className="flex gap-3 pt-1">
               <button
                 type="button"
@@ -107,7 +107,7 @@ export function SettingsHub({ state }: SettingsHubProps) {
               <button
                 type="button"
                 onClick={() => setResetStep(0)}
-                className="rounded-xl bg-white/[0.05] px-4 py-2 text-sm font-semibold text-neutral-400 hover:bg-white/[0.08]"
+                className="rounded-xl bg-black/[0.06] px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-black/[0.08] dark:bg-white/[0.05] dark:text-neutral-400 dark:hover:bg-white/[0.08]"
               >
                 Cancel
               </button>

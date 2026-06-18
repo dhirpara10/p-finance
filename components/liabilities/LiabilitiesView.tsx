@@ -73,7 +73,7 @@ export function LiabilitiesView({ state }: Props) {
                 key={type}
                 type="button"
                 onClick={() => state.openNewLiability(type)}
-                className="flex h-11 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 text-sm font-semibold text-neutral-200 transition hover:bg-white/[0.08]"
+                className="flex h-11 items-center gap-2 rounded-xl border border-black/[0.09] bg-black/[0.05] px-4 text-sm font-semibold text-neutral-700 transition hover:bg-black/[0.09] dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-neutral-200 dark:hover:bg-white/[0.08]"
               >
                 <Plus size={16} />
                 {type === "bnpl" ? "BNPL" : type === "credit_card" ? "Card" : "Loan"}
@@ -95,7 +95,7 @@ export function LiabilitiesView({ state }: Props) {
         ))}
       </div>
 
-      <div className="no-scrollbar flex gap-2 overflow-x-auto rounded-2xl border border-white/[0.055] bg-white/[0.025] p-1.5">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto rounded-2xl border border-black/[0.07] bg-black/[0.04] p-1.5 dark:border-white/[0.055] dark:bg-white/[0.025]">
         {tabItems.map((item) => (
           <button
             key={item.id}
@@ -103,8 +103,8 @@ export function LiabilitiesView({ state }: Props) {
             onClick={() => setTab(item.id)}
             className={`min-w-max flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
               tab === item.id
-                ? "bg-white text-neutral-950"
-                : "text-neutral-500 hover:text-white"
+                ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950"
+                : "text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
             }`}
           >
             {item.label}
@@ -129,8 +129,8 @@ export function LiabilitiesView({ state }: Props) {
               ))}
             </div>
           ) : (
-            <div className="surface-card rounded-3xl border border-dashed border-white/[0.08] px-6 py-14 text-center">
-              <p className="font-medium text-neutral-300">No active {tab === "credit_card" ? "credit cards" : `${tab} liabilities`}</p>
+            <div className="surface-card rounded-3xl border border-dashed border-black/[0.09] px-6 py-14 text-center dark:border-white/[0.08]">
+              <p className="font-medium text-neutral-700 dark:text-neutral-300">No active {tab === "credit_card" ? "credit cards" : `${tab} liabilities`}</p>
               <p className="mt-2 text-sm text-neutral-500">Add one to generate and track its repayment schedule.</p>
             </div>
           )}
@@ -140,7 +140,7 @@ export function LiabilitiesView({ state }: Props) {
               <button
                 type="button"
                 onClick={() => setShowArchived((v) => !v)}
-                className="flex w-full items-center justify-between gap-2 rounded-2xl border border-white/[0.055] bg-white/[0.02] px-4 py-3 text-sm font-medium text-neutral-400 transition hover:bg-white/[0.04] hover:text-neutral-200"
+                className="flex w-full items-center justify-between gap-2 rounded-2xl border border-black/[0.07] bg-black/[0.03] px-4 py-3 text-sm font-medium text-neutral-600 transition hover:bg-black/[0.05] hover:text-neutral-800 dark:border-white/[0.055] dark:bg-white/[0.02] dark:text-neutral-400 dark:hover:bg-white/[0.04] dark:hover:text-neutral-200"
               >
                 <div className="flex items-center gap-2">
                   <Archive size={15} />
@@ -196,7 +196,7 @@ function LiabilityCard({
     <article className={`surface-card w-[84vw] shrink-0 snap-start rounded-3xl border border-white/[0.055] p-5 md:w-auto ${archived ? "opacity-70" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold">{liability.name}</p>
+          <p className="truncate text-lg font-semibold text-neutral-900 dark:text-white">{liability.name}</p>
           <p className="mt-1 truncate text-sm text-neutral-500">{liability.provider}</p>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
@@ -210,7 +210,7 @@ function LiabilityCard({
       <p className={`mt-1 text-3xl font-semibold tracking-tight ${archived ? "text-emerald-300" : "text-red-300"}`}>
         {money(state.currencySymbol, liability.outstandingBalance)}
       </p>
-      <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
+      <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-black/[0.08] dark:bg-white/[0.05]">
         <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-300" style={{ width: `${progress}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-xs text-neutral-500">
@@ -218,14 +218,14 @@ function LiabilityCard({
         <span>{liability.category || "Uncategorized"}</span>
       </div>
       {!archived && (
-        <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-black/20 p-3 text-sm">
+        <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-black/[0.08] p-3 text-sm dark:bg-black/20">
           <div>
             <p className="text-xs text-neutral-500">Next payment</p>
-            <p className="mt-1 font-semibold">{next ? money(state.currencySymbol, next.amount) : "None"}</p>
+            <p className="mt-1 font-semibold text-neutral-900 dark:text-white">{next ? money(state.currencySymbol, next.amount) : "None"}</p>
           </div>
           <div>
             <p className="text-xs text-neutral-500">Due</p>
-            <p className="mt-1 font-semibold">{next?.dueDate || "Settled"}</p>
+            <p className="mt-1 font-semibold text-neutral-900 dark:text-white">{next?.dueDate || "Settled"}</p>
           </div>
           {payoffDate && (
             <div>
@@ -243,12 +243,12 @@ function LiabilityCard({
       )}
       {archived ? (
         <div className="mt-4">
-          <button type="button" onClick={() => state.deleteFullLiability(liability.id)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/[0.035] p-3 text-sm font-medium text-neutral-500 hover:text-red-300"><Trash2 size={15} /> Delete Record</button>
+          <button type="button" onClick={() => state.deleteFullLiability(liability.id)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-black/[0.04] p-3 text-sm font-medium text-neutral-600 hover:text-red-500 dark:bg-white/[0.035] dark:text-neutral-500 dark:hover:text-red-300"><Trash2 size={15} /> Delete Record</button>
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => state.openEditLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.05] p-3 text-sm font-medium text-neutral-300"><Pencil size={15} /> Edit</button>
-          <button type="button" onClick={() => state.deleteFullLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.035] p-3 text-sm font-medium text-neutral-500 hover:text-red-300"><Trash2 size={15} /> Delete</button>
+          <button type="button" onClick={() => state.openEditLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-black/[0.06] p-3 text-sm font-medium text-neutral-700 dark:bg-white/[0.05] dark:text-neutral-300"><Pencil size={15} /> Edit</button>
+          <button type="button" onClick={() => state.deleteFullLiability(liability.id)} className="flex items-center justify-center gap-2 rounded-xl bg-black/[0.04] p-3 text-sm font-medium text-neutral-600 hover:text-red-500 dark:bg-white/[0.035] dark:text-neutral-500 dark:hover:text-red-300"><Trash2 size={15} /> Delete</button>
         </div>
       )}
     </article>
@@ -271,10 +271,10 @@ function ScheduleList({
           schedules.map((schedule) => {
             const liability = state.liabilities.find((item) => item.id === schedule.liabilityId);
             return (
-              <div key={schedule.id} className="rounded-2xl border border-white/[0.04] bg-white/[0.02] p-4">
+              <div key={schedule.id} className="rounded-2xl border border-black/[0.05] bg-black/[0.03] p-4 dark:border-white/[0.04] dark:bg-white/[0.02]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">
+                    <p className="truncate font-semibold text-neutral-900 dark:text-white">
                       {liability?.name || "Liability"}
                     </p>
                     <p className="mt-1 text-xs text-neutral-500">
@@ -285,22 +285,22 @@ function ScheduleList({
                     {schedule.status}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-black/20 p-3 text-xs">
+                <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-black/[0.08] p-3 text-xs dark:bg-black/20">
                   <div>
                     <p className="text-neutral-500">Due date</p>
-                    <p className="mt-1 font-medium text-neutral-200">
+                    <p className="mt-1 font-medium text-neutral-800 dark:text-neutral-200">
                       {schedule.dueDate}
                     </p>
                   </div>
                   <div>
                     <p className="text-neutral-500">Principal / interest</p>
-                    <p className="mt-1 font-medium text-neutral-200">
+                    <p className="mt-1 font-medium text-neutral-800 dark:text-neutral-200">
                       {money(state.currencySymbol, schedule.principalAmount)} / {money(state.currencySymbol, schedule.interestAmount)}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-lg font-semibold tabular-nums">
+                  <p className="text-lg font-semibold tabular-nums text-neutral-900 dark:text-white">
                     {money(state.currencySymbol, schedule.amount)}
                   </p>
                   <div className="flex items-center justify-end gap-2">
@@ -309,8 +309,8 @@ function ScheduleList({
                         Mark paid
                       </button>
                     )}
-                    <button type="button" onClick={() => state.setEditingScheduleId(schedule.id)} aria-label="Edit repayment" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05] text-neutral-400"><Pencil size={15} /></button>
-                    <button type="button" onClick={() => state.deleteRepaymentSchedule(schedule.id)} aria-label="Delete repayment" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.035] text-neutral-500 hover:text-red-300"><Trash2 size={15} /></button>
+                    <button type="button" onClick={() => state.setEditingScheduleId(schedule.id)} aria-label="Edit repayment" className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/[0.06] text-neutral-600 dark:bg-white/[0.05] dark:text-neutral-400"><Pencil size={15} /></button>
+                    <button type="button" onClick={() => state.deleteRepaymentSchedule(schedule.id)} aria-label="Delete repayment" className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/[0.04] text-neutral-500 hover:text-red-500 dark:bg-white/[0.035] dark:hover:text-red-300"><Trash2 size={15} /></button>
                   </div>
                 </div>
               </div>

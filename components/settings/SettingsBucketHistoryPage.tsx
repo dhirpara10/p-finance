@@ -61,33 +61,33 @@ export function SettingsBucketHistoryPage({ state }: Props) {
             <MathItem label="Shared jar available" value={`${state.currencySymbol}${state.sharedRolloverJar.available.toLocaleString()}`} />
             <MathItem label="All tracker monthly result" value={`${state.currencySymbol}${state.sharedRolloverJar.monthlyResult.toLocaleString()}`} />
           </div>
-          <p className="mt-3 text-xs text-neutral-400">This tracker has no separate balance. The available rollover belongs to the one shared jar.</p>
+          <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">This tracker has no separate balance. The available rollover belongs to the one shared jar.</p>
         </div>
       )}
       {savingsBucket && (
         <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm">
           <p className="font-semibold text-blue-200">Real money balance</p>
-          <p className="mt-2 text-2xl font-bold">{state.currencySymbol}{savingsBucket.currentBalance.toLocaleString()}</p>
-          <p className="mt-1 text-neutral-400">Stored as {savingsBucket.linkedStorageLabel}</p>
+          <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">{state.currencySymbol}{savingsBucket.currentBalance.toLocaleString()}</p>
+          <p className="mt-1 text-neutral-600 dark:text-neutral-400">Stored as {savingsBucket.linkedStorageLabel}</p>
         </div>
       )}
       <div className="space-y-2">
         {rows.map((row) => (
-          <div key={String(row.id)} className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-950 p-4">
+          <div key={String(row.id)} className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-100 p-4 dark:bg-neutral-950">
             <div>
-              <p className="font-semibold">{row.title}</p>
+              <p className="font-semibold text-neutral-900 dark:text-white">{row.title}</p>
               <p className="text-xs text-neutral-500">{row.date} · {row.detail}</p>
-              {row.note && <p className="mt-1 text-xs text-neutral-400">{row.note}</p>}
+              {row.note && <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{row.note}</p>}
             </div>
-            <p className="font-semibold">{state.currencySymbol}{row.amount.toLocaleString()}</p>
+            <p className="font-semibold text-neutral-900 dark:text-white">{state.currencySymbol}{row.amount.toLocaleString()}</p>
           </div>
         ))}
-        {!rows.length && <p className="rounded-2xl bg-neutral-950 p-4 text-sm text-neutral-400">No history yet.</p>}
+        {!rows.length && <p className="rounded-2xl bg-neutral-100 p-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-400">No history yet.</p>}
       </div>
     </SettingsPanel>
   );
 }
 
 function MathItem({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-neutral-950 p-3"><p className="text-xs text-neutral-500">{label}</p><p className="mt-1 font-semibold">{value}</p></div>;
+  return <div className="rounded-xl bg-neutral-100 p-3 dark:bg-neutral-950"><p className="text-xs text-neutral-500">{label}</p><p className="mt-1 font-semibold text-neutral-900 dark:text-white">{value}</p></div>;
 }

@@ -111,7 +111,7 @@ export function DashboardLayout({ state }: Props) {
   }
 
   return (
-    <main className="page-bottom-clearance min-h-screen overflow-x-clip bg-[#080a0d] text-white md:pb-8">
+    <main className="page-bottom-clearance min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)] md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
         <AppHeader state={state} onOpenSettings={() => selectTab("settings")} />
         <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
@@ -227,7 +227,7 @@ function AppHeader({
           type="button"
           aria-label="Settings"
           onClick={onOpenSettings}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07]"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/[0.08] bg-black/[0.04] text-neutral-600 transition hover:bg-black/[0.07] dark:border-white/[0.06] dark:bg-white/[0.035] dark:text-neutral-300 dark:hover:bg-white/[0.07]"
         >
           <Settings size={18} />
         </button>
@@ -235,7 +235,7 @@ function AppHeader({
           type="button"
           aria-label="Lock app"
           onClick={state.lockApp}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-neutral-300 transition hover:bg-white/[0.07]"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/[0.08] bg-black/[0.04] text-neutral-600 transition hover:bg-black/[0.07] dark:border-white/[0.06] dark:bg-white/[0.035] dark:text-neutral-300 dark:hover:bg-white/[0.07]"
         >
           <Lock size={18} />
         </button>
@@ -252,7 +252,7 @@ function DesktopNavigation({
   onSelect: (tab: Tab) => void;
 }) {
   return (
-    <nav className="mt-7 hidden grid-cols-8 rounded-2xl border border-white/[0.05] bg-white/[0.025] p-1.5 md:grid">
+    <nav className="mt-7 hidden grid-cols-8 rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
@@ -264,8 +264,8 @@ function DesktopNavigation({
             title={tab.label}
             className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-medium transition lg:px-3 ${
               selected
-                ? "bg-white text-neutral-950 shadow-sm"
-                : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+                ? "bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-950"
+                : "text-neutral-500 hover:bg-black/[0.04] hover:text-neutral-700 dark:hover:bg-white/[0.04] dark:hover:text-neutral-200"
             }`}
           >
             <Icon size={17} />
@@ -377,7 +377,7 @@ function HomeView({
           <SharedJarCard state={state} onAllocate={onAllocate} />
         </div>
 
-        <div className="surface-card rounded-[28px] border border-white/[0.055] p-5">
+        <div className="surface-card rounded-[28px] border border-black/[0.07] p-5 dark:border-white/[0.055]">
           <SectionTitle title="Accounts" subtitle="Your usable money" />
 
           <div className="mt-5 space-y-3">
@@ -398,7 +398,7 @@ function HomeView({
             />
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-5">
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-black/[0.07] pt-5 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => state.setDetailsView("lent")}
@@ -414,7 +414,7 @@ function HomeView({
             <button
               type="button"
               onClick={() => state.setDetailsView("borrowed")}
-              className="border-l border-white/[0.06] pl-4 text-left"
+              className="border-l border-black/[0.07] pl-4 text-left dark:border-white/[0.06]"
             >
               <p className="text-xs text-neutral-500">Personal borrowing</p>
               <p className="mt-1 font-semibold text-red-300">
@@ -436,7 +436,7 @@ function HomeView({
           <button
             type="button"
             onClick={onBuckets}
-            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white"
+            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
           >
             View all <ChevronRight size={15} />
           </button>
@@ -486,7 +486,7 @@ function HomeView({
           <button
             type="button"
             onClick={onBuckets}
-            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-400 hover:text-white"
+            className="flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
           >
             View all <ChevronRight size={15} />
           </button>
@@ -523,7 +523,7 @@ function HomeView({
           <button
             type="button"
             onClick={onActivity}
-            className="text-sm font-medium text-neutral-400 hover:text-white"
+            className="text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
           >
             View all
           </button>
@@ -555,21 +555,21 @@ function BalanceCard({
   tone: "emerald" | "blue" | "purple" | "neutral" | "warning";
 }) {
   const tones = {
-    emerald: "from-emerald-400/[0.16] border-emerald-300/15 text-emerald-200",
-    blue: "from-sky-400/[0.16] border-sky-300/15 text-sky-200",
-    purple: "from-purple-400/[0.16] border-purple-300/15 text-purple-200",
-    neutral: "from-white/[0.07] border-white/[0.06] text-neutral-200",
-    warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-200",
+    emerald: "from-emerald-400/[0.16] border-emerald-300/15 text-emerald-600 dark:text-emerald-200",
+    blue: "from-sky-400/[0.16] border-sky-300/15 text-sky-600 dark:text-sky-200",
+    purple: "from-purple-400/[0.16] border-purple-300/15 text-purple-600 dark:text-purple-200",
+    neutral: "from-black/[0.04] border-black/[0.06] text-neutral-700 dark:from-white/[0.07] dark:border-white/[0.06] dark:text-neutral-200",
+    warning: "from-orange-400/[0.14] border-orange-300/15 text-orange-600 dark:text-orange-200",
   };
   return (
-    <article className={`flex min-h-[168px] w-[84vw] shrink-0 snap-start flex-col rounded-[26px] border bg-gradient-to-br to-[#111419] p-5 sm:w-auto sm:min-w-0 ${tones[tone]}`}>
+    <article className={`flex min-h-[168px] w-[84vw] shrink-0 snap-start flex-col rounded-[26px] border bg-gradient-to-br to-white dark:to-[#111419] p-5 sm:w-auto sm:min-w-0 ${tones[tone]}`}>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-neutral-400">{label}</p>
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.07]">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{label}</p>
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/[0.06] dark:bg-white/[0.07]">
           <Icon size={18} />
         </span>
       </div>
-      <p className="mt-5 truncate text-[clamp(1.55rem,3vw,2.15rem)] font-semibold tracking-tight text-white">
+      <p className="mt-5 truncate text-[clamp(1.55rem,3vw,2.15rem)] font-semibold tracking-tight text-neutral-900 dark:text-white">
         {value < 0 ? "-" : ""}{currency}{Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
       </p>
       <p className="mt-auto pt-3 text-xs leading-5 text-neutral-500">{helper}</p>
@@ -602,7 +602,7 @@ function QuickActions({
       {actions.map((action) => {
         const Icon = action.icon;
         return (
-          <button key={action.label} type="button" onClick={action.onClick} className="surface-card flex items-center gap-3 rounded-2xl border border-white/[0.05] p-3.5 text-left text-sm font-medium text-neutral-200 transition hover:-translate-y-0.5 hover:border-white/[0.1]">
+          <button key={action.label} type="button" onClick={action.onClick} className="surface-card flex items-center gap-3 rounded-2xl border border-black/[0.07] p-3.5 text-left text-sm font-medium text-neutral-700 transition hover:-translate-y-0.5 hover:border-black/[0.12] dark:border-white/[0.05] dark:text-neutral-200 dark:hover:border-white/[0.1]">
             <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${action.tone}`}><Icon size={17} /></span>
             {action.label}
           </button>
@@ -835,7 +835,7 @@ function BucketHistoryPanel({
     <section
       className={`surface-card flex ${
         compact ? "h-full" : ""
-      } flex-col rounded-[28px] border border-white/[0.06] p-5 sm:p-6`}
+      } flex-col rounded-[28px] border border-black/[0.07] p-5 dark:border-white/[0.06] sm:p-6`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -852,7 +852,7 @@ function BucketHistoryPanel({
           type="button"
           aria-label="Close history"
           onClick={onClose}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-neutral-400 transition hover:bg-white/[0.08] hover:text-white"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/[0.05] text-neutral-500 transition hover:bg-black/[0.08] hover:text-neutral-900 dark:bg-white/[0.05] dark:text-neutral-400 dark:hover:bg-white/[0.08] dark:hover:text-white"
         >
           <X size={16} />
         </button>
@@ -889,7 +889,7 @@ function BucketHistoryPanel({
         }`}
       >
         {rows.length ? (
-          <div className="divide-y divide-white/[0.05]">
+          <div className="divide-y divide-black/[0.06] dark:divide-white/[0.05]">
             {rows.map((row) => (
               <div
                 key={String(row.id)}
@@ -942,9 +942,9 @@ function ActivityView({
         description="Every transaction, newest first."
       />
       <div className="grid gap-3 sm:grid-cols-[1fr_190px]">
-        <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4">
+        <label className="flex h-12 items-center gap-3 rounded-2xl border border-black/[0.08] bg-black/[0.04] px-4 dark:border-white/[0.06] dark:bg-white/[0.035]">
           <Search size={17} className="text-neutral-500" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search activity" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-600" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search activity" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 dark:placeholder:text-neutral-600" />
         </label>
         <SelectField
           aria-label="Activity type"
@@ -982,7 +982,7 @@ const settingsItems = [
 function SettingsWorkspace({ state }: Props) {
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="surface-card hidden h-fit rounded-3xl border border-white/[0.055] p-3 lg:block">
+      <aside className="surface-card hidden h-fit rounded-3xl border border-black/[0.07] p-3 dark:border-white/[0.055] lg:block">
         <div className="px-3 pb-3 pt-2">
           <p className="section-kicker text-neutral-500">PREFERENCES</p>
           <h2 className="mt-2 text-xl font-semibold">Settings</h2>
@@ -999,7 +999,7 @@ function SettingsWorkspace({ state }: Props) {
                   state.navigateToSettingsPage(page);
                 }}
                 className={`rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                  selected ? "bg-white text-neutral-950" : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+                  selected ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950" : "text-neutral-500 hover:bg-black/[0.04] hover:text-neutral-700 dark:hover:bg-white/[0.04] dark:hover:text-neutral-200"
                 }`}
               >
                 {label}
@@ -1054,7 +1054,7 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
 
       {/* More drawer */}
       {drawerOpen && (
-        <div className="safe-bottom-drawer fixed right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-white/[0.09] bg-[#101318]/98 p-2 shadow-2xl backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="safe-bottom-drawer fixed right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-black/[0.10] bg-white/98 p-2 shadow-2xl backdrop-blur-xl dark:border-white/[0.09] dark:bg-[#101318]/98 md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
           {overflowTabs.map((id) => {
             const tab = tabs.find((t) => t.id === id)!;
             const Icon = tab.icon;
@@ -1064,7 +1064,7 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
                 key={id}
                 type="button"
                 onClick={() => handleSelect(id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${selected ? "bg-white text-neutral-950" : "text-neutral-300 hover:bg-white/[0.06]"}`}
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${selected ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950" : "text-neutral-600 hover:bg-black/[0.06] dark:text-neutral-300 dark:hover:bg-white/[0.06]"}`}
               >
                 <Icon size={17} />
                 {tab.label}
@@ -1075,7 +1075,7 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
       )}
 
       {/* Pill nav bar */}
-      <nav className="safe-bottom-nav fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.08] bg-[#101318]/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl md:hidden">
+      <nav className="safe-bottom-nav fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-black/[0.10] bg-white/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#101318]/95 dark:shadow-[0_8px_40px_rgba(0,0,0,0.55)] md:hidden">
         {primaryTabs.map((id) => {
           const tab = tabs.find((t) => t.id === id)!;
           const Icon = tab.icon;
@@ -1088,8 +1088,8 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
               title={tab.label}
               className={`flex h-10 items-center justify-center gap-2 rounded-full text-sm font-semibold transition-all duration-300
                 ${selected
-                  ? "bg-white px-4 text-neutral-950"
-                  : "w-10 text-neutral-500 hover:text-neutral-300"
+                  ? "bg-neutral-900 px-4 text-white dark:bg-white dark:text-neutral-950"
+                  : "w-10 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
                 }`}
             >
               <Icon size={18} strokeWidth={selected ? 2.2 : 1.8} />
@@ -1109,10 +1109,10 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
           title="More"
           className={`flex h-10 items-center justify-center rounded-full transition-all duration-300
             ${overflowActive
-              ? "bg-white px-4 text-neutral-950"
+              ? "bg-neutral-900 px-4 text-white dark:bg-white dark:text-neutral-950"
               : drawerOpen
-                ? "w-10 bg-white/[0.12] text-white"
-                : "w-10 text-neutral-500 hover:text-neutral-300"
+                ? "w-10 bg-black/[0.10] text-neutral-900 dark:bg-white/[0.12] dark:text-white"
+                : "w-10 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
             }`}
         >
           {overflowActive ? (

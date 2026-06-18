@@ -22,7 +22,7 @@ export function Toaster() {
               ? "bg-red-950/95 text-red-200 border border-red-500/30"
               : t.type === "success"
                 ? "bg-emerald-950/95 text-emerald-200 border border-emerald-500/30"
-                : "bg-neutral-900/95 text-neutral-200 border border-white/10"
+                : "bg-white/95 text-neutral-700 border border-black/10 dark:bg-neutral-900/95 dark:text-neutral-200 dark:border-white/10"
           }`}
         >
           {t.message}

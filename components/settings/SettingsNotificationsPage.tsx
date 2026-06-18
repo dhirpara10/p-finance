@@ -9,15 +9,15 @@ type Props = { state: FinanceDashboardState };
 export function SettingsNotificationsPage({ state }: Props) {
   return (
     <SettingsPanel title="Notifications" onBack={state.goBackSettingsPage}>
-      <label className="flex items-center justify-between rounded-2xl bg-neutral-950 p-4">
+      <label className="flex items-center justify-between rounded-2xl bg-neutral-100 p-4 dark:bg-neutral-950">
         <span>
-          <span className="block font-semibold">Daily reminder</span>
+          <span className="block font-semibold text-neutral-900 dark:text-white">Daily reminder</span>
           <span className="text-sm text-neutral-500">Use browser notification reminders.</span>
         </span>
         <input type="checkbox" checked={state.dailyReminderEnabled} onChange={(event) => state.setDailyReminderEnabled(event.target.checked)} />
       </label>
       <Field label="Reminder time">
-        <input type="time" value={state.dailyReminderTime} disabled={!state.dailyReminderEnabled} onChange={(event) => state.setDailyReminderTime(event.target.value)} className="w-full rounded-2xl bg-neutral-800 p-4 outline-none disabled:opacity-50" />
+        <input type="time" value={state.dailyReminderTime} disabled={!state.dailyReminderEnabled} onChange={(event) => state.setDailyReminderTime(event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none disabled:opacity-50 dark:bg-neutral-800" />
       </Field>
       <SelectField
         label="Tone"
