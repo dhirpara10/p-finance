@@ -237,7 +237,14 @@ export type RepaymentSchedule = {
 
 export type AppNotification = {
   id: string;
-  type: "repayment_due" | "repayment_overdue" | "repayment_upcoming" | "insufficient_usable_balance" | "general";
+  type:
+    | "repayment_due"
+    | "repayment_overdue"
+    | "repayment_upcoming"
+    | "insufficient_usable_balance"
+    | "bnpl_ready"
+    | "bnpl_low_balance"
+    | "general";
   title: string;
   message: string;
   relatedEntityType?: "repayment_schedule" | "liability";

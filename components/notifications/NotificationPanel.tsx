@@ -18,6 +18,8 @@ function NotifIcon({ type }: { type: AppNotification["type"] }) {
   if (type === "repayment_due") return <Clock size={15} className="text-orange-400 shrink-0" />;
   if (type === "insufficient_usable_balance") return <AlertTriangle size={15} className="text-amber-400 shrink-0" />;
   if (type === "repayment_upcoming") return <Clock size={15} className="text-blue-400 shrink-0" />;
+  if (type === "bnpl_ready") return <Check size={15} className="text-emerald-400 shrink-0" />;
+  if (type === "bnpl_low_balance") return <AlertTriangle size={15} className="text-amber-400 shrink-0" />;
   return <Bell size={15} className="text-neutral-400 shrink-0" />;
 }
 
@@ -25,6 +27,8 @@ function notifBg(type: AppNotification["type"]) {
   if (type === "repayment_overdue") return "border-red-500/20 bg-red-500/5";
   if (type === "repayment_due") return "border-orange-500/20 bg-orange-500/5";
   if (type === "insufficient_usable_balance") return "border-amber-500/20 bg-amber-500/5";
+  if (type === "bnpl_ready") return "border-emerald-500/20 bg-emerald-500/5";
+  if (type === "bnpl_low_balance") return "border-amber-500/20 bg-amber-500/5";
   return "border-black/[0.05] bg-black/[0.02] dark:border-white/[0.05] dark:bg-white/[0.02]";
 }
 
