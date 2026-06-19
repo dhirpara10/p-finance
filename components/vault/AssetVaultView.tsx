@@ -214,6 +214,8 @@ const CATEGORY_ILLUSTRATIONS: Record<AssetType, React.FC> = {
   other: OtherIllustration,
 };
 
+type HomeSort = "category" | "location";
+
 // ── Category Home Grid ────────────────────────────────────────────────────────
 
 function CategoryGrid({
@@ -221,11 +223,15 @@ function CategoryGrid({
   onSelect,
   onOpenTagManager,
   totalCount,
+  sort,
+  onSortChange,
 }: {
   assetCounts: Record<AssetType, number>;
   onSelect: (type: AssetType) => void;
   onOpenTagManager: () => void;
   totalCount: number;
+  sort: HomeSort;
+  onSortChange: (s: HomeSort) => void;
 }) {
   return (
     <section>
@@ -239,17 +245,39 @@ function CategoryGrid({
               : `${totalCount} record${totalCount !== 1 ? "s" : ""} stored across ${ASSET_TYPES.filter((t) => assetCounts[t.id] > 0).length} categories`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenTagManager}
-          className="mt-1 flex h-10 items-center gap-1.5 rounded-xl border border-black/[0.09] bg-black/[0.04] px-3 text-xs font-semibold text-neutral-600 transition hover:bg-black/[0.08] hover:text-neutral-900 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-neutral-400 dark:hover:bg-white/[0.07] dark:hover:text-neutral-200"
-        >
-          <Settings2 size={13} />
-          Tags
-        </button>
+        <div className="mt-1 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenTagManager}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-black/[0.09] bg-black/[0.04] px-3 text-xs font-semibold text-neutral-600 transition hover:bg-black/[0.08] hover:text-neutral-900 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-neutral-400 dark:hover:bg-white/[0.07] dark:hover:text-neutral-200"
+          >
+            <Settings2 size={13} />
+            Tags
+          </button>
+        </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {/* View toggle */}
+      <div className="mt-4 flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">View</span>
+        {([["category", "By Category"], ["location", "By Location"]] as [HomeSort, string][]).map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onSortChange(mode)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+              sort === mode
+                ? "bg-white/[0.1] text-white ring-1 ring-white/20"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {mode === "location" && <MapPin size={10} />}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {ASSET_TYPES.map((type) => {
           const styles = ASSET_TYPE_STYLES[type.id];
           const count = assetCounts[type.id] ?? 0;
@@ -262,11 +290,8 @@ function CategoryGrid({
               onClick={() => onSelect(type.id)}
               className={`group relative overflow-hidden rounded-3xl border bg-white text-left transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] dark:bg-[#0d1013] ${styles.border} ${styles.glow}`}
             >
-              {/* Type gradient */}
               <div className={`pointer-events-none absolute inset-0 rounded-3xl ${styles.gradient}`} />
-
               <div className="relative flex h-[130px] items-stretch overflow-hidden sm:h-[150px]">
-                {/* Left: text */}
                 <div className="flex flex-1 flex-col justify-between p-4">
                   <span className={`text-base font-bold leading-tight ${styles.textAccent}`}>
                     {type.label}
@@ -275,7 +300,6 @@ function CategoryGrid({
                     {count === 0 ? "No records" : `${count} record${count !== 1 ? "s" : ""}`}
                   </span>
                 </div>
-                {/* Right: illustration */}
                 <div className="relative flex w-[90px] shrink-0 items-center justify-center overflow-hidden opacity-80 group-hover:opacity-100 sm:w-[100px]">
                   <Illustration />
                 </div>
@@ -284,6 +308,134 @@ function CategoryGrid({
           );
         })}
       </div>
+    </section>
+  );
+}
+
+// ── Location View (all assets grouped by location tag) ────────────────────────
+
+function LocationView({
+  vault,
+  onSortChange,
+}: {
+  vault: ReturnType<typeof useAssetVault>;
+  onSortChange: (s: HomeSort) => void;
+}) {
+  const { assets, locationTags, setViewingAsset, viewingAsset, openEditForm, deleteAsset } = vault;
+  const [search, setSearch] = useState("");
+
+  function getTagNames(tagIds: string[]) {
+    return tagIds.map((id) => locationTags.find((t) => t.id === id)?.name ?? "").filter(Boolean);
+  }
+
+  const filtered = assets.filter((a) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      a.title.toLowerCase().includes(q) ||
+      a.details.toLowerCase().includes(q) ||
+      getTagNames(a.locationTagIds).join(" ").toLowerCase().includes(q)
+    );
+  });
+
+  // Build groups: one group per location tag, sorted alphabetically; untagged last
+  const tagOrder = [...locationTags].sort((a, b) => a.name.localeCompare(b.name));
+  const groups: { label: string; items: typeof filtered }[] = [];
+
+  for (const tag of tagOrder) {
+    const items = filtered.filter((a) => a.locationTagIds.includes(tag.id));
+    if (items.length > 0) groups.push({ label: tag.name, items });
+  }
+  const untagged = filtered.filter((a) => a.locationTagIds.length === 0);
+  if (untagged.length > 0) groups.push({ label: "No location", items: untagged });
+
+  return (
+    <section>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="section-kicker text-neutral-500">INFORMATION VAULT</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">Asset Vault</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {assets.length === 0 ? "No records yet." : `${assets.length} record${assets.length !== 1 ? "s" : ""} across ${groups.length} location${groups.length !== 1 ? "s" : ""}`}
+          </p>
+        </div>
+      </div>
+
+      {/* View toggle */}
+      <div className="mt-4 flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">View</span>
+        {([["category", "By Category"], ["location", "By Location"]] as [HomeSort, string][]).map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onSortChange(mode)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+              mode === "location"
+                ? "bg-white/[0.1] text-white ring-1 ring-white/20"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {mode === "location" && <MapPin size={10} />}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative mt-4">
+        <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search all records…"
+          className="min-h-11 w-full rounded-xl border border-black/[0.09] bg-black/[0.04] pl-9 pr-4 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-black/[0.15] dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-white dark:placeholder:text-neutral-600"
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-600 hover:text-neutral-300">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {assets.length === 0 ? (
+        <div className="mt-10 rounded-3xl border border-dashed border-black/[0.09] px-6 py-14 text-center dark:border-white/[0.07]">
+          <p className="font-semibold text-neutral-400">No records yet</p>
+          <p className="mt-2 text-sm text-neutral-600">Switch to By Category to add your first asset.</p>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-7">
+          {groups.map((group) => (
+            <div key={group.label}>
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin size={12} className="text-neutral-600" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{group.label}</span>
+                <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-neutral-600">{group.items.length}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {group.items.map((asset) => (
+                  <RecordCard
+                    key={asset.id}
+                    asset={asset}
+                    locationTagNames={getTagNames(asset.locationTagIds)}
+                    onClick={() => setViewingAsset(asset)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {viewingAsset && (
+        <AssetDetailModal
+          asset={viewingAsset}
+          tagNames={getTagNames(viewingAsset.locationTagIds)}
+          onClose={() => setViewingAsset(null)}
+          onEdit={() => openEditForm(viewingAsset)}
+          onDelete={() => deleteAsset(viewingAsset.id)}
+        />
+      )}
     </section>
   );
 }
@@ -349,7 +501,7 @@ function RecordCard({
 
 // ── Category Detail View ───────────────────────────────────────────────────────
 
-type SortMode = "date" | "title" | "location";
+type SortMode = "date" | "title";
 
 function CategoryDetailView({
   categoryType,
@@ -408,25 +560,8 @@ function CategoryDetailView({
   // Sort
   const categoryAssets = [...filtered].sort((a, b) => {
     if (sortMode === "title") return a.title.localeCompare(b.title);
-    if (sortMode === "location") {
-      const tagA = getTagNames(a.locationTagIds)[0] ?? "￿";
-      const tagB = getTagNames(b.locationTagIds)[0] ?? "￿";
-      return tagA.localeCompare(tagB);
-    }
-    // date: newest first
     return (b.date ?? "").localeCompare(a.date ?? "");
   });
-
-  // Group by location when sorted by location
-  const locationGroups: { label: string; items: typeof categoryAssets }[] = [];
-  if (sortMode === "location") {
-    for (const asset of categoryAssets) {
-      const label = getTagNames(asset.locationTagIds)[0] ?? "No location";
-      const existing = locationGroups.find((g) => g.label === label);
-      if (existing) existing.items.push(asset);
-      else locationGroups.push({ label, items: [asset] });
-    }
-  }
 
   // Tags that actually appear in this category
   const usedTagIds = [...new Set(assets.filter((a) => a.assetType === categoryType).flatMap((a) => a.locationTagIds))];
@@ -492,7 +627,7 @@ function CategoryDetailView({
       {/* Sort controls */}
       <div className="mt-3 flex items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">Sort</span>
-        {(["date", "title", "location"] as SortMode[]).map((mode) => (
+        {(["date", "title"] as SortMode[]).map((mode) => (
           <button
             key={mode}
             type="button"
@@ -503,7 +638,7 @@ function CategoryDetailView({
                 : "text-neutral-500 hover:text-neutral-300"
             }`}
           >
-            {mode === "date" ? "Date" : mode === "title" ? "A–Z" : "Location"}
+            {mode === "date" ? "Date" : "A–Z"}
           </button>
         ))}
       </div>
@@ -557,30 +692,6 @@ function CategoryDetailView({
               ? "Tap Add to create the first one."
               : "Try clearing the search or location filters."}
           </p>
-        </div>
-      ) : sortMode === "location" ? (
-        <div className="mt-4 space-y-6">
-          {locationGroups.map((group) => (
-            <div key={group.label}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <MapPin size={11} className="text-neutral-600" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-                  {group.label}
-                </span>
-                <span className="text-[10px] text-neutral-700">{group.items.length}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {group.items.map((asset) => (
-                  <RecordCard
-                    key={asset.id}
-                    asset={asset}
-                    locationTagNames={getTagNames(asset.locationTagIds)}
-                    onClick={() => setViewingAsset(asset)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
         </div>
       ) : (
         <div className="relative mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -847,10 +958,10 @@ function TagManagerModal({ vault }: { vault: ReturnType<typeof useAssetVault> })
 export function AssetVaultView() {
   const vault = useAssetVault();
   const [selectedCategory, setSelectedCategory] = useState<AssetType | null>(null);
+  const [homeSort, setHomeSort] = useState<HomeSort>("category");
 
   const { assets, showForm, showTagManager, setShowTagManager, openAddForm } = vault;
 
-  // Count per category
   const assetCounts = ASSET_TYPES.reduce(
     (acc, t) => {
       acc[t.id] = assets.filter((a) => a.assetType === t.id).length;
@@ -859,7 +970,6 @@ export function AssetVaultView() {
     {} as Record<AssetType, number>
   );
 
-  // When vault form opens from category view, preselect the category type
   function openAddForCategory(type: AssetType) {
     vault.setFormAssetType(type);
     openAddForm();
@@ -867,12 +977,16 @@ export function AssetVaultView() {
 
   return (
     <div>
-      {selectedCategory === null ? (
+      {selectedCategory === null && homeSort === "location" ? (
+        <LocationView vault={vault} onSortChange={setHomeSort} />
+      ) : selectedCategory === null ? (
         <CategoryGrid
           assetCounts={assetCounts}
           onSelect={(type) => setSelectedCategory(type)}
           onOpenTagManager={() => setShowTagManager(true)}
           totalCount={assets.length}
+          sort={homeSort}
+          onSortChange={setHomeSort}
         />
       ) : (
         <CategoryDetailView
