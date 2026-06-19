@@ -906,6 +906,12 @@ const validRemittances = remittances.filter((item) =>
   hasValidDate(item.date) && isPositiveAmount(item.audAmount)
 );
 
+const validLiabilities = liabilities.filter((item) =>
+  item.status === "active" &&
+  isPositiveAmount(item.originalAmount) &&
+  hasValidDate(item.purchaseDate || item.createdAt)
+);
+
 const recentActivity: RecentActivityItem[] = [
   ...validIncomes.map((item, index) => ({
     id: item.id || `income-${item.date}-${item.amount}-${index}`,
@@ -1060,6 +1066,29 @@ const recentActivity: RecentActivityItem[] = [
       createdAt: (item as any).createdAt,
       updatedAt: (item as any).updatedAt,
       addedBy: item.addedBy,
+    };
+  }),
+
+  ...validLiabilities.map((item) => {
+    const providerLabel =
+      item.provider === "Afterpay" ? "Afterpay"
+      : item.provider === "StepPay" ? "StepPay"
+      : item.type === "credit_card" ? "Credit Card"
+      : item.provider || item.type;
+    const prog = scheduleProgressByLiability.get(item.id);
+    const paymentProgress = prog && prog.total > 0 ? `${prog.paid}/${prog.total} paid` : undefined;
+    return {
+      id: item.id,
+      type: "expense" as const,
+      title: item.name || item.category || providerLabel,
+      subtitle: [providerLabel, item.category].filter(Boolean).join(" / "),
+      account: providerLabel,
+      amount: item.originalAmount,
+      date: item.purchaseDate || item.createdAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      source: "liability" as const,
+      paymentProgress,
     };
   }),
 ].sort((a, b) => {

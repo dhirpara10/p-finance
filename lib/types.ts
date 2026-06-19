@@ -316,7 +316,7 @@ export type RecentActivityItem = {
   createdAt?: string;
   updatedAt?: string;
   date: string;
-  source?: "lendingTransaction";
+  source?: "lendingTransaction" | "liability";
   isRecurring?: boolean;
   paymentProgress?: string;
   addedBy?: AppUser;
