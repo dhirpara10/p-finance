@@ -175,10 +175,11 @@ export function LendingDetails({ state }: LendingDetailsProps) {
                     </div>
 
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="Settlement amount"
                       value={settlementAmount}
-                      onChange={(e) => setSettlementAmount(e.target.value)}
+                      onChange={(e) => setSettlementAmount(e.target.value.replace(/[^\d.]/g, ""))}
                       className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
                     />
 

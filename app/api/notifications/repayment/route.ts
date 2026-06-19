@@ -57,7 +57,7 @@ export function computeBankBalance(
   // Expenses from bank (skip BNPL / credit card — those deduct via repayments)
   for (const exp of data.expenses) {
     const method = String(exp.paymentMethod ?? "");
-    if (method === "Afterpay" || method === "StepPay" || method === "CreditCard") continue;
+    if (method === "Afterpay" || method === "StepPay" || method === "CreditCard" || method === "SharedJar") continue;
     if (exp.account === "Bank" || method === "Bank") {
       balance -= Number(exp.amount ?? 0);
     }

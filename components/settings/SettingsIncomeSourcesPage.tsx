@@ -15,7 +15,7 @@ export function SettingsIncomeSourcesPage({ state }: Props) {
             <input value={source.name} onChange={(event) => state.updateIncomeSource(index, "name", event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
           </Field>
           <Field label="Rate">
-            <input type="number" value={String(source.rate)} onChange={(event) => state.updateIncomeSource(index, "rate", event.target.value)} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
+            <input type="text" inputMode="decimal" value={String(source.rate)} onChange={(event) => state.updateIncomeSource(index, "rate", event.target.value.replace(/[^\d.]/g, ""))} className="w-full rounded-2xl bg-neutral-200 p-4 outline-none dark:bg-neutral-800" />
           </Field>
           <button type="button" onClick={() => state.removeIncomeSourceSetting(index)} className="rounded-2xl bg-neutral-200 font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">x</button>
         </div>

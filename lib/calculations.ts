@@ -476,7 +476,7 @@
     const totalUsableIncome = totalIncomeAll - totalCashReceivedFromIncome;
     function isImmediateDeduction(item: { account: string; paymentMethod?: string }) {
       const pm = item.paymentMethod;
-      if (pm === "BNPL" || pm === "Afterpay" || pm === "StepPay" || pm === "CreditCard") return false;
+      if (pm === "BNPL" || pm === "Afterpay" || pm === "StepPay" || pm === "CreditCard" || pm === "SharedJar") return false;
       return true;
     }
     const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);

@@ -13,6 +13,7 @@ import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDas
 import type { ExpenseAccount, ExpensePaymentMethod, LiabilityChannel } from "@/lib/types";
 import { defaultLiabilityChannels } from "@/lib/liabilities";
 import { formTokens } from "@/lib/designTokens";
+import { categoryIdFromName, normalizeCategoryId } from "@/lib/buckets";
 import { RefreshCw } from "lucide-react";
 
 function BnplRepaymentPreview({ channel, amount, purchaseDate }: { channel: LiabilityChannel; amount: number; purchaseDate: string }) {
@@ -71,9 +72,26 @@ function BnplRepaymentPreview({ channel, amount, purchaseDate }: { channel: Liab
 type ExpenseFormProps = { state: FinanceDashboardState };
 
 export function ExpenseForm({ state }: ExpenseFormProps) {
-  const { editingItem, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, newExpenseCategory, setNewExpenseCategory, closeAllForms, addExpense, addExpenseCategory, currencySymbol } = state;
+  const {
+    editingItem,
+    expenseAmount, setExpenseAmount,
+    expenseCategory, setExpenseCategory,
+    expenseAccount, setExpenseAccount,
+    expensePaymentMethod, setExpensePaymentMethod,
+    expenseDate, setExpenseDate,
+    expenseNotes, setExpenseNotes,
+    expenseIsRecurring, setExpenseIsRecurring,
+    expenseRecurringFrequency, setExpenseRecurringFrequency,
+    expenseRecurringEndDate, setExpenseRecurringEndDate,
+    expenseCategories,
+    newExpenseCategory, setNewExpenseCategory,
+    closeAllForms, addExpense, addExpenseCategory, currencySymbol,
+    bucketListTrackers,
+  } = state;
+
   const isLiabilityPayment = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay" || expensePaymentMethod === "CreditCard";
   const isBnpl = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay";
+  const isJarPayment = expensePaymentMethod === "SharedJar";
 
   const savedChannels = state.liabilitySettings?.liabilityChannels;
   const channels = (savedChannels && savedChannels.length > 0) ? savedChannels : defaultLiabilityChannels;
@@ -81,12 +99,37 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
     ? channels.find((ch) => ch.id === expensePaymentMethod.toLowerCase() && ch.enabled) ?? null
     : null;
 
-  function handlePaymentMethodChange(method: ExpensePaymentMethod) {
+  // Detect if current category is linked to any active tracker
+  const categoryId = categoryIdFromName(expenseCategory);
+  const isTrackerLinked = bucketListTrackers.some(
+    (t) => t.active && t.linkedCategoryIds.some((id) => normalizeCategoryId(id) === categoryId)
+  );
+
+  function handleCategoryChange(category: string) {
+    setExpenseCategory(category);
+    const newCategoryId = categoryIdFromName(category);
+    const linked = bucketListTrackers.some(
+      (t) => t.active && t.linkedCategoryIds.some((id) => normalizeCategoryId(id) === newCategoryId)
+    );
+    // Auto-switch to SharedJar for tracker categories, back to Bank for normal
+    if (linked && !isLiabilityPayment) {
+      setExpensePaymentMethod("SharedJar");
+      setExpenseAccount("Bank");
+    } else if (!linked && expensePaymentMethod === "SharedJar") {
+      setExpensePaymentMethod("Bank");
+      setExpenseAccount("Bank");
+    }
+  }
+
+  function handlePaymentSourceChange(method: ExpensePaymentMethod) {
     setExpensePaymentMethod(method);
     if (method === "Bank" || method === "Cash") {
       setExpenseAccount(method as ExpenseAccount);
+    } else {
+      setExpenseAccount("Bank");
     }
   }
+
   const categoryOptions = (
     expenseCategories.includes(expenseCategory)
       ? expenseCategories
@@ -95,22 +138,30 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
 
   return (
     <ModalWrapper onClose={closeAllForms}>
-      <ModalHeader title={editingItem?.type === "expense" ? "Edit Expense" : "Add Expense"} subtitle="Track spending against Bank or Cash." />
+      <ModalHeader title={editingItem?.type === "expense" ? "Edit Expense" : "Add Expense"} subtitle="Track spending from bank, cash, or Shared Jar." />
       <ModalContent>
         <ModalSection>
           <FormField label="Amount">
             <CurrencyInput value={expenseAmount} onChange={setExpenseAmount} symbol={currencySymbol} placeholder="0.00" autoFocus={!editingItem} />
           </FormField>
-          <SelectField label="Category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} options={categoryOptions} />
+          <SelectField label="Category" value={expenseCategory} onChange={(event) => handleCategoryChange(event.target.value)} options={categoryOptions} />
           <div className="flex gap-2">
             <input type="text" placeholder="New category name" value={newExpenseCategory} onChange={(event) => setNewExpenseCategory(event.target.value)} className={`${formTokens.input} min-w-0 flex-1`} />
             <button type="button" onClick={addExpenseCategory} className="rounded-2xl bg-neutral-200 px-4 font-semibold text-emerald-600 dark:bg-neutral-800 dark:text-emerald-300">Add</button>
           </div>
+
+          {isTrackerLinked && (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-xs text-emerald-300">
+              This category is linked to a tracker — Shared Jar is the default payment source.
+            </div>
+          )}
+
           <SelectField
-            label="Paid with"
+            label="Payment source"
             value={expensePaymentMethod}
-            onChange={(event) => handlePaymentMethodChange(event.target.value as ExpensePaymentMethod)}
+            onChange={(event) => handlePaymentSourceChange(event.target.value as ExpensePaymentMethod)}
             options={[
+              { value: "SharedJar", label: "Shared Jar" },
               { value: "Bank", label: "Bank" },
               { value: "Cash", label: "Cash" },
               { value: "Afterpay", label: "Afterpay (4 × fortnightly)" },
@@ -118,6 +169,12 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
               { value: "CreditCard", label: "Credit Card" },
             ]}
           />
+
+          {isJarPayment && (
+            <p className="rounded-2xl bg-emerald-500/8 border border-emerald-500/15 px-4 py-3 text-xs text-emerald-300">
+              Shared Jar: Paid from your lifestyle spending jar. Your bank balance will not change.
+            </p>
+          )}
           {activeChannel && (
             <BnplRepaymentPreview
               channel={activeChannel}
@@ -130,9 +187,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
               Credit Card: Your balance is not reduced now. Record repayment in Liabilities when you pay.
             </p>
           )}
-          {!isLiabilityPayment && (
-            <SelectField label="Account" value={expenseAccount} onChange={(event) => setExpenseAccount(event.target.value as ExpenseAccount)} options={[{ value: "Bank", label: "Bank" }, { value: "Cash", label: "Cash" }]} />
-          )}
+
           <DateField label="Date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
           <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <span className="flex items-center gap-3">
@@ -157,7 +212,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
                   { value: "yearly", label: "Yearly" },
                 ]}
               />
-              <DateField label="End date optional" value={expenseRecurringEndDate} onChange={(event) => setExpenseRecurringEndDate(event.target.value)} />
+              <DateField label="End date (optional)" value={expenseRecurringEndDate} onChange={(event) => setExpenseRecurringEndDate(event.target.value)} />
             </>
           )}
           <FormField label="Notes">

@@ -31,6 +31,10 @@ export function RemittanceView({ state }: Props) {
     setRemittanceDate,
     remittanceProvider,
     setRemittanceProvider,
+    remittanceChargesAud,
+    setRemittanceChargesAud,
+    remittanceTaxAud,
+    setRemittanceTaxAud,
     remittanceNotes,
     setRemittanceNotes,
     remittanceIsPreExisting,
@@ -58,6 +62,10 @@ export function RemittanceView({ state }: Props) {
     remittanceAudAmount && remittanceExchangeRate
       ? (parseFloat(remittanceAudAmount) * parseFloat(remittanceExchangeRate)).toFixed(2)
       : "";
+  const totalAudDeducted =
+    (parseFloat(remittanceAudAmount) || 0) +
+    (parseFloat(remittanceChargesAud) || 0) +
+    (parseFloat(remittanceTaxAud) || 0);
 
   const sorted = [...remittances].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -136,6 +144,7 @@ export function RemittanceView({ state }: Props) {
                   <p className="mt-1 text-xs text-neutral-500">
                     {r.date} · {r.account === "RemittanceFund" ? "Remittance Fund" : r.account} · Rate {r.exchangeRate}
                     {r.provider ? ` · ${r.provider}` : ""}
+                    {(r.chargesAud || r.taxAud) ? ` · Fees $${((r.chargesAud ?? 0) + (r.taxAud ?? 0)).toFixed(2)}` : ""}
                   </p>
                   {r.notes && <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-600">{r.notes}</p>}
                 </div>
@@ -189,10 +198,35 @@ export function RemittanceView({ state }: Props) {
                   placeholder="e.g. 55.50"
                 />
               </FormField>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Charges (optional)">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={remittanceChargesAud}
+                    onChange={(e) => setRemittanceChargesAud(e.target.value.replace(/[^\d.]/g, ""))}
+                    className={formTokens.input}
+                    placeholder="0.00"
+                  />
+                </FormField>
+                <FormField label="Tax (optional)">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={remittanceTaxAud}
+                    onChange={(e) => setRemittanceTaxAud(e.target.value.replace(/[^\d.]/g, ""))}
+                    className={formTokens.input}
+                    placeholder="0.00"
+                  />
+                </FormField>
+              </div>
               {inrPreview && (
-                <div className="rounded-2xl bg-orange-500/8 border border-orange-500/15 px-4 py-3">
-                  <p className="text-xs text-neutral-500">INR amount (calculated)</p>
+                <div className="rounded-2xl bg-orange-500/8 border border-orange-500/15 px-4 py-3 space-y-1">
+                  <p className="text-xs text-neutral-500">INR received (calculated)</p>
                   <p className="mt-1 text-xl font-semibold text-orange-300">₹{parseFloat(inrPreview).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  {totalAudDeducted > (parseFloat(remittanceAudAmount) || 0) && (
+                    <p className="text-xs text-neutral-400">Total deducted from {remittanceAccount}: <span className="font-semibold text-neutral-200">${totalAudDeducted.toFixed(2)}</span> (incl. charges &amp; tax)</p>
+                  )}
                 </div>
               )}
 

@@ -73,7 +73,7 @@ export type IncomeSourceRate = {
   rate: number;
 };
 
-export type ExpensePaymentMethod = "Bank" | "Cash" | "Afterpay" | "StepPay" | "CreditCard";
+export type ExpensePaymentMethod = "Bank" | "Cash" | "SharedJar" | "Afterpay" | "StepPay" | "CreditCard";
 
 export type LiabilityChannel = {
   id: string;
@@ -291,6 +291,8 @@ export type Remittance = {
   account: RemittanceAccount;
   date: string;
   provider?: string;
+  chargesAud?: number;
+  taxAud?: number;
   notes?: string;
   createdAt: string;
   fromFund?: boolean;

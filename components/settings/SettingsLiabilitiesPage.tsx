@@ -73,7 +73,7 @@ export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardStat
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="mb-1 text-xs text-neutral-500">Installments</p>
-                <input type="number" min={1} max={12} value={ch.installmentCount ?? 4} onChange={(e) => updateChannel(ch.id, { installmentCount: Number(e.target.value) })} className={formTokens.input} />
+                <input type="text" inputMode="numeric" value={String(ch.installmentCount ?? 4)} onChange={(e) => updateChannel(ch.id, { installmentCount: Number(e.target.value.replace(/\D/g, "")) || 1 })} className={formTokens.input} />
               </div>
               <div>
                 <p className="mb-1 text-xs text-neutral-500">Frequency</p>
@@ -98,7 +98,7 @@ export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardStat
             {(ch.noPaymentUpfrontEnabled ?? false) && (
               <div>
                 <p className="mb-1 text-xs text-neutral-500">First payment delay (days)</p>
-                <input type="number" min={1} max={90} value={ch.noPaymentUpfrontFirstDelayDays ?? 14} onChange={(e) => updateChannel(ch.id, { noPaymentUpfrontFirstDelayDays: Number(e.target.value) })} className={formTokens.input} />
+                <input type="text" inputMode="numeric" value={String(ch.noPaymentUpfrontFirstDelayDays ?? 14)} onChange={(e) => updateChannel(ch.id, { noPaymentUpfrontFirstDelayDays: Number(e.target.value.replace(/\D/g, "")) || 1 })} className={formTokens.input} />
               </div>
             )}
             <div>
@@ -112,7 +112,7 @@ export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardStat
               <>
                 <div>
                   <p className="mb-1 text-xs text-neutral-500">Minimum split amount ($)</p>
-                  <input type="number" min={0} value={ch.minimumSplitAmount ?? 100} onChange={(e) => updateChannel(ch.id, { minimumSplitAmount: Number(e.target.value) })} className={formTokens.input} />
+                  <input type="text" inputMode="decimal" value={String(ch.minimumSplitAmount ?? 100)} onChange={(e) => updateChannel(ch.id, { minimumSplitAmount: Number(e.target.value.replace(/[^\d.]/g, "")) })} className={formTokens.input} />
                 </div>
                 <div>
                   <p className="mb-1 text-xs text-neutral-500">Under-minimum behaviour</p>
@@ -124,7 +124,7 @@ export function SettingsLiabilitiesPage({ state }: { state: FinanceDashboardStat
                 {(ch.underMinimumBehaviour ?? "single_deduction") === "single_deduction" && (
                   <div>
                     <p className="mb-1 text-xs text-neutral-500">Single deduction delay (days)</p>
-                    <input type="number" min={0} max={30} value={ch.underMinimumDeductionDelayDays ?? 2} onChange={(e) => updateChannel(ch.id, { underMinimumDeductionDelayDays: Number(e.target.value) })} className={formTokens.input} />
+                    <input type="text" inputMode="numeric" value={String(ch.underMinimumDeductionDelayDays ?? 2)} onChange={(e) => updateChannel(ch.id, { underMinimumDeductionDelayDays: Number(e.target.value.replace(/\D/g, "")) })} className={formTokens.input} />
                   </div>
                 )}
               </>
