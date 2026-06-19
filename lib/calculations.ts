@@ -902,6 +902,10 @@ const validPaidRepaymentSchedules = repaymentSchedules.filter((item) => {
   return hasValidDate(item.paidDate || item.dueDate) && isPositiveAmount(item.amount);
 });
 
+const validRemittances = remittances.filter((item) =>
+  hasValidDate(item.date) && isPositiveAmount(item.audAmount)
+);
+
 const recentActivity: RecentActivityItem[] = [
   ...validIncomes.map((item, index) => ({
     id: item.id || `income-${item.date}-${item.amount}-${index}`,
@@ -1031,6 +1035,31 @@ const recentActivity: RecentActivityItem[] = [
       date: item.paidDate || item.dueDate,
       createdAt: (item as any).createdAt,
       updatedAt: (item as any).updatedAt,
+    };
+  }),
+
+  ...validRemittances.map((item, index) => {
+    const isToFund = item.account === "RemittanceFund";
+    const charges = Number(item.chargesAud ?? 0);
+    const tax = Number(item.taxAud ?? 0);
+    const totalDeducted = Number(item.audAmount) + charges + tax;
+    const feeSuffix = (charges + tax) > 0 ? ` · fees $${(charges + tax).toFixed(2)}` : "";
+    const subtitleParts: string[] = [];
+    if (item.provider) subtitleParts.push(item.provider);
+    if (feeSuffix) subtitleParts.push(`fees $${(charges + tax).toFixed(2)}`);
+    if (item.preExisting) subtitleParts.push("pre-existing");
+
+    return {
+      id: item.id || `remittance-${item.date}-${item.audAmount}-${index}`,
+      type: "remittance" as const,
+      title: isToFund ? "Remittance fund" : "Remittance sent",
+      subtitle: subtitleParts.join(" · ") || (isToFund ? "Saving for remittance" : "Money sent home"),
+      account: item.account === "RemittanceFund" ? "Fund" : item.account === "Cash" ? "Cash" : "Bank",
+      amount: totalDeducted,
+      date: item.date,
+      createdAt: (item as any).createdAt,
+      updatedAt: (item as any).updatedAt,
+      addedBy: item.addedBy,
     };
   }),
 ].sort((a, b) => {

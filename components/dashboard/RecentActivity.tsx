@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   HandCoins,
   Pencil,
+  Plane,
   RefreshCw,
   Trash2,
 } from "lucide-react";
@@ -47,7 +48,8 @@ function getAccountBadgeClass(account: string) {
   }
   if (account === "Cash") return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/20";
   if (account === "Bank") return "bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/20";
-  if (account === "Afterpay" || account === "StepPay") {
+  if (account === "Fund") return "bg-blue-500/15 text-blue-300 ring-1 ring-blue-400/20";
+  if (account === "Afterpay" || account === "StepPay" || account === "SharedJar") {
     return "bg-purple-500/15 text-purple-300 ring-1 ring-purple-400/20";
   }
   if (account === "Credit Card") {
@@ -71,7 +73,9 @@ export function formatActivityAmount(
       ? "+"
       : type === "transfer" || type === "settlement"
         ? "→"
-        : "−";
+        : type === "remittance"
+          ? "−"
+          : "−";
 
   return `${sign} ${currencySymbol}${formatted}`;
 }
@@ -90,6 +94,7 @@ export function RecentActivity({
     deleteExpense,
     deleteTransfer,
     deleteLendingTransaction,
+    deleteRemittance,
     setEditingScheduleId,
     deleteRepaymentSchedule,
   } = state;
@@ -153,7 +158,9 @@ export function RecentActivity({
                     ? ArrowRightLeft
                     : item.type === "liability_repayment"
                       ? RefreshCw
-                      : HandCoins;
+                      : item.type === "remittance"
+                        ? Plane
+                        : HandCoins;
 
             const amountClass =
               item.type === "income" ||
@@ -190,7 +197,9 @@ export function RecentActivity({
                             ? "bg-cyan-500/15 text-cyan-300"
                             : item.type === "liability_repayment"
                               ? "bg-orange-500/15 text-orange-300"
-                              : "bg-red-500/15 text-red-300"
+                              : item.type === "remittance"
+                                ? "bg-indigo-500/15 text-indigo-300"
+                                : "bg-red-500/15 text-red-300"
                     }`}
                   >
                     <Icon size={18} />
@@ -272,7 +281,7 @@ export function RecentActivity({
                           ? setEditingScheduleId(String(item.id))
                           : startEdit(item)
                       }
-                      disabled={item.source === "lendingTransaction"}
+                      disabled={item.source === "lendingTransaction" || item.type === "remittance"}
                       className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-500 hover:bg-neutral-100 dark:text-blue-400 dark:hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
                     >
                       <Pencil size={15} />
@@ -313,6 +322,11 @@ export function RecentActivity({
 
                         if (item.type === "transfer") {
                           deleteTransfer(item.id);
+                          return;
+                        }
+
+                        if (item.type === "remittance") {
+                          deleteRemittance(item.id);
                           return;
                         }
                       }}

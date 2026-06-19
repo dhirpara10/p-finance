@@ -1706,6 +1706,13 @@ async function addTransfer() {
 
   if (!saved) return null;
 
+  await writeLog(
+    "created",
+    type === "lent" ? "lent" : "borrowed",
+    `${Date.now()}`,
+    `${type === "settlement" ? "Settlement" : type === "lent" ? "Lent to" : "Borrowed from"} ${person.name} ${currencySymbolFor(currency)}${amount}`
+  );
+
   await loadFromSheets();
 
   return saved;
