@@ -316,12 +316,30 @@ export async function POST() {
     };
   });
 
-  // Collect existing notification dedup keys
-  const existingKeys = new Set<string>(
-    sheet("app_notifications")
+  // Collect existing notification dedup keys.
+  // Also treat any existing notification for the same scheduleId as a dedup hit —
+  // this prevents re-notification when old records used a different key format.
+  const existingNotifications = sheet("app_notifications");
+  const existingKeys = new Set<string>([
+    ...existingNotifications
       .map((n) => String(n.dedupeKey ?? n.id ?? ""))
-      .filter(Boolean)
-  );
+      .filter(Boolean),
+    // Synthesise the current dedup key format for any old notification that has
+    // a relatedEntityId (scheduleId) — prevents duplicate creation across formats.
+    ...existingNotifications
+      .filter((n) => {
+        const t = String(n.type ?? "");
+        return t === "bnpl_ready" || t === "bnpl_low_balance" || t === "insufficient_usable_balance" || t === "repayment_due" || t === "repayment_overdue";
+      })
+      .flatMap((n) => {
+        const scheduleId = String(n.relatedEntityId ?? "");
+        if (!scheduleId) return [];
+        // Find the matching repayment to reconstruct the dedup key
+        const match = repayments.find((r) => r.scheduleId === scheduleId);
+        if (!match) return [];
+        return [`bnpl_repayment:${match.liabilityId}:${match.scheduleId}:${match.dueDate}:${match.amount}`];
+      }),
+  ]);
 
   // Process
   const { newInAppNotifications, pushNotificationsToSend } =
