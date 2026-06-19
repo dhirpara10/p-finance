@@ -349,6 +349,8 @@ function RecordCard({
 
 // ── Category Detail View ───────────────────────────────────────────────────────
 
+type SortMode = "date" | "title" | "location";
+
 function CategoryDetailView({
   categoryType,
   vault,
@@ -373,6 +375,7 @@ function CategoryDetailView({
   } = vault;
 
   const [localSearch, setLocalSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("date");
 
   const styles = ASSET_TYPE_STYLES[categoryType];
   const typeInfo = getAssetTypeInfo(categoryType);
@@ -384,7 +387,7 @@ function CategoryDetailView({
   }
 
   // Filter: this category + active location tags + local search
-  const categoryAssets = assets
+  const filtered = assets
     .filter((a) => a.assetType === categoryType)
     .filter((a) => {
       if (activeTagIds.length > 0 && !activeTagIds.every((tid) => a.locationTagIds.includes(tid)))
@@ -401,6 +404,29 @@ function CategoryDetailView({
       }
       return true;
     });
+
+  // Sort
+  const categoryAssets = [...filtered].sort((a, b) => {
+    if (sortMode === "title") return a.title.localeCompare(b.title);
+    if (sortMode === "location") {
+      const tagA = getTagNames(a.locationTagIds)[0] ?? "￿";
+      const tagB = getTagNames(b.locationTagIds)[0] ?? "￿";
+      return tagA.localeCompare(tagB);
+    }
+    // date: newest first
+    return (b.date ?? "").localeCompare(a.date ?? "");
+  });
+
+  // Group by location when sorted by location
+  const locationGroups: { label: string; items: typeof categoryAssets }[] = [];
+  if (sortMode === "location") {
+    for (const asset of categoryAssets) {
+      const label = getTagNames(asset.locationTagIds)[0] ?? "No location";
+      const existing = locationGroups.find((g) => g.label === label);
+      if (existing) existing.items.push(asset);
+      else locationGroups.push({ label, items: [asset] });
+    }
+  }
 
   // Tags that actually appear in this category
   const usedTagIds = [...new Set(assets.filter((a) => a.assetType === categoryType).flatMap((a) => a.locationTagIds))];
@@ -463,6 +489,25 @@ function CategoryDetailView({
         )}
       </div>
 
+      {/* Sort controls */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">Sort</span>
+        {(["date", "title", "location"] as SortMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setSortMode(mode)}
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+              sortMode === mode
+                ? "bg-white/[0.1] text-white"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {mode === "date" ? "Date" : mode === "title" ? "A–Z" : "Location"}
+          </button>
+        ))}
+      </div>
+
       {/* Location tag chips (only tags used in this category) */}
       {relevantTags.length > 0 && (
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-0.5">
@@ -512,6 +557,30 @@ function CategoryDetailView({
               ? "Tap Add to create the first one."
               : "Try clearing the search or location filters."}
           </p>
+        </div>
+      ) : sortMode === "location" ? (
+        <div className="mt-4 space-y-6">
+          {locationGroups.map((group) => (
+            <div key={group.label}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <MapPin size={11} className="text-neutral-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                  {group.label}
+                </span>
+                <span className="text-[10px] text-neutral-700">{group.items.length}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {group.items.map((asset) => (
+                  <RecordCard
+                    key={asset.id}
+                    asset={asset}
+                    locationTagNames={getTagNames(asset.locationTagIds)}
+                    onClick={() => setViewingAsset(asset)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="relative mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
