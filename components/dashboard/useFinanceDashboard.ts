@@ -2173,6 +2173,11 @@ async function addTransfer() {
     setAppNotifications([]);
     setActivityLogs([]);
     liabilityModule.resetLiabilityData();
+    setInitialBankBalance(0);
+    setInitialCashBalance(0);
+    setSavingsBuckets(defaultSavingsBuckets);
+    setBucketListTrackers(defaultBucketListTrackers);
+    setSharedRolloverJarBalance(0);
   }
 
   async function markNotificationRead(id: string) {

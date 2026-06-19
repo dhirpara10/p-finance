@@ -435,12 +435,31 @@ export async function POST(request: Request) {
         "remittances",
         "app_notifications",
         "app_logs",
+        "asset_vault",
+        "asset_location_tags",
+        "dreams_goals",
       ];
       for (const sheet of financeSheets) {
         const { error } = await supabase
           .from("app_rows")
           .delete()
           .eq("sheet", sheet);
+        if (error) throw error;
+      }
+      // Delete settings keys for balances, buckets, and trackers
+      const settingKeys = [
+        "initial_bank_balance",
+        "initial_cash_balance",
+        "savings_buckets",
+        "bucket_list_trackers",
+        "shared_rollover_jar_balance",
+      ];
+      for (const key of settingKeys) {
+        const { error } = await supabase
+          .from("app_rows")
+          .delete()
+          .eq("sheet", "settings")
+          .eq("id", key);
         if (error) throw error;
       }
       return jsonResponse({ success: true, data: true });
