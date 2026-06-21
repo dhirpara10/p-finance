@@ -156,8 +156,20 @@ export function normalizeBucketId(value: unknown): Bucket {
   if (text === "Cash") return "Cash";
   if (text === "Bank" || text === "Usable Balance") return "Bank";
 
+  // Jar aliases
+  const lower = text.toLowerCase();
+  if (
+    lower === "shared jar" ||
+    lower === "shared rollover jar" ||
+    lower === "lifestyle jar" ||
+    lower === "jar" ||
+    lower === "rollover jar"
+  ) {
+    return "shared_rollover_jar";
+  }
+
   const legacyMatch = defaultSavingsBuckets.find(
-    (bucket) => bucket.name.toLowerCase() === text.toLowerCase()
+    (bucket) => bucket.name.toLowerCase() === lower
   );
 
   return legacyMatch?.id || text || "Bank";

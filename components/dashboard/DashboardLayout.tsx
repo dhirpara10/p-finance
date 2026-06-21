@@ -335,7 +335,7 @@ function HomeView({
           icon={Wallet}
           label="Usable balance"
           value={state.usableBalance}
-          helper="After BNPL and card commitments"
+          helper="After debt commitments"
           currency={state.currencySymbol}
           tone="emerald"
         />

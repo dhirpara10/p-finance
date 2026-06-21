@@ -130,13 +130,27 @@ export type ParsedExpense = z.infer<typeof ExpenseObjectSchema>;
 
 // ── Transfer ──────────────────────────────────────────────────────────────────
 
+const JAR_ALIASES = new Set(["shared jar", "shared rollover jar", "lifestyle jar", "jar", "rollover jar"]);
+const BANK_ALIASES = new Set(["bank", "usable balance"]);
+
+function normalizeBucketName(name: unknown): string {
+  const text = String(name || "").trim();
+  const lower = text.toLowerCase();
+  if (lower === "cash") return "Cash";
+  if (BANK_ALIASES.has(lower)) return "Bank";
+  if (JAR_ALIASES.has(lower)) return "shared_rollover_jar";
+  return text;
+}
+
 function normalizeTransferRow(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const r = raw as Record<string, unknown>;
   const patched: Record<string, unknown> = { ...r };
-  // Map from/to → from_bucket/to_bucket
-  if (r.from_bucket === undefined) patched.from_bucket = r.from ?? r.fromAccount ?? r.source ?? r.fromBucket ?? "Bank";
-  if (r.to_bucket === undefined) patched.to_bucket = r.to ?? r.toAccount ?? r.destination ?? r.toBucket ?? "";
+  // Map from/to → from_bucket/to_bucket and normalize bucket names
+  const rawFrom = r.from_bucket ?? r.from ?? r.fromAccount ?? r.source ?? r.fromBucket ?? "Bank";
+  const rawTo = r.to_bucket ?? r.to ?? r.toAccount ?? r.destination ?? r.toBucket ?? "";
+  patched.from_bucket = normalizeBucketName(rawFrom);
+  patched.to_bucket = normalizeBucketName(rawTo);
   return patched;
 }
 
