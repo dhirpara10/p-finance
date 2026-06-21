@@ -46,9 +46,10 @@ function parseLiability(item: Record<string, unknown>): Liability {
         ? item.type
         : "bnpl",
     name: String(item.name || ""),
-    provider: String(item.provider || ""),
+    provider: String(item.provider || item.name || ""),
+    purchaseDate: String(item.purchaseDate || item.date || item.createdAt || ""),
     originalAmount: toNumber(item.originalAmount),
-    outstandingBalance: Math.max(toNumber(item.outstandingBalance), 0),
+    outstandingBalance: Math.max(toNumber(item.outstandingBalance ?? item.remainingAmount), 0),
     status:
       item.status === "paid" || item.status === "closed"
         ? item.status
@@ -61,19 +62,19 @@ function parseLiability(item: Record<string, unknown>): Liability {
 }
 
 function parseSchedule(item: Record<string, unknown>): RepaymentSchedule {
+  // Support liability_payments shape: dueDate may be stored as date or nextDueDate
+  const dueDate = String(item.dueDate || item.date || item.paymentDate || "");
+  const isPaid = item.status === "paid" || item.type === "credit_card_payment" || item.type === "loan_payment" || item.type === "bnpl_payment";
   return {
     id: String(item.id || ""),
     liabilityId: String(item.liabilityId || ""),
-    dueDate: String(item.dueDate || ""),
+    dueDate,
     amount: toNumber(item.amount),
-    principalAmount: toNumber(item.principalAmount),
+    principalAmount: toNumber(item.principalAmount || item.amount),
     interestAmount: toNumber(item.interestAmount),
     feeAmount: toNumber(item.feeAmount),
-    status:
-      item.status === "paid" || item.status === "missed"
-        ? item.status
-        : "upcoming",
-    paidDate: String(item.paidDate || ""),
+    status: item.status === "missed" ? "missed" : isPaid ? "paid" : "upcoming",
+    paidDate: String(item.paidDate || (isPaid ? dueDate : "")),
     processedAt: String(item.processedAt || ""),
     repaymentTransactionId: String(item.repaymentTransactionId || ""),
     notes: String(item.notes || ""),

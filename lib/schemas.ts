@@ -130,7 +130,17 @@ export type ParsedExpense = z.infer<typeof ExpenseObjectSchema>;
 
 // ── Transfer ──────────────────────────────────────────────────────────────────
 
-export const TransferSchema = z.object({
+function normalizeTransferRow(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const r = raw as Record<string, unknown>;
+  const patched: Record<string, unknown> = { ...r };
+  // Map from/to → from_bucket/to_bucket
+  if (r.from_bucket === undefined) patched.from_bucket = r.from ?? r.fromAccount ?? r.source ?? r.fromBucket ?? "Bank";
+  if (r.to_bucket === undefined) patched.to_bucket = r.to ?? r.toAccount ?? r.destination ?? r.toBucket ?? "";
+  return patched;
+}
+
+const TransferObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   from_bucket: safeStr("Bank"),
   to_bucket: safeStr(),
@@ -142,7 +152,8 @@ export const TransferSchema = z.object({
   createdAt: safeStr(),
 });
 
-export type ParsedTransfer = z.infer<typeof TransferSchema>;
+export const TransferSchema = z.preprocess(normalizeTransferRow, TransferObjectSchema);
+export type ParsedTransfer = z.infer<typeof TransferObjectSchema>;
 
 // ── Remittance ────────────────────────────────────────────────────────────────
 

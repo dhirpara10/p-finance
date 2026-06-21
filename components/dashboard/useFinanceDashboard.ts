@@ -772,6 +772,8 @@ function isValidTransferRow(item: Transfer) {
       RepaymentSchedules:
         sheetDataRaw.RepaymentSchedules ||
         sheetDataRaw.repaymentSchedules ||
+        sheetDataRaw.liability_payments ||
+        sheetDataRaw.liabilityPayments ||
         [],
     };
 

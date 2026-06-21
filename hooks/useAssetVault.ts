@@ -13,6 +13,13 @@ import {
 const VAULT_SHEET = "asset_vault";
 const TAGS_SHEET = "asset_location_tags";
 
+const VALID_ASSET_TYPES: AssetType[] = ["gold", "land", "property", "vehicle", "investment", "document", "other"];
+
+function normalizeAssetType(value: unknown): AssetType {
+  const s = String(value || "").toLowerCase().trim();
+  return (VALID_ASSET_TYPES.includes(s as AssetType) ? s : "other") as AssetType;
+}
+
 function today() {
   return new Date().toISOString().split("T")[0];
 }
@@ -58,13 +65,15 @@ export function useAssetVault() {
         .filter((item) => item && item.id)
         .map((item) => ({
           id: String(item.id),
-          title: String(item.title || ""),
-          assetType: (item.assetType as AssetType) || "other",
-          details: String(item.details || ""),
+          title: String(item.title || item.name || ""),
+          assetType: normalizeAssetType(item.assetType || item.category || item.type),
+          details: String(item.details || item.notes || ""),
           date: String(item.date || ""),
           locationTagIds: Array.isArray(item.locationTagIds)
             ? (item.locationTagIds as unknown[]).map(String)
-            : [],
+            : Array.isArray(item.tags)
+              ? (item.tags as unknown[]).map(String)
+              : [],
           createdAt: String(item.createdAt || new Date().toISOString()),
           updatedAt: String(item.updatedAt || new Date().toISOString()),
         }))

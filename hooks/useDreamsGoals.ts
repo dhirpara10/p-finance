@@ -50,12 +50,12 @@ export function useDreamsGoals() {
       setError(null);
       const data = await getAllData();
 
-      const raw = (data[GOALS_SHEET] || []) as Record<string, unknown>[];
+      const raw = (data[GOALS_SHEET] || data["goals"] || []) as Record<string, unknown>[];
       const parsed: GoalRecord[] = raw
         .filter((item) => item && item.id)
         .map((item) => ({
           id: String(item.id),
-          title: String(item.title || ""),
+          title: String(item.title || item.name || ""),
           category: (item.category as GoalCategory) || "other",
           details: String(item.details || ""),
           occasion: String(item.occasion || ""),
