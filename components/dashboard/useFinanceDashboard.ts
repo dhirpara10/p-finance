@@ -7,6 +7,7 @@ import { findPersonByName } from "@/lib/lending";
 import { defaultLiabilityChannels } from "@/lib/liabilities";
 import { createSheetRecord,updateSheetRecord,addLendingTransaction, addPerson, deleteFromSheet, getAllData, saveSetting, saveToSheet, updateSheetRow, resetAllData as apiResetAllData } from "@/lib/sheetsApi";
 import type { ActivityLog, AppNotification, AppUser, Bucket, BucketListTracker, EditingItemType, Expense, ExpenseAccount, ExpensePaymentMethod, Income, IncomeType, LendingTransactionRecord, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, SavingsBucket, Status, Transfer, IncomeSourceRate } from "@/lib/types";
+import { parseRows, IncomeSchema, ExpenseSchema, TransferSchema, RemittanceSchema, PersonSchema, LendingTransactionSchema, MoneyRecordSchema, AppNotificationSchema } from "@/lib/schemas";
 import { useLiabilities } from "@/components/liabilities/useLiabilities";
 import { toast } from "@/lib/toast";
 import { showConfirm } from "@/lib/confirm";
@@ -923,103 +924,48 @@ function isValidTransferRow(item: Transfer) {
       hydratedLiabilities.repaymentSchedules
     );
 
-    const cleanIncomes = (sheetData.income || [])
-      .map(parseIncomeRow)
-      .filter(isValidIncomeRow);
+    const cleanIncomes = parseRows(IncomeSchema, sheetData.income || [], "income")
+      .filter(isValidIncomeRow) as Income[];
 
-    const cleanExpenses = (sheetData.expenses || [])
-      .map(parseExpenseRow)
-      .filter(isValidExpenseRow);
+    const cleanExpenses = parseRows(ExpenseSchema, sheetData.expenses || [], "expenses")
+      .filter(isValidExpenseRow) as Expense[];
 
-    const cleanTransfers = (sheetData.transfers || [])
-      .map(parseTransferRow)
-      .filter(isValidTransferRow);
+    const cleanTransfers = parseRows(TransferSchema, sheetData.transfers || [], "transfers")
+      .filter(isValidTransferRow) as Transfer[];
 
     setIncomes(cleanIncomes);
     setExpenses(cleanExpenses);
     setTransfers(cleanTransfers);
 
-    setLentRecords((sheetData.lent || []).map(parseMoneyRecordRow));
+    setLentRecords(parseRows(MoneyRecordSchema, sheetData.lent || [], "lent") as MoneyRecord[]);
 
-    setBorrowedRecords((sheetData.borrowed || []).map(parseMoneyRecordRow));
+    setBorrowedRecords(parseRows(MoneyRecordSchema, sheetData.borrowed || [], "borrowed") as MoneyRecord[]);
 
-    setPeople(
-      (sheetData.People || []).map((item: any) => ({
-        id: getSheetId(item.id) || "",
-        name: String(item.name || ""),
-        phone: String(item.phone || ""),
-        createdAt: String(item.createdAt || ""),
-        updatedAt: String(item.updatedAt || ""),
-      }))
-    );
+    setPeople(parseRows(PersonSchema, sheetData.People || [], "People") as Person[]);
 
     setLendingTransactions(
-      (sheetData.LendingTransactions || []).map((item: any) => ({
-        id: getSheetId(item.id) || "",
-        personId: getSheetId(item.personId) || "",
-        type:
-          item.type === "borrowed" || item.type === "settlement"
-            ? item.type
-            : "lent",
-        amount: toNumber(item.amount),
-        account: item.account === "Cash" ? "Cash" : "Bank",
-        affectsAccountBalance:
-          item.affectsAccountBalance === true ||
-          item.affectsAccountBalance === "true",
-        date: String(item.date || ""),
-        note: String(item.note || ""),
-        createdAt: String(item.createdAt || ""),
-      }))
+      parseRows(LendingTransactionSchema, sheetData.LendingTransactions || [], "LendingTransactions") as any[]
     );
 
-    setRemittances(
-      (sheetData.remittances || []).map((item: any) => ({
-        id: getSheetId(item.id) || "",
-        audAmount: toNumber(item.audAmount),
-        exchangeRate: toNumber(item.exchangeRate),
-        inrAmount: toNumber(item.inrAmount),
-        account: item.account === "Cash" ? "Cash" : "Bank",
-        date: String(item.date || ""),
-        provider: String(item.provider || ""),
-        notes: String(item.notes || ""),
-        createdAt: String(item.createdAt || ""),
-      }))
-    );
+    setRemittances(parseRows(RemittanceSchema, sheetData.remittances || [], "remittances") as Remittance[]);
 
-    // Load in-app notifications — filter stale repayment notifications whose schedule no longer exists
-    const rawNotifications = (sheetData.app_notifications || []) as Record<string, unknown>[];
+    // Load in-app notifications — drop stale ones whose repayment schedule no longer exists
     const repaymentScheduleIds = new Set(
       (sheetData.RepaymentSchedules || []).map((s: any) => String(s?.id || ""))
     );
+    const parsedNotifications = parseRows(AppNotificationSchema, sheetData.app_notifications || [], "app_notifications");
     setAppNotifications(
-      rawNotifications
-        .filter((item) => {
-          if (!item || typeof item !== "object" || !item.id) return false;
-          // Drop notifications linked to a repayment schedule that no longer exists
-          if (
-            item.relatedEntityType === "repayment_schedule" &&
-            item.relatedEntityId &&
-            !repaymentScheduleIds.has(String(item.relatedEntityId))
-          ) {
-            // Async cleanup — fire-and-forget
-            deleteFromSheet("app_notifications", String(item.id)).catch(() => {});
-            return false;
-          }
-          return true;
-        })
-        .map((item) => ({
-          id: String(item.id),
-          type: (item.type as AppNotification["type"]) || "general",
-          title: String(item.title || ""),
-          message: String(item.message || ""),
-          relatedEntityType: item.relatedEntityType as AppNotification["relatedEntityType"],
-          relatedEntityId: item.relatedEntityId ? String(item.relatedEntityId) : undefined,
-          isRead: item.isRead === true || item.isRead === "true",
-          createdAt: String(item.createdAt || new Date().toISOString()),
-          scheduledFor: item.scheduledFor ? String(item.scheduledFor) : undefined,
-          pushedAt: item.pushedAt ? String(item.pushedAt) : undefined,
-          dedupeKey: String(item.dedupeKey || item.id),
-        }))
+      parsedNotifications.filter((item) => {
+        if (
+          item.relatedEntityType === "repayment_schedule" &&
+          item.relatedEntityId &&
+          !repaymentScheduleIds.has(item.relatedEntityId)
+        ) {
+          deleteFromSheet("app_notifications", item.id).catch(() => {});
+          return false;
+        }
+        return true;
+      }) as AppNotification[]
     );
 
     setActivityLogs(
