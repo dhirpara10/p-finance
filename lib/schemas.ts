@@ -14,6 +14,55 @@ const safeBool = (fallback = false) => z.coerce.boolean().catch(fallback);
 const safeDate = () => safeStr("");
 const appUser = () => z.enum(["me", "spouse"]).optional().catch(undefined);
 
+// ── Array-row normalizers ────────────────────────────────────────────────────
+// DB may contain positional-array rows from before the object migration.
+// These preprocessors convert arrays to objects so Zod schemas don't reject them.
+
+function categoryIdFromName(name: string) {
+  return "category_" + String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+}
+
+function normalizeExpenseRow(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return raw;
+  // [id, amount, category, account, date, notes, metadata?]
+  const [id, amount, category, account, date, notes, metadata] = raw;
+  const meta = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata as Record<string, unknown> : {};
+  return {
+    id: String(id ?? ""),
+    amount: Number(amount) || 0,
+    category: String(category ?? ""),
+    categoryId: meta.categoryId ?? categoryIdFromName(String(category ?? "")),
+    account: account === "Cash" ? "Cash" : "Bank",
+    paymentMethod: meta.paymentMethod ?? (account === "Cash" ? "Cash" : "Bank"),
+    date: String(date ?? ""),
+    notes: String(notes ?? ""),
+    isRecurring: Boolean(meta.isRecurring),
+    recurringFrequency: meta.recurringFrequency,
+    recurringEndDate: meta.recurringEndDate,
+    liabilityId: meta.liabilityId,
+    createdAt: meta.createdAt ?? new Date().toISOString(),
+    updatedAt: meta.updatedAt,
+    addedBy: meta.addedBy,
+  };
+}
+
+function normalizeLendingRow(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return raw;
+  // [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt]
+  const [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt] = raw;
+  return {
+    id: String(id ?? ""),
+    personId: String(personId ?? ""),
+    type: type ?? "lent",
+    amount: Number(amount) || 0,
+    account: account === "Cash" ? "Cash" : "Bank",
+    affectsAccountBalance: affectsAccountBalance !== false,
+    date: String(date ?? ""),
+    note: String(note ?? ""),
+    createdAt: String(createdAt ?? new Date().toISOString()),
+  };
+}
+
 // ── Income ────────────────────────────────────────────────────────────────────
 
 export const IncomeSchema = z.object({
@@ -37,7 +86,7 @@ export type ParsedIncome = z.infer<typeof IncomeSchema>;
 
 const ExpensePaymentMethod = z.enum(["Bank", "Cash", "SharedJar", "Afterpay", "StepPay", "CreditCard"]).catch("Bank");
 
-export const ExpenseSchema = z.object({
+const ExpenseObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   amount: safeNum(),
   category: safeStr(),
@@ -57,7 +106,8 @@ export const ExpenseSchema = z.object({
   addedBy: appUser(),
 });
 
-export type ParsedExpense = z.infer<typeof ExpenseSchema>;
+export const ExpenseSchema = z.preprocess(normalizeExpenseRow, ExpenseObjectSchema);
+export type ParsedExpense = z.infer<typeof ExpenseObjectSchema>;
 
 // ── Transfer ──────────────────────────────────────────────────────────────────
 
@@ -107,7 +157,7 @@ export const PersonSchema = z.object({
 
 // ── LendingTransaction ────────────────────────────────────────────────────────
 
-export const LendingTransactionSchema = z.object({
+const LendingTransactionObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   personId: z.union([z.string(), z.number()]).transform(String),
   type: z.enum(["lent", "borrowed", "settlement"]).catch("lent"),
@@ -119,6 +169,8 @@ export const LendingTransactionSchema = z.object({
   createdAt: safeStr(),
   addedBy: appUser(),
 });
+
+export const LendingTransactionSchema = z.preprocess(normalizeLendingRow, LendingTransactionObjectSchema);
 
 // ── MoneyRecord (legacy lent/borrowed) ───────────────────────────────────────
 

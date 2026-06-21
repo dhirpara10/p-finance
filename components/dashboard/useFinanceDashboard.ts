@@ -763,6 +763,7 @@ function isValidTransferRow(item: Transfer) {
         sheetDataRaw.lendingTransactions ||
         sheetDataRaw.Lendingtransactions ||
         sheetDataRaw.lendingtransactions ||
+        sheetDataRaw.lending ||
         [],
       Liabilities:
         sheetDataRaw.Liabilities ||
