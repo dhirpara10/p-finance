@@ -65,17 +65,25 @@ export function SavingsBucketCard({
           {bucket.currentBalance.toLocaleString()}
         </p>
 
-        <p className="shrink-0 text-xs text-neutral-500">
-          of {currencySymbol}
-          {bucket.targetAmount.toLocaleString()}
-        </p>
+        {bucket.targetAmount > 0 ? (
+          <p className="shrink-0 text-xs text-neutral-500">
+            of {currencySymbol}
+            {bucket.targetAmount.toLocaleString()}
+          </p>
+        ) : (
+          <p className="shrink-0 text-xs text-neutral-500">saved</p>
+        )}
       </div>
 
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/[0.06]">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300"
-          style={{ width: `${progress}%` }}
-        />
+        {bucket.targetAmount > 0 ? (
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300"
+            style={{ width: `${progress}%` }}
+          />
+        ) : (
+          <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 opacity-40" style={{ width: "100%" }} />
+        )}
       </div>
 
       <div className="mt-auto grid grid-cols-3 gap-2 pt-5">
@@ -119,9 +127,9 @@ export function TrackerCard({
 
   const frequency = tracker.recurringAllocation?.active
     ? `${currencySymbol}${tracker.recurringAllocation.allocationAmount.toLocaleString()} ${tracker.recurringAllocation.frequency}`
-    : `${currencySymbol}${tracker.monthlyAllocation.toLocaleString(undefined, {
-        maximumFractionDigits: 0,
-      })} planned`;
+    : tracker.monthlyAllocation > 0
+      ? `${currencySymbol}${tracker.monthlyAllocation.toLocaleString(undefined, { maximumFractionDigits: 0 })} planned`
+      : "No budget set";
 
   return (
     <article className="tracker-card group flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-3xl border border-purple-400/15 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.24),rgba(24,14,34,0.96)_42%,rgba(12,12,15,0.98)_100%)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">

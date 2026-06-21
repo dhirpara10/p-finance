@@ -929,7 +929,7 @@ const recentActivity: RecentActivityItem[] = [
     addedBy: item.addedBy,
   })),
 
-  ...validExpenses.map((item, index) => {
+  ...validExpenses.filter((item) => !item.liabilityId).map((item, index) => {
     const pm = item.paymentMethod;
     const isBnpl = pm === "Afterpay" || pm === "StepPay";
     const isCard = pm === "CreditCard";
