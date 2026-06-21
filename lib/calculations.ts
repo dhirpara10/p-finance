@@ -828,21 +828,19 @@ function getLendingSubtitle(item: LendingTransactionRecord) {
   return "";
 }
 
-function getActivitySortTime(item: any) {
+function getActivitySortTime(item: any): [number, number] {
+  // Primary: transaction date (end of day so same-date items group together)
+  const dateTime = item.date
+    ? new Date(`${item.date}T23:59:59`).getTime()
+    : 0;
+  const primary = Number.isFinite(dateTime) ? dateTime : 0;
+
+  // Tie-breaker: createdAt timestamp (exact insertion time)
   const createdAt = item.createdAt || item.updatedAt;
+  const createdTime = createdAt ? new Date(createdAt).getTime() : 0;
+  const secondary = Number.isFinite(createdTime) ? createdTime : 0;
 
-  if (createdAt) {
-    const createdTime = new Date(createdAt).getTime();
-    if (Number.isFinite(createdTime)) return createdTime;
-  }
-
-  const numericId = Number(item.id);
-  if (Number.isFinite(numericId) && numericId > 1_000_000_000_000) {
-    return numericId;
-  }
-
-  const dateTime = new Date(`${item.date}T23:59:59`).getTime();
-  return Number.isFinite(dateTime) ? dateTime : 0;
+  return [primary, secondary];
 }
 
 const validIncomes = incomes.filter((item) => {
@@ -1099,9 +1097,11 @@ const recentActivity: RecentActivityItem[] = [
     };
   }),
 ].sort((a, b) => {
-  const timeDifference = getActivitySortTime(b) - getActivitySortTime(a);
-  if (timeDifference !== 0) return timeDifference;
+  const [aPrimary, aSecondary] = getActivitySortTime(a);
+  const [bPrimary, bSecondary] = getActivitySortTime(b);
 
+  if (bPrimary !== aPrimary) return bPrimary - aPrimary;
+  if (bSecondary !== aSecondary) return bSecondary - aSecondary;
   return compareActivityIds(b.id, a.id);
 });
 
