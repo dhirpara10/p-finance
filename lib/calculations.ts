@@ -1002,7 +1002,14 @@ const recentActivity: RecentActivityItem[] = [
       (profile) => String(profile.id) === String(item.personId)
     );
 
-    const name = cleanText(person?.name) || "Unknown";
+    const name = cleanText(person?.name)
+      || cleanText((item as any).personName)
+      || cleanText(item.personId as string)
+      || "Unknown";
+
+    // Lent and settlement-out are outflows (negative); borrowed and settlement-in are inflows (positive)
+    const isOutflow = item.type === "lent";
+    const signedAmount = isOutflow ? -Number(item.amount) : Number(item.amount);
 
     return {
       id: item.id || `${item.type}-${item.date}-${item.amount}-${index}`,
@@ -1015,7 +1022,7 @@ const recentActivity: RecentActivityItem[] = [
             : `Settlement with ${name}`,
       subtitle: getLendingSubtitle(item),
       account: item.account === "Cash" ? "Cash" : "Bank",
-      amount: Number(item.amount),
+      amount: signedAmount,
       date: item.date,
       createdAt: item.createdAt,
       updatedAt: (item as any).updatedAt,

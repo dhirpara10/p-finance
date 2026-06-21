@@ -66,9 +66,12 @@ function normalizeLendingRow(raw: unknown): unknown {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     const patched: Record<string, unknown> = { ...r };
-    // Map "person"/"personName" → "personId"
-    if (!r.personId && (r.person || r.personName)) {
-      patched.personId = String(r.person ?? r.personName ?? r.id ?? "");
+    // Capture display name from any person name field
+    const displayName = r.person ?? r.personName ?? r.contactName ?? r.name ?? null;
+    if (displayName) patched.personName = String(displayName);
+    // Map person name → personId if personId is missing
+    if (!r.personId && displayName) {
+      patched.personId = String(displayName);
     }
     // Map "notes" → "note" (schema field is "note")
     if (r.notes !== undefined && r.note === undefined) {
@@ -176,6 +179,7 @@ export const PersonSchema = z.object({
 const LendingTransactionObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   personId: z.union([z.string(), z.number(), z.undefined(), z.null()]).transform((v) => String(v ?? "")).catch(""),
+  personName: safeStr("").optional(),
   type: z.enum(["lent", "borrowed", "settlement"]).catch("lent"),
   amount: safeNum(),
   account: z.enum(["Bank", "Cash"]).catch("Bank"),

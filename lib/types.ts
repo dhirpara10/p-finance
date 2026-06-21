@@ -154,6 +154,7 @@ export type Person = {
 export type LendingTransactionRecord = {
   id: string | number;
   personId: string | number;
+  personName?: string;
   type: "lent" | "borrowed" | "settlement";
   amount: number;
   account?: ExpenseAccount;

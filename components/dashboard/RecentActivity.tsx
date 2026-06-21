@@ -68,14 +68,13 @@ export function formatActivityAmount(
     maximumFractionDigits: 2,
   });
 
+  // amount is signed: negative for outflows, positive for inflows
   const sign =
-    type === "income" || type === "lent" || type === "borrowed"
-      ? "+"
-      : type === "transfer" || type === "settlement"
-        ? "→"
-        : type === "remittance"
-          ? "−"
-          : "−";
+    type === "transfer"
+      ? "→"
+      : amount < 0
+        ? "−"
+        : "+";
 
   return `${sign} ${currencySymbol}${formatted}`;
 }
@@ -163,13 +162,11 @@ export function RecentActivity({
                         : HandCoins;
 
             const amountClass =
-              item.type === "income" ||
-              item.type === "lent" ||
-              item.type === "borrowed"
-                ? "text-green-400"
-                : item.type === "transfer" || item.type === "settlement"
-                  ? "text-blue-400"
-                  : "text-red-400";
+              item.type === "transfer"
+                ? "text-blue-400"
+                : item.amount < 0
+                  ? "text-red-400"
+                  : "text-green-400";
 
             const safeAmount =
               typeof item.amount === "number" && !Number.isNaN(item.amount)
