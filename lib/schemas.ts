@@ -47,20 +47,36 @@ function normalizeExpenseRow(raw: unknown): unknown {
 }
 
 function normalizeLendingRow(raw: unknown): unknown {
-  if (!Array.isArray(raw)) return raw;
-  // [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt]
-  const [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt] = raw;
-  return {
-    id: String(id ?? ""),
-    personId: String(personId ?? ""),
-    type: type ?? "lent",
-    amount: Number(amount) || 0,
-    account: account === "Cash" ? "Cash" : "Bank",
-    affectsAccountBalance: affectsAccountBalance !== false,
-    date: String(date ?? ""),
-    note: String(note ?? ""),
-    createdAt: String(createdAt ?? new Date().toISOString()),
-  };
+  if (Array.isArray(raw)) {
+    // [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt]
+    const [id, personId, type, amount, account, affectsAccountBalance, date, note, createdAt] = raw;
+    return {
+      id: String(id ?? ""),
+      personId: String(personId ?? id ?? ""),
+      type: type ?? "lent",
+      amount: Number(amount) || 0,
+      account: account === "Cash" ? "Cash" : "Bank",
+      affectsAccountBalance: affectsAccountBalance !== false,
+      date: String(date ?? ""),
+      note: String(note ?? ""),
+      createdAt: String(createdAt ?? new Date().toISOString()),
+    };
+  }
+  // Object-shaped: also handle rows where "person" is used instead of "personId"
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    const patched: Record<string, unknown> = { ...r };
+    // Map "person"/"personName" → "personId"
+    if (!r.personId && (r.person || r.personName)) {
+      patched.personId = String(r.person ?? r.personName ?? r.id ?? "");
+    }
+    // Map "notes" → "note" (schema field is "note")
+    if (r.notes !== undefined && r.note === undefined) {
+      patched.note = r.notes;
+    }
+    return patched;
+  }
+  return raw;
 }
 
 // ── Income ────────────────────────────────────────────────────────────────────
@@ -159,7 +175,7 @@ export const PersonSchema = z.object({
 
 const LendingTransactionObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
-  personId: z.union([z.string(), z.number()]).transform(String),
+  personId: z.union([z.string(), z.number(), z.undefined(), z.null()]).transform((v) => String(v ?? "")).catch(""),
   type: z.enum(["lent", "borrowed", "settlement"]).catch("lent"),
   amount: safeNum(),
   account: z.enum(["Bank", "Cash"]).catch("Bank"),
