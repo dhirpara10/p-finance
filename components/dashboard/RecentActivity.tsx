@@ -68,13 +68,11 @@ export function formatActivityAmount(
     maximumFractionDigits: 2,
   });
 
-  // amount is signed: negative for outflows, positive for inflows
-  const sign =
-    type === "transfer"
-      ? "→"
-      : amount < 0
-        ? "−"
-        : "+";
+  const isOutflow =
+    type === "expense" || type === "lent" || type === "remittance" || type === "liability_repayment";
+  const isTransfer = type === "transfer";
+
+  const sign = isTransfer ? "→" : isOutflow ? "−" : "+";
 
   return `${sign} ${currencySymbol}${formatted}`;
 }
@@ -161,10 +159,16 @@ export function RecentActivity({
                         ? Plane
                         : HandCoins;
 
+            const isOutflowType =
+              item.type === "expense" ||
+              item.type === "lent" ||
+              item.type === "remittance" ||
+              item.type === "liability_repayment";
+
             const amountClass =
               item.type === "transfer"
                 ? "text-blue-400"
-                : item.amount < 0
+                : isOutflowType
                   ? "text-red-400"
                   : "text-green-400";
 
