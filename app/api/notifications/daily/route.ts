@@ -96,56 +96,33 @@ function isWithinReminderWindow(nowMinutes: number, reminderMinutes: number) {
   return nowMinutes >= reminderMinutes || nowMinutes < endMinutes;
 }
 
-async function upsertSetting(supabase: SupabaseClient, id: string, value: string) {
+async function upsertSetting(supabase: SupabaseClient, userId: string, key: string, value: string) {
+  const { data: existing } = await supabase
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const updated = { ...(existing?.settings || {}), [key]: value };
   await supabase
-    .from("app_rows")
-    .upsert(
-      {
-        sheet: "settings",
-        id,
-        data: [id, value],
-      },
-      {
-        onConflict: "sheet,id",
-      }
-    );
+    .from("user_settings")
+    .upsert({ user_id: userId, settings: updated, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 }
 
-async function loadReminderSettings(supabase: SupabaseClient) {
-  const ids = [
-    "daily_reminder_enabled",
-    "daily_reminder_time",
-    "daily_reminder_tone",
-    "daily_reminder_last_sent",
-  ];
-
+async function loadReminderSettings(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
-    .from("app_rows")
-    .select("id,data")
-    .eq("sheet", "settings")
-    .in("id", ids);
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  const rowsById = new Map<string, any>();
-  for (const row of data || []) {
-    if (row?.id) {
-      rowsById.set(row.id, row);
-    }
-  }
-
-  const rawEnabled = getSettingValue(rowsById.get("daily_reminder_enabled"), "true");
-  const rawTime = getSettingValue(rowsById.get("daily_reminder_time"), "21:30");
-  const rawTone = getSettingValue(rowsById.get("daily_reminder_tone"), "mixed");
-  const lastSent = getSettingValue(rowsById.get("daily_reminder_last_sent"), "");
-
+  const s = (data?.settings as Record<string, unknown>) || {};
   return {
-    enabled: parseBooleanSetting(rawEnabled, true),
-    reminderTime: rawTime,
-    reminderTone: rawTone,
-    lastSent,
+    enabled: parseBooleanSetting(s["daily_reminder_enabled"], true),
+    reminderTime: String(s["daily_reminder_time"] ?? "21:30"),
+    reminderTone: String(s["daily_reminder_tone"] ?? "mixed"),
+    lastSent: String(s["daily_reminder_last_sent"] ?? ""),
   };
 }
 
@@ -186,9 +163,19 @@ async function sendDailyNotification(request?: Request) {
     }
   }
 
+  // Find first user who has reminders enabled
+  let userId: string | null = null;
   let settings;
   try {
-    settings = await loadReminderSettings(supabase);
+    const { data: allSettings } = await supabase
+      .from("user_settings")
+      .select("user_id, settings");
+    const active = (allSettings || []).find((row: any) => row.settings?.daily_reminder_enabled !== false);
+    if (!active) {
+      return createJsonResponse({ success: true, skipped: true, reason: "No users with reminders enabled" });
+    }
+    userId = active.user_id;
+    settings = await loadReminderSettings(supabase, userId!);
   } catch (error: any) {
     return createJsonResponse({ success: false, error: error.message || "Failed to load reminder settings" }, 500);
   }
@@ -250,8 +237,8 @@ async function sendDailyNotification(request?: Request) {
     }
   }
 
-  if (sent > 0) {
-    await upsertSetting(supabase, "daily_reminder_last_sent", nowMelbourneDate);
+  if (sent > 0 && userId) {
+    await upsertSetting(supabase, userId, "daily_reminder_last_sent", nowMelbourneDate);
   }
 
   return createJsonResponse({

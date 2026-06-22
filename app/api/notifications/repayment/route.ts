@@ -212,117 +212,104 @@ export function processBnplRepaymentNotifications(params: {
 
 // ─── API Route ────────────────────────────────────────────────────────────────
 
-export async function POST() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export async function POST(request: Request) {
+  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+  if (!token) return jsonResponse({ success: false, error: "Unauthorized" }, 401);
+
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ success: false, error: "Missing Supabase config" }, 500);
-  }
+  const adminSupabase = getSupabaseAdmin();
+  const { data: { user } } = await adminSupabase.auth.getUser(token);
+  if (!user) return jsonResponse({ success: false, error: "Unauthorized" }, 401);
 
-  const supabase = getSupabaseAdmin();
+  const uid = user.id;
   const today = getMelbourneDate(0);
   const tomorrow = getMelbourneDate(1);
 
-  // Fetch all sheets needed to compute bank balance + repayment data
-  const { data: rows, error: rowsError } = await supabase
-    .from("app_rows")
-    .select("sheet, id, data")
-    .in("sheet", [
-      "RepaymentSchedules",
-      "Liabilities",
-      "settings",
-      "income",
-      "expenses",
-      "transfers",
-      "LendingTransactions",
-      "lent",
-      "borrowed",
-      "remittances",
-      "app_notifications",
-    ]);
+  // Fetch data from new normalized tables
+  const [
+    { data: settingsRow },
+    { data: incomeRows },
+    { data: expenseRows },
+    { data: transferRows },
+    { data: lendingRows },
+    { data: remittanceRows },
+    { data: liabilityRows },
+    { data: scheduleRows },
+    { data: notificationRows },
+  ] = await Promise.all([
+    adminSupabase.from("user_settings").select("settings").eq("user_id", uid).maybeSingle(),
+    adminSupabase.from("income").select("*").eq("user_id", uid),
+    adminSupabase.from("expenses").select("*").eq("user_id", uid),
+    adminSupabase.from("transfers").select("*").eq("user_id", uid),
+    adminSupabase.from("lending_transactions").select("*").eq("user_id", uid),
+    adminSupabase.from("remittances").select("*").eq("user_id", uid),
+    adminSupabase.from("liabilities").select("*").eq("user_id", uid),
+    adminSupabase.from("repayment_schedules").select("*").eq("user_id", uid),
+    adminSupabase.from("app_notifications").select("*").eq("user_id", uid),
+  ]);
 
-  if (rowsError) {
-    return jsonResponse({ success: false, error: rowsError.message }, 500);
+  const settings = (settingsRow?.settings as Record<string, unknown>) || {};
+  const initialBank = Number(settings["initial_bank_balance"] ?? 0) || 0;
+
+  // Adapt new snake_case rows to the shape expected by computeBankBalance
+  function adaptIncome(r: Record<string, unknown>) {
+    return { ...r, income_type: r.income_type, cash_received: r.cash_received, addedBy: r.added_by };
+  }
+  function adaptExpense(r: Record<string, unknown>) {
+    return { ...r, account: r.account, paymentMethod: r.payment_method };
+  }
+  function adaptTransfer(r: Record<string, unknown>) {
+    return { ...r, from_bucket: r.from_bucket, to_bucket: r.to_bucket };
+  }
+  function adaptLending(r: Record<string, unknown>) {
+    return { ...r, personId: r.person_id, affectsAccountBalance: r.affects_balance };
+  }
+  function adaptRemittance(r: Record<string, unknown>) {
+    return { ...r, audAmount: r.aud_amount, account: r.account };
   }
 
-  const allRows = rows || [];
-
-  // Parse helper
-  function sheet(name: string): Record<string, unknown>[] {
-    return allRows
-      .filter((r) => r.sheet === name && r.data && typeof r.data === "object")
-      .map((r) => r.data as Record<string, unknown>);
-  }
-
-  // Settings
-  const settingsRows = allRows.filter((r) => r.sheet === "settings");
-  function getSetting(key: string, fallback = "0"): string {
-    const row = settingsRows.find((r) => r.id === key);
-    if (!row) return fallback;
-    const d = row.data;
-    if (Array.isArray(d) && d.length >= 2) return String(d[1]);
-    return fallback;
-  }
-  const initialBank = Number(getSetting("initial_bank_balance")) || 0;
-
-  // Compute actual bank balance from all transaction history
-  const paidSchedules = sheet("RepaymentSchedules").filter(
-    (s) => s.status === "paid"
-  );
+  const paidSchedules = (scheduleRows || []).filter((s) => s.status === "paid");
   const bankBalance = computeBankBalance(initialBank, {
-    incomes: sheet("income"),
-    expenses: sheet("expenses"),
-    transfers: sheet("transfers"),
-    lendingTransactions: sheet("LendingTransactions"),
-    lentRecords: sheet("lent"),
-    borrowedRecords: sheet("borrowed"),
-    remittances: sheet("remittances"),
-    paidRepaymentSchedules: paidSchedules,
+    incomes: (incomeRows || []).map(adaptIncome),
+    expenses: (expenseRows || []).map(adaptExpense),
+    transfers: (transferRows || []).map(adaptTransfer),
+    lendingTransactions: (lendingRows || []).map(adaptLending),
+    lentRecords: [],
+    borrowedRecords: [],
+    remittances: (remittanceRows || []).map(adaptRemittance),
+    paidRepaymentSchedules: paidSchedules.map((s) => ({ ...s, liabilityId: s.liability_id, dueDate: s.due_date, repaymentAccount: s.repayment_account })),
   });
 
-  // Active BNPL liabilities only
-  const liabilities = sheet("Liabilities").filter(
+  const activeLiabilities = (liabilityRows || []).filter(
     (l) => l.status === "active" && l.type === "bnpl"
   );
   const liabilityMap = new Map<string, Record<string, unknown>>();
-  for (const l of liabilities) liabilityMap.set(String(l.id), l);
+  for (const l of activeLiabilities) liabilityMap.set(String(l.id), l);
 
-  // Unpaid repayment schedules for active BNPL liabilities
-  const unpaidSchedules = sheet("RepaymentSchedules").filter((s) => {
-    const lid = String(s.liabilityId ?? "");
-    return (
-      s.status !== "paid" &&
-      s.dueDate &&
-      liabilityMap.has(lid)
-    );
+  const unpaidSchedules = (scheduleRows || []).filter((s) => {
+    const lid = String(s.liability_id ?? "");
+    return s.status !== "paid" && s.due_date && liabilityMap.has(lid);
   });
 
-  // Map to BnplRepaymentItem
   const repayments: BnplRepaymentItem[] = unpaidSchedules.map((s) => {
-    const liability = liabilityMap.get(String(s.liabilityId ?? ""));
-    const providerName = String(
-      liability?.provider ?? liability?.name ?? "BNPL"
-    );
+    const liability = liabilityMap.get(String(s.liability_id ?? ""));
+    const providerName = String(liability?.provider ?? liability?.name ?? "BNPL");
     return {
       scheduleId: String(s.id ?? ""),
-      liabilityId: String(s.liabilityId ?? ""),
-      dueDate: String(s.dueDate ?? ""),
+      liabilityId: String(s.liability_id ?? ""),
+      dueDate: String(s.due_date ?? ""),
       amount: Number(s.amount ?? 0),
       providerName,
     };
   });
 
-  // Collect existing notification dedup keys.
-  // Also treat any existing notification for the same scheduleId as a dedup hit —
-  // this prevents re-notification when old records used a different key format.
-  const existingNotifications = sheet("app_notifications");
+  const existingNotifications = notificationRows || [];
   const existingKeys = new Set<string>([
     ...existingNotifications
-      .map((n) => String(n.dedupeKey ?? n.id ?? ""))
+      .map((n) => String(n.dedupe_key ?? n.dedupeKey ?? n.id ?? ""))
       .filter(Boolean),
     // Synthesise the current dedup key format for any old notification that has
     // a relatedEntityId (scheduleId) — prevents duplicate creation across formats.
@@ -332,9 +319,8 @@ export async function POST() {
         return t === "bnpl_ready" || t === "bnpl_low_balance" || t === "insufficient_usable_balance" || t === "repayment_due" || t === "repayment_overdue";
       })
       .flatMap((n) => {
-        const scheduleId = String(n.relatedEntityId ?? "");
+        const scheduleId = String(n.related_entity_id ?? n.relatedEntityId ?? "");
         if (!scheduleId) return [];
-        // Find the matching repayment to reconstruct the dedup key
         const match = repayments.find((r) => r.scheduleId === scheduleId);
         if (!match) return [];
         return [`bnpl_repayment:${match.liabilityId}:${match.scheduleId}:${match.dueDate}:${match.amount}`];
@@ -351,16 +337,23 @@ export async function POST() {
       tomorrow,
     });
 
-  // Upsert in-app notifications (deduped by key)
+  // Upsert in-app notifications (deduped by dedupe_key)
   let created = 0;
   for (const notif of newInAppNotifications) {
-    const { error } = await supabase.from("app_rows").upsert(
+    const { error } = await adminSupabase.from("app_notifications").upsert(
       {
-        sheet: "app_notifications",
         id: notif.dedupeKey,
-        data: { ...notif, id: notif.dedupeKey },
+        user_id: uid,
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        is_read: false,
+        related_entity_type: notif.relatedEntityType,
+        related_entity_id: notif.relatedEntityId,
+        dedupe_key: notif.dedupeKey,
+        created_at: notif.createdAt,
       },
-      { onConflict: "sheet,id", ignoreDuplicates: true }
+      { onConflict: "user_id,dedupe_key", ignoreDuplicates: true }
     );
     if (!error) created++;
   }
@@ -374,7 +367,7 @@ export async function POST() {
     subject
   ) {
     webPush.setVapidDetails(subject, publicKey, privateKey);
-    const { data: subscriptions } = await supabase
+    const { data: subscriptions } = await adminSupabase
       .from("push_subscriptions")
       .select("id, endpoint, subscription")
       .eq("enabled", true);
@@ -394,7 +387,7 @@ export async function POST() {
         } catch (err: unknown) {
           const code = (err as { statusCode?: number })?.statusCode;
           if (code === 410 || code === 404) {
-            await supabase
+            await adminSupabase
               .from("push_subscriptions")
               .update({ enabled: false })
               .eq("id", sub.id);
@@ -413,6 +406,6 @@ export async function POST() {
   });
 }
 
-export async function GET() {
-  return POST();
+export async function GET(request: Request) {
+  return POST(request);
 }
