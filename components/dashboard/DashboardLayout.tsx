@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { FloatingActionMenu } from "@/components/dashboard/FloatingActionMenu";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -40,6 +40,7 @@ import {
   TrendingDown,
   TrendingUp,
   Sparkles,
+  SlidersHorizontal,
   Wallet,
   X,
 } from "lucide-react";
@@ -60,6 +61,9 @@ import { SelectField } from "@/components/forms/SelectField";
 import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
 import { RemittanceView } from "@/components/remittance/RemittanceView";
 import { LogsView } from "@/components/logs/LogsView";
+import { TabCustomizer } from "@/components/dashboard/TabCustomizer";
+import { loadTabPrefs, saveTabPrefs } from "@/lib/tabPrefs";
+import type { NavTabId, TabPrefs } from "@/lib/tabPrefs";
 
 type Props = { state: FinanceDashboardState };
 type Tab = "home" | "buckets" | "liabilities" | "activity" | "remittance" | "stats" | "settings" | "logs" | "vault" | "goals";
@@ -84,6 +88,25 @@ export function DashboardLayout({ state }: Props) {
   const [activitySearch, setActivitySearch] = useState("");
   const [activityType, setActivityType] = useState("all");
   const [bucketHistory, setBucketHistory] = useState<BucketHistory>(null);
+  const [tabPrefs, setTabPrefs] = useState<TabPrefs>({ order: tabs.map((t) => t.id as NavTabId), hidden: [] });
+  const [showCustomizer, setShowCustomizer] = useState(false);
+
+  // Load tab prefs from localStorage when user is known
+  useEffect(() => {
+    if (!state.currentUser) return;
+    setTabPrefs(loadTabPrefs(state.currentUser));
+  }, [state.currentUser]);
+
+  const handleSavePrefs = useCallback((prefs: TabPrefs) => {
+    setTabPrefs(prefs);
+    if (state.currentUser) saveTabPrefs(state.currentUser, prefs);
+  }, [state.currentUser]);
+
+  // Compute visible ordered tabs based on prefs
+  const visibleTabs = tabPrefs.order
+    .filter((id) => !tabPrefs.hidden.includes(id))
+    .map((id) => tabs.find((t) => t.id === id)!)
+    .filter(Boolean);
   // const [mobileSections, setMobileSections] = useState({
   //   savings: true,
   //   trackers: false,
@@ -118,7 +141,7 @@ export function DashboardLayout({ state }: Props) {
     <main className="page-bottom-clearance min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)] md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
         <AppHeader state={state} onOpenSettings={() => selectTab("settings")} />
-        <DesktopNavigation activeTab={activeTab} onSelect={selectTab} />
+        <DesktopNavigation activeTab={activeTab} onSelect={selectTab} visibleTabs={visibleTabs} onCustomize={() => setShowCustomizer(true)} />
 
         <div className="mt-6">
           {activeTab === "home" && (
@@ -171,7 +194,16 @@ export function DashboardLayout({ state }: Props) {
           onBorrowed={openBorrowed}
         />
       )}
-      <MobileNavigation activeTab={activeTab} onSelect={selectTab} />
+      <MobileNavigation activeTab={activeTab} onSelect={selectTab} visibleTabs={visibleTabs} onCustomize={() => setShowCustomizer(true)} />
+
+      {showCustomizer && (
+        <TabCustomizer
+          tabs={tabs.map((t) => ({ id: t.id as NavTabId, label: t.label }))}
+          prefs={tabPrefs}
+          onSave={handleSavePrefs}
+          onClose={() => setShowCustomizer(false)}
+        />
+      )}
     </main>
   );
 }
@@ -245,13 +277,21 @@ function AppHeader({
 function DesktopNavigation({
   activeTab,
   onSelect,
+  visibleTabs,
+  onCustomize,
 }: {
   activeTab: Tab;
   onSelect: (tab: Tab) => void;
+  visibleTabs: typeof tabs;
+  onCustomize: () => void;
 }) {
+  const colCount = visibleTabs.length + 1; // +1 for customize button
   return (
-    <nav className="mt-7 hidden grid-cols-9 rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid">
-      {tabs.map((tab) => {
+    <nav
+      className="mt-7 hidden rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid"
+      style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+    >
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon;
         const selected = activeTab === tab.id;
         return (
@@ -271,6 +311,15 @@ function DesktopNavigation({
           </button>
         );
       })}
+      {/* Customize button */}
+      <button
+        type="button"
+        onClick={onCustomize}
+        title="Customize tabs"
+        className="flex items-center justify-center rounded-xl px-2 py-3 text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-600 dark:hover:bg-white/[0.04] dark:hover:text-neutral-300 transition"
+      >
+        <SlidersHorizontal size={15} />
+      </button>
     </nav>
   );
 }
@@ -1014,9 +1063,11 @@ function SettingsRouter({ state }: Props) {
 const primaryTabs: NavTab[] = ["home", "vault", "liabilities", "activity", "stats"];
 const overflowTabs: NavTab[] = ["buckets", "remittance", "goals", "logs"];
 
-function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
+function MobileNavigation({ activeTab, onSelect, visibleTabs, onCustomize }: { activeTab: Tab; onSelect: (tab: Tab) => void; visibleTabs: typeof tabs; onCustomize: () => void }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const overflowActive = overflowTabs.includes(activeTab as NavTab);
+  const mobilePrimary = visibleTabs.slice(0, 4).map((t) => t.id as NavTab);
+  const mobileOverflow = visibleTabs.slice(4).map((t) => t.id as NavTab);
+  const overflowActive = mobileOverflow.includes(activeTab as NavTab);
 
   function handleSelect(tab: Tab) {
     onSelect(tab);
@@ -1033,8 +1084,8 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
       {/* More drawer */}
       {drawerOpen && (
         <div className="safe-bottom-drawer fixed right-4 z-50 w-48 origin-bottom-right rounded-2xl border border-black/[0.10] bg-white/98 p-2 shadow-2xl backdrop-blur-xl dark:border-white/[0.09] dark:bg-[#101318]/98 md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-          {overflowTabs.map((id) => {
-            const tab = tabs.find((t) => t.id === id)!;
+          {mobileOverflow.map((id) => {
+            const tab = visibleTabs.find((t) => t.id === id)!;
             const Icon = tab.icon;
             const selected = activeTab === id;
             return (
@@ -1049,13 +1100,23 @@ function MobileNavigation({ activeTab, onSelect }: { activeTab: Tab; onSelect: (
               </button>
             );
           })}
+          <div className="mt-1 border-t border-black/[0.06] pt-1 dark:border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => { setDrawerOpen(false); onCustomize(); }}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-neutral-400 hover:bg-black/[0.06] dark:text-neutral-500 dark:hover:bg-white/[0.06] transition"
+            >
+              <SlidersHorizontal size={17} />
+              Customize tabs
+            </button>
+          </div>
         </div>
       )}
 
       {/* Pill nav bar */}
       <nav className="safe-bottom-nav fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-black/[0.10] bg-white/95 px-2 py-2 shadow-[0_8px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#101318]/95 dark:shadow-[0_8px_40px_rgba(0,0,0,0.55)] md:hidden">
-        {primaryTabs.map((id) => {
-          const tab = tabs.find((t) => t.id === id)!;
+        {mobilePrimary.map((id) => {
+          const tab = visibleTabs.find((t) => t.id === id)!;
           const Icon = tab.icon;
           const selected = activeTab === id;
           return (
