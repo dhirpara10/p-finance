@@ -6,11 +6,13 @@ export type ActivityLog = {
   id: string;
   user: AppUser;
   userName: string;
-  action: "created" | "deleted";
+  action: "created" | "updated" | "deleted";
   entityType: "income" | "expense" | "transfer" | "remittance" | "lent" | "borrowed" | "liability";
   entityId: string | number;
   description: string;
   timestamp: string;
+  beforeValue?: Record<string, unknown>;
+  afterValue?: Record<string, unknown>;
 };
 export type IncomeType = "Hourly" | "Fixed Amount";
 export type ExpenseAccount = "Bank" | "Cash";

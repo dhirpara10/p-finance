@@ -194,6 +194,8 @@ BEGIN
 
 
   -- ─── LIABILITIES ─────────────────────────────────────────────────────────────
+
+  -- BNPL 1: Afterpay — Laptop Stand $200 (4 × $50 fortnightly, started Apr)
   INSERT INTO liabilities (id, user_id, type, name, provider, original_amount, outstanding_balance, status,
     purchase_amount, first_payment_date, number_of_payments, payment_frequency, installment_amount, purchase_date, notes)
   VALUES
@@ -202,13 +204,90 @@ BEGIN
     200.00, '2026-04-01', 4, 'biweekly', 50.00, '2026-03-25',
     'Laptop stand from JB Hi-Fi');
 
+  -- BNPL 2: Zip Pay — Headphones $360 (6 × $60 monthly, started Feb, all paid)
+  INSERT INTO liabilities (id, user_id, type, name, provider, original_amount, outstanding_balance, status,
+    purchase_amount, first_payment_date, number_of_payments, payment_frequency, installment_amount, purchase_date, notes)
+  VALUES
+  ('liab_zip_01', uid, 'bnpl', 'Zip Pay - Sony WH-1000XM5', 'Zip Pay',
+    360.00, 0.00, 'paid',
+    360.00, '2026-02-01', 6, 'monthly', 60.00, '2026-01-28',
+    'Sony headphones from JB Hi-Fi — fully paid off');
+
+  -- BNPL 3: StepPay — Running Shoes $280 (4 × $70 fortnightly, started Jun)
+  INSERT INTO liabilities (id, user_id, type, name, provider, original_amount, outstanding_balance, status,
+    purchase_amount, first_payment_date, number_of_payments, payment_frequency, installment_amount, purchase_date, notes)
+  VALUES
+  ('liab_steppay_01', uid, 'bnpl', 'StepPay - Nike Running Shoes', 'StepPay',
+    280.00, 210.00, 'active',
+    280.00, '2026-06-15', 4, 'biweekly', 70.00, '2026-06-10',
+    'Nike Pegasus 41 from Rebel Sport');
+
+  -- Credit Card: CommBank Mastercard
+  INSERT INTO liabilities (id, user_id, type, name, provider, original_amount, outstanding_balance, status,
+    credit_limit, current_balance, statement_date, due_date, minimum_payment, interest_rate, annual_fee, notes)
+  VALUES
+  ('liab_cc_commbank', uid, 'credit_card', 'CommBank Low Rate Mastercard', 'CommBank',
+    0.00, 420.00, 'active',
+    2000.00, 420.00, 25, 15, 25.00, 12.99, 59.00,
+    'Used for online shopping and emergencies');
+
+  -- Loan: Personal loan for laptop (paid monthly, 12-month term starting Jan)
+  INSERT INTO liabilities (id, user_id, type, name, provider, original_amount, outstanding_balance, status,
+    principal_amount, interest_type, repayment_amount, repayment_frequency, start_date, end_date, term_months,
+    interest_rate, notes)
+  VALUES
+  ('liab_loan_laptop', uid, 'loan', 'Latitude Personal Loan', 'Latitude Finance',
+    1200.00, 720.00, 'active',
+    1200.00, 'fixed', 120.00, 'monthly', '2026-01-10', '2026-12-10', 12,
+    9.99, 'Used to buy MacBook Air — $120/month for 12 months');
+
 
   -- ─── REPAYMENT SCHEDULES ─────────────────────────────────────────────────────
+
+  -- Afterpay - Laptop Stand (4 × $50)
   INSERT INTO repayment_schedules (id, user_id, liability_id, due_date, amount, status, paid_date, repayment_account) VALUES
   ('rs_ap01_1', uid, 'liab_afterpay_01', '2026-04-01', 50.00, 'paid',     '2026-04-01', 'Bank'),
   ('rs_ap01_2', uid, 'liab_afterpay_01', '2026-04-15', 50.00, 'paid',     '2026-04-15', 'Bank'),
   ('rs_ap01_3', uid, 'liab_afterpay_01', '2026-04-29', 50.00, 'upcoming', NULL,         'Bank'),
   ('rs_ap01_4', uid, 'liab_afterpay_01', '2026-05-13', 50.00, 'upcoming', NULL,         'Bank');
+
+  -- Zip Pay - Headphones (6 × $60, all paid)
+  INSERT INTO repayment_schedules (id, user_id, liability_id, due_date, amount, status, paid_date, repayment_account) VALUES
+  ('rs_zip_1', uid, 'liab_zip_01', '2026-02-01', 60.00, 'paid', '2026-02-01', 'Bank'),
+  ('rs_zip_2', uid, 'liab_zip_01', '2026-03-01', 60.00, 'paid', '2026-03-01', 'Bank'),
+  ('rs_zip_3', uid, 'liab_zip_01', '2026-04-01', 60.00, 'paid', '2026-04-01', 'Bank'),
+  ('rs_zip_4', uid, 'liab_zip_01', '2026-05-01', 60.00, 'paid', '2026-05-01', 'Bank'),
+  ('rs_zip_5', uid, 'liab_zip_01', '2026-06-01', 60.00, 'paid', '2026-06-01', 'Bank'),
+  ('rs_zip_6', uid, 'liab_zip_01', '2026-07-01', 60.00, 'paid', '2026-07-01', 'Bank');
+
+  -- StepPay - Running Shoes (4 × $70, first one paid)
+  INSERT INTO repayment_schedules (id, user_id, liability_id, due_date, amount, status, paid_date, repayment_account) VALUES
+  ('rs_sp_1', uid, 'liab_steppay_01', '2026-06-15', 70.00, 'paid',     '2026-06-15', 'Bank'),
+  ('rs_sp_2', uid, 'liab_steppay_01', '2026-06-29', 70.00, 'upcoming', NULL,         'Bank'),
+  ('rs_sp_3', uid, 'liab_steppay_01', '2026-07-13', 70.00, 'upcoming', NULL,         'Bank'),
+  ('rs_sp_4', uid, 'liab_steppay_01', '2026-07-27', 70.00, 'upcoming', NULL,         'Bank');
+
+  -- Latitude Loan - monthly repayments Jan–Jun (6 paid, 6 remaining)
+  INSERT INTO repayment_schedules (id, user_id, liability_id, due_date, amount, principal_amount, interest_amount, status, paid_date, repayment_account) VALUES
+  ('rs_loan_1',  uid, 'liab_loan_laptop', '2026-01-10', 120.00, 110.00, 10.00, 'paid', '2026-01-10', 'Bank'),
+  ('rs_loan_2',  uid, 'liab_loan_laptop', '2026-02-10', 120.00, 110.92,  9.08, 'paid', '2026-02-10', 'Bank'),
+  ('rs_loan_3',  uid, 'liab_loan_laptop', '2026-03-10', 120.00, 111.84,  8.16, 'paid', '2026-03-10', 'Bank'),
+  ('rs_loan_4',  uid, 'liab_loan_laptop', '2026-04-10', 120.00, 112.77,  7.23, 'paid', '2026-04-10', 'Bank'),
+  ('rs_loan_5',  uid, 'liab_loan_laptop', '2026-05-10', 120.00, 113.71,  6.29, 'paid', '2026-05-10', 'Bank'),
+  ('rs_loan_6',  uid, 'liab_loan_laptop', '2026-06-10', 120.00, 114.66,  5.34, 'paid', '2026-06-10', 'Bank'),
+  ('rs_loan_7',  uid, 'liab_loan_laptop', '2026-07-10', 120.00, 115.62,  4.38, 'upcoming', NULL,     'Bank'),
+  ('rs_loan_8',  uid, 'liab_loan_laptop', '2026-08-10', 120.00, 116.59,  3.41, 'upcoming', NULL,     'Bank'),
+  ('rs_loan_9',  uid, 'liab_loan_laptop', '2026-09-10', 120.00, 117.56,  2.44, 'upcoming', NULL,     'Bank'),
+  ('rs_loan_10', uid, 'liab_loan_laptop', '2026-10-10', 120.00, 118.55,  1.45, 'upcoming', NULL,     'Bank'),
+  ('rs_loan_11', uid, 'liab_loan_laptop', '2026-11-10', 120.00, 119.54,  0.46, 'upcoming', NULL,     'Bank'),
+  ('rs_loan_12', uid, 'liab_loan_laptop', '2026-12-10', 120.00, 120.00,  0.00, 'upcoming', NULL,     'Bank');
+
+  -- ─── LIABILITY PAYMENTS (credit card manual payments) ────────────────────────
+  INSERT INTO liability_payments (id, user_id, liability_id, amount, payment_date, account, notes) VALUES
+  ('lp_cc_1', uid, 'liab_cc_commbank', 200.00, '2026-03-15', 'Bank', 'Partial payment - online shopping charges'),
+  ('lp_cc_2', uid, 'liab_cc_commbank', 180.00, '2026-04-15', 'Bank', 'Cleared most of balance'),
+  ('lp_cc_3', uid, 'liab_cc_commbank', 150.00, '2026-05-15', 'Bank', 'Regular payment'),
+  ('lp_cc_4', uid, 'liab_cc_commbank',  50.00, '2026-06-15', 'Bank', 'Minimum payment - tight month');
 
 
   -- ─── ASSET VAULT ─────────────────────────────────────────────────────────────
@@ -230,10 +309,10 @@ BEGIN
 
   -- ─── DREAMS & GOALS ──────────────────────────────────────────────────────────
   INSERT INTO dreams_goals (id, user_id, name, category, target_amount, saved_amount, target_date, priority, status, notes, icon, color) VALUES
-  ('goal_japan',     uid, 'Trip to Japan',   'Travel',   3000.00,  800.00, '2026-12-31', 'high',   'active', 'Cherry blossom season 2027', 'Plane',  'pink'),
-  ('goal_macpro',    uid, 'New MacBook Pro', 'Tech',     2800.00,  500.00, '2026-09-30', 'medium', 'active', 'For PhD research',           'Laptop', 'blue'),
-  ('goal_emergency', uid, 'Emergency Fund',  'Safety',   5000.00, 1200.00, '2026-12-31', 'high',   'active', '6 months expenses buffer',   'Shield', 'emerald'),
-  ('goal_india',     uid, 'India Trip',      'Travel',   2000.00,  300.00, '2027-06-30', 'medium', 'active', 'Family visit',               'Home',   'orange');
+  ('goal_japan',     uid, 'Trip to Japan',   'experiences', 3000.00,  800.00, '2026-12-31', 'high',   'active', 'Cherry blossom season 2027', 'Plane',  'pink'),
+  ('goal_macpro',    uid, 'New MacBook Pro', 'purchases',   2800.00,  500.00, '2026-09-30', 'medium', 'active', 'For PhD research',           'Laptop', 'blue'),
+  ('goal_emergency', uid, 'Emergency Fund',  'other',       5000.00, 1200.00, '2026-12-31', 'high',   'active', '6 months expenses buffer',   'Shield', 'emerald'),
+  ('goal_india',     uid, 'India Trip',      'family',      2000.00,  300.00, '2027-06-30', 'medium', 'active', 'Family visit',               'Home',   'orange');
 
 
   RAISE NOTICE 'Mock data inserted successfully for user %', uid;

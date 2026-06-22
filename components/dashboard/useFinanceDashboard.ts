@@ -945,10 +945,12 @@ function isValidTransferRow(item: Transfer) {
         id: String(item?.id || ""),
         user: (item?.user === "spouse" ? "spouse" : "me") as AppUser,
         userName: String(item?.userName || ""),
-        action: item?.action === "deleted" ? "deleted" : "created",
+        action: (["created","updated","deleted"].includes(item?.action) ? item.action : "created") as ActivityLog["action"],
         entityType: String(item?.entityType || item?.entity_type || "") as ActivityLog["entityType"],
         entityId: item?.entityId ?? "",
         description: String(item?.description || ""),
+        beforeValue: item?.beforeValue ?? undefined,
+        afterValue: item?.afterValue ?? undefined,
         timestamp: String(item?.timestamp || ""),
       }))
     );
@@ -1002,6 +1004,46 @@ function isValidTransferRow(item: Transfer) {
     if (authReady && isUnlocked && !hasLoadedData.current) {
       loadFromSheets();
     }
+  }, [authReady, isUnlocked]);
+
+  // ── Real-time sync ────────────────────────────────────────────────────────
+  // Reload whenever another device/session writes to any finance table.
+  useEffect(() => {
+    if (!authReady || !isUnlocked) return;
+
+    const WATCHED_TABLES = [
+      "income", "expenses", "transfers", "remittances",
+      "lending_transactions", "people",
+      "liabilities", "repayment_schedules", "liability_payments",
+      "dreams_goals", "app_logs",
+      "bucket_definitions", "tracker_definitions",
+      "category_definitions", "category_tracker_links",
+    ];
+
+    // Debounce: avoid hammering the DB if several rows arrive at once
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    function scheduleReload() {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => { loadFromSheets(); }, 800);
+    }
+
+    const channel = supabase
+      .channel("realtime-finance")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public" },
+        (payload) => {
+          if (WATCHED_TABLES.includes((payload.table as string))) {
+            scheduleReload();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      supabase.removeChannel(channel);
+    };
   }, [authReady, isUnlocked]);
 
   const AUTO_LOCK_TIMEOUT_MS = 15 * 60 * 1000;
@@ -1120,10 +1162,12 @@ function isValidTransferRow(item: Transfer) {
   }
 
 async function writeLog(
-  action: "created" | "deleted",
+  action: "created" | "updated" | "deleted",
   entityType: ActivityLog["entityType"],
   entityId: string | number,
-  description: string
+  description: string,
+  beforeValue?: Record<string, unknown>,
+  afterValue?: Record<string, unknown>
 ) {
   try {
     const log: ActivityLog = {
@@ -1135,6 +1179,8 @@ async function writeLog(
       entityId,
       description,
       timestamp: new Date().toISOString(),
+      beforeValue,
+      afterValue,
     };
     await createSheetRecord<ActivityLog>("app_logs", log as unknown as Record<string, unknown>);
     setActivityLogs((prev) => [log, ...prev]);
@@ -1216,8 +1262,11 @@ async function addIncome() {
     setIncomes((current) => [newIncome, ...current]);
   }
 
-  if (!editingItem) {
-    await writeLog("created", "income", newIncome.id, `${cleanSource} ${currencySymbolFor(currency)}${totalAmount}`);
+  if (editingItem?.type === "income") {
+    const before = incomes.find((i) => String(i.id) === String(newIncome.id));
+    await writeLog("updated", "income", newIncome.id, `${cleanSource} ${currencySymbolFor(currency)}${totalAmount}`, before as unknown as Record<string, unknown>, newIncome as unknown as Record<string, unknown>);
+  } else {
+    await writeLog("created", "income", newIncome.id, `${cleanSource} ${currencySymbolFor(currency)}${totalAmount}`, undefined, newIncome as unknown as Record<string, unknown>);
   }
   resetIncomeForm();
   setEditingItem(null);
@@ -1348,31 +1397,13 @@ function blockNegativeAccountBalance(
     addedBy: currentUser,
   };
 
-  const values = [
-    newExpense.id,
-    newExpense.amount,
-    newExpense.category,
-    newExpense.account,
-    newExpense.date,
-    newExpense.notes,
-    {
-      categoryId: newExpense.categoryId,
-      paymentMethod: newExpense.paymentMethod,
-      isRecurring: newExpense.isRecurring,
-      recurringFrequency: newExpense.recurringFrequency,
-      recurringStartDate: newExpense.recurringStartDate,
-      recurringEndDate: newExpense.recurringEndDate,
-      recurringStatus: newExpense.recurringStatus,
-      createdAt: newExpense.createdAt,
-      updatedAt: newExpense.updatedAt,
-      addedBy: newExpense.addedBy,
-    },
-  ];
+  // Strip client-only discriminator — expenses table has no `type` column
+  const { type: _expType, ...expenseDbData } = newExpense;
 
   const saved =
     editingItem?.type === "expense"
-      ? await updateSheetRow("expenses", newExpense.id, values)
-      : await saveToSheet("expenses", values);
+      ? await updateSheetRecord("expenses", newExpense.id, expenseDbData as unknown as Record<string, unknown>)
+      : await createSheetRecord("expenses", expenseDbData as unknown as Record<string, unknown>);
 
   if (!saved) return;
 
@@ -1406,27 +1437,8 @@ function blockNegativeAccountBalance(
         // Backfill liabilityId onto the expense so deletion can cascade
         if (result?.liability?.id) {
           const liabilityId = result.liability.id;
-          const updatedValues = [
-            newExpense.id,
-            newExpense.amount,
-            newExpense.category,
-            newExpense.account,
-            newExpense.date,
-            newExpense.notes,
-            {
-              categoryId: newExpense.categoryId,
-              paymentMethod: newExpense.paymentMethod,
-              liabilityId,
-              isRecurring: newExpense.isRecurring,
-              recurringFrequency: newExpense.recurringFrequency,
-              recurringStartDate: newExpense.recurringStartDate,
-              recurringEndDate: newExpense.recurringEndDate,
-              recurringStatus: newExpense.recurringStatus,
-              createdAt: newExpense.createdAt,
-              updatedAt: new Date().toISOString(),
-            },
-          ];
-          await updateSheetRow("expenses", newExpense.id, updatedValues);
+          const { type: _t, ...expPatch } = { ...newExpense, liabilityId, updatedAt: new Date().toISOString() };
+          await updateSheetRecord("expenses", newExpense.id, expPatch as unknown as Record<string, unknown>);
           setExpenses((prev) =>
             prev.map((e) =>
               String(e.id) === String(newExpense.id) ? { ...e, liabilityId } : e
@@ -1442,8 +1454,11 @@ function blockNegativeAccountBalance(
     }
   }
 
-  if (!editingItem) {
-    await writeLog("created", "expense", newExpense.id, `${expenseCategory} ${currencySymbolFor(currency)}${amount}`);
+  if (editingItem?.type === "expense") {
+    const before = expenses.find((e) => String(e.id) === String(newExpense.id));
+    await writeLog("updated", "expense", newExpense.id, `${expenseCategory} ${currencySymbolFor(currency)}${amount}`, before as unknown as Record<string, unknown>, newExpense as unknown as Record<string, unknown>);
+  } else {
+    await writeLog("created", "expense", newExpense.id, `${expenseCategory} ${currencySymbolFor(currency)}${amount}`, undefined, newExpense as unknown as Record<string, unknown>);
   }
   resetExpenseForm();
   setEditingItem(null);
@@ -1518,20 +1533,10 @@ async function addTransfer() {
     addedBy: currentUser,
   };
 
-  const values = [
-    newTransfer.id,
-    newTransfer.from_bucket,
-    newTransfer.to_bucket,
-    newTransfer.amount,
-    newTransfer.date,
-    newTransfer.notes,
-    { trackerId: newTransfer.trackerId || "" },
-  ];
-
   const saved =
     editingItem?.type === "transfer"
-      ? await updateSheetRow("transfers", newTransfer.id, values)
-      : await saveToSheet("transfers", values);
+      ? await updateSheetRecord("transfers", newTransfer.id, newTransfer as unknown as Record<string, unknown>)
+      : await createSheetRecord("transfers", newTransfer as unknown as Record<string, unknown>);
 
   if (!saved) return;
 
@@ -1673,7 +1678,6 @@ async function addTransfer() {
     return;
   }
 
-  // Only block negative balance if the transaction will actually deduct from the account
   const affectsBalance =
     type === "borrowed" ? borrowedAffectsAccountBalance : lentAffectsAccountBalance;
   const isMoneyOutflow = type === "lent" && affectsBalance;
@@ -1686,6 +1690,36 @@ async function addTransfer() {
   }
 
   try {
+    // ── Update path ──────────────────────────────────────────────────────────
+    if (editingItem && (editingItem.type === "lent" || editingItem.type === "borrowed")) {
+      const updatePayload = {
+        amount: Number(amount),
+        account: moneyAccount === "Cash" ? "Cash" : "Bank",
+        affectsAccountBalance: affectsBalance,
+        date: moneyDate || getToday(),
+        note: moneyNotes?.trim() || "",
+        updatedAt: new Date().toISOString(),
+      };
+      await updateSheetRecord(
+        "lending_transactions",
+        editingItem.id,
+        updatePayload as unknown as Record<string, unknown>
+      );
+      await writeLog(
+        "updated",
+        type === "lent" ? "lent" : "borrowed",
+        String(editingItem.id),
+        `Updated ${type} transaction — ${currencySymbolFor(currency)}${amount}`,
+      );
+      await loadFromSheets();
+      resetMoneyForm();
+      setEditingItem(null);
+      setShowLentForm(false);
+      setShowBorrowedForm(false);
+      return;
+    }
+
+    // ── Create path ──────────────────────────────────────────────────────────
     let person: Person | null = null;
 
     if (lendingPersonMode === "existing") {
@@ -1973,34 +2007,34 @@ async function addTransfer() {
     }
 
     if (item.type === "lent") {
-      const record = lentRecords.find(
-        (x) => String(x.id) === String(item.id)
+      const record = lendingTransactions.find(
+        (x) => String(x.id) === String(item.id) && x.type === "lent"
       );
       if (!record) return;
 
-      setMoneyName(record.name);
       setMoneyAmount(String(record.amount));
       setMoneyDate(record.date);
-      setMoneyPhone(record.phone);
-      setMoneyNotes(record.notes);
-      setMoneyStatus(record.status);
+      setMoneyNotes(record.note || "");
+      setMoneyAccount(record.account || "Bank");
       setLentAffectsAccountBalance(record.affectsAccountBalance ?? true);
+      setLendingPersonMode("existing");
+      setSelectedPersonId(String(record.personId || ""));
       setShowLentForm(true);
     }
 
     if (item.type === "borrowed") {
-      const record = borrowedRecords.find(
-        (x) => String(x.id) === String(item.id)
+      const record = lendingTransactions.find(
+        (x) => String(x.id) === String(item.id) && x.type === "borrowed"
       );
       if (!record) return;
 
-      setMoneyName(record.name);
       setMoneyAmount(String(record.amount));
       setMoneyDate(record.date);
-      setMoneyPhone(record.phone);
-      setMoneyNotes(record.notes);
-      setMoneyStatus(record.status);
+      setMoneyNotes(record.note || "");
+      setMoneyAccount(record.account || "Bank");
       setBorrowedAffectsAccountBalance(record.affectsAccountBalance ?? false);
+      setLendingPersonMode("existing");
+      setSelectedPersonId(String(record.personId || ""));
       setShowBorrowedForm(true);
     }
   }
@@ -2069,24 +2103,8 @@ async function addTransfer() {
       recurringStatus: status,
       updatedAt: new Date().toISOString(),
     };
-    const saved = await updateSheetRow("expenses", updated.id, [
-      updated.id,
-      updated.amount,
-      updated.category,
-      updated.account,
-      updated.date,
-      updated.notes,
-      {
-        categoryId: updated.categoryId,
-        isRecurring: true,
-        recurringFrequency: updated.recurringFrequency,
-        recurringStartDate: updated.recurringStartDate,
-        recurringEndDate: updated.recurringEndDate,
-        recurringStatus: updated.recurringStatus,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
-      },
-    ]);
+    const { type: _t, ...updatedDbData } = updated;
+    const saved = await updateSheetRecord("expenses", updated.id, updatedDbData as unknown as Record<string, unknown>);
     if (!saved) return;
     setExpenses(
       expenses.map((item) =>

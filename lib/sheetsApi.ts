@@ -40,6 +40,13 @@ const READ_REMAP: Record<string, string> = {
   dedupe_key: "dedupeKey",
   related_entity_type: "relatedEntityType",
   related_entity_id: "relatedEntityId",
+  // dreams_goals: DB column names → JS field names (target_date only — name/notes are generic)
+  target_date: "targetDate",
+  completed_at: "completedAt",
+  archived_at: "archivedAt",
+  // app_logs
+  before_value: "beforeValue",
+  after_value: "afterValue",
 };
 
 // JS camelCase → DB column remaps for writes
@@ -58,6 +65,15 @@ const WRITE_REMAP: Record<string, string> = {
   // app_logs: JS writes "entityType" → DB column "entity_type"
   entityType: "entity_type",
   entityId: "entity_id",
+  beforeValue: "before_value",
+  afterValue: "after_value",
+  // dreams_goals: JS field names differ from DB column names
+  title: "name",
+  details: "notes",
+  targetDate: "target_date",
+  completedAt: "completed_at",
+  archivedAt: "archived_at",
+  occasion: "occasion",
 };
 
 // Fields to skip when reading from DB (internal Supabase fields)

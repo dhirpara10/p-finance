@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS income (
     date            DATE        NOT NULL,
     notes           TEXT        DEFAULT '',
     added_by        TEXT        DEFAULT 'me',
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE income ENABLE ROW LEVEL SECURITY;
@@ -120,7 +121,8 @@ CREATE TABLE IF NOT EXISTS transfers (
     notes       TEXT        DEFAULT '',
     tracker_id  TEXT,
     added_by    TEXT        DEFAULT 'me',
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
@@ -196,6 +198,7 @@ CREATE TABLE IF NOT EXISTS category_tracker_links (
     tracker_id  TEXT        NOT NULL,
     is_active   BOOLEAN     DEFAULT true,
     created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now(),
     UNIQUE (user_id, category_id)
 );
 
@@ -281,7 +284,8 @@ CREATE TABLE IF NOT EXISTS liability_payments (
     payment_date    DATE        NOT NULL,
     account         TEXT        DEFAULT 'Bank',
     notes           TEXT        DEFAULT '',
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE liability_payments ENABLE ROW LEVEL SECURITY;
@@ -316,7 +320,8 @@ CREATE TABLE IF NOT EXISTS lending_transactions (
     date                    DATE        NOT NULL,
     note                    TEXT        DEFAULT '',
     added_by                TEXT        DEFAULT 'me',
-    created_at              TIMESTAMPTZ DEFAULT now()
+    created_at              TIMESTAMPTZ DEFAULT now(),
+    updated_at              TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE lending_transactions ENABLE ROW LEVEL SECURITY;
@@ -343,7 +348,8 @@ CREATE TABLE IF NOT EXISTS remittances (
     from_fund       BOOLEAN     DEFAULT false,
     notes           TEXT        DEFAULT '',
     added_by        TEXT        DEFAULT 'me',
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE remittances ENABLE ROW LEVEL SECURITY;
@@ -379,7 +385,8 @@ CREATE TABLE IF NOT EXISTS asset_location_tags (
     user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     label       TEXT        NOT NULL,
     color       TEXT        DEFAULT 'slate',
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE asset_location_tags ENABLE ROW LEVEL SECURITY;
@@ -401,8 +408,11 @@ CREATE TABLE IF NOT EXISTS dreams_goals (
     priority        TEXT        DEFAULT 'medium',
     status          TEXT        DEFAULT 'active',
     notes           TEXT        DEFAULT '',
+    occasion        TEXT        DEFAULT '',
     icon            TEXT,
     color           TEXT,
+    completed_at    TIMESTAMPTZ,
+    archived_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
@@ -428,6 +438,7 @@ CREATE TABLE IF NOT EXISTS app_notifications (
     scheduled_for           TIMESTAMPTZ,
     pushed_at               TIMESTAMPTZ,
     created_at              TIMESTAMPTZ DEFAULT now(),
+    updated_at              TIMESTAMPTZ DEFAULT now(),
     UNIQUE (user_id, dedupe_key)
 );
 
@@ -443,6 +454,8 @@ CREATE TABLE IF NOT EXISTS app_logs (
     entity_type TEXT        DEFAULT '',
     entity_id   TEXT        DEFAULT '',
     description TEXT        DEFAULT '',
+    before_value JSONB,
+    after_value  JSONB,
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 

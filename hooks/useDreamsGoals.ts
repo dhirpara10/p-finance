@@ -57,7 +57,7 @@ export function useDreamsGoals() {
           id: String(item.id),
           title: String(item.title || item.name || ""),
           category: (item.category as GoalCategory) || "other",
-          details: String(item.details || ""),
+          details: String(item.details || item.notes || ""),
           occasion: String(item.occasion || ""),
           targetDate: String(item.targetDate || ""),
           status: (item.status as GoalStatus) || "planned",
