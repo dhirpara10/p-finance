@@ -136,6 +136,7 @@ const SHEET_TABLE: Record<string, string> = {
   people: "people",
   LendingTransactions: "lending_transactions",
   lendingTransactions: "lending_transactions",
+  lending_transactions: "lending_transactions",
   remittances: "remittances",
   Liabilities: "liabilities",
   liabilities: "liabilities",

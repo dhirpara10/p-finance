@@ -282,7 +282,7 @@ export function RecentActivity({
                           ? setEditingScheduleId(String(item.id))
                           : startEdit(item)
                       }
-                      disabled={item.source === "lendingTransaction" || item.source === "liability" || item.type === "remittance"}
+                      disabled={(item.source === "lendingTransaction" && item.type === "settlement") || item.source === "liability" || item.type === "remittance"}
                       className="flex h-9 w-9 items-center justify-center rounded-xl text-blue-500 hover:bg-neutral-100 dark:text-blue-400 dark:hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-0"
                     >
                       <Pencil size={15} />

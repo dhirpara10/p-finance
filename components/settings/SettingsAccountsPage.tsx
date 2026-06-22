@@ -23,10 +23,14 @@ export function SettingsAccountsPage({ state }: Props) {
         value={state.currency}
         onChange={(event) => state.setCurrency(event.target.value)}
         options={[
-          { value: "AUD", label: "AUD" },
-          { value: "USD", label: "USD" },
-          { value: "GBP", label: "GBP" },
-          { value: "EUR", label: "EUR" },
+          { value: "AUD", label: "AUD — Australian Dollar ($)" },
+          { value: "INR", label: "INR — Indian Rupee (₹)" },
+          { value: "USD", label: "USD — US Dollar ($)" },
+          { value: "GBP", label: "GBP — British Pound (£)" },
+          { value: "EUR", label: "EUR — Euro (€)" },
+          { value: "NZD", label: "NZD — New Zealand Dollar ($)" },
+          { value: "SGD", label: "SGD — Singapore Dollar ($)" },
+          { value: "CAD", label: "CAD — Canadian Dollar ($)" },
         ]}
       />
       <Actions state={state} />
