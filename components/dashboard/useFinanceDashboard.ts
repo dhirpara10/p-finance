@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { categoryIdFromName, defaultBucketListTrackers, defaultSavingsBuckets, findDuplicateTrackerCategory, getBucketLabel, normalizeBucketId, normalizeSavingsBuckets, normalizeTrackerLinks, parseJsonArray } from "@/lib/buckets";
+import { useFinanceDefinitions } from "@/hooks/useFinanceDefinitions";
 import { calculateDashboardValues, getToday, toNumber } from "@/lib/calculations";
 import { findPersonByName } from "@/lib/lending";
 import { defaultLiabilityChannels } from "@/lib/liabilities";
@@ -42,6 +43,7 @@ const defaultExpenseCategories = [
 export function useFinanceDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const hasLoadedData = useRef(false);
+  const finDefs = useFinanceDefinitions();
   const [activeBucketHistoryId, setActiveBucketHistoryId] = useState<
     string | null
   >(null);
@@ -765,19 +767,42 @@ function isValidTransferRow(item: Transfer) {
         sheetDataRaw.lendingtransactions ||
         sheetDataRaw.lending ||
         [],
-      Liabilities:
-        sheetDataRaw.Liabilities ||
-        sheetDataRaw.liabilities ||
-        [],
+      Liabilities: (() => {
+        const all = [
+          ...(sheetDataRaw.Liabilities || []),
+          ...(sheetDataRaw.liabilities || []),
+        ] as Record<string, unknown>[];
+        const seen = new Set<unknown>();
+        return all.filter(item => {
+          const id = item?.id;
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      })(),
       RepaymentSchedules:
         sheetDataRaw.RepaymentSchedules ||
         sheetDataRaw.repaymentSchedules ||
-        sheetDataRaw.liability_payments ||
-        sheetDataRaw.liabilityPayments ||
         [],
+      LiabilityPayments: (() => {
+        const all = [
+          ...(sheetDataRaw.liability_payments || []),
+          ...(sheetDataRaw.liabilityPayments || []),
+        ] as Record<string, unknown>[];
+        const seen = new Set<unknown>();
+        return all.filter(item => {
+          const id = item?.id;
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      })(),
     };
 
     const settings = sheetData.settings || [];
+
+    // Load definition sheets (buckets, trackers, categories) + migrate from settings if needed
+    await finDefs.load(sheetData as Record<string, unknown[]>, settings);
 
     setInitialCashBalance(
       toNumber(getSettingValue(settings, "initial_cash_balance", "0"))
@@ -804,52 +829,6 @@ function isValidTransferRow(item: Transfer) {
     setRemittanceGoal(
       toNumber(getSettingValue(settings, "remittance_goal", "0"))
     );
-
-    // Use a sentinel to distinguish "key was never saved" from "key was saved as []"
-    const UNSET = "\x00";
-
-    const rawBucketsStr = getSettingValue(settings, "savings_buckets", UNSET);
-    const bucketsEverSaved = rawBucketsStr !== UNSET;
-    const loadedSavingsBuckets = bucketsEverSaved
-      ? parseJsonArray<SavingsBucket>(rawBucketsStr, [])
-      : null;
-
-    const legacyEmergencyGoal = toNumber(
-      getSettingValue(settings, "emergency_goal", "0")
-    );
-
-    const legacyDebtGoal = toNumber(
-      getSettingValue(settings, "debt_repayment_goal", "0")
-    );
-
-    const legacyRemittanceGoal = toNumber(
-      getSettingValue(settings, "remittance_goal", "0")
-    );
-
-    setSavingsBuckets(
-      loadedSavingsBuckets !== null
-        ? normalizeSavingsBuckets(loadedSavingsBuckets)
-        : defaultSavingsBuckets.map((bucket) => {
-            if (bucket.id === "savings_emergency_fund") {
-              return { ...bucket, targetAmount: legacyEmergencyGoal };
-            }
-            if (bucket.id === "savings_debt_collection") {
-              return { ...bucket, targetAmount: legacyDebtGoal };
-            }
-            if (bucket.id === "savings_remittance") {
-              return { ...bucket, targetAmount: legacyRemittanceGoal };
-            }
-            return bucket;
-          })
-    );
-
-    const rawTrackersStr = getSettingValue(settings, "bucket_list_trackers", UNSET);
-    const trackersEverSaved = rawTrackersStr !== UNSET;
-    const loadedTrackers = trackersEverSaved
-      ? parseJsonArray<BucketListTracker>(rawTrackersStr, [])
-      : defaultBucketListTrackers;
-
-    setBucketListTrackers(normalizeTrackerLinks(loadedTrackers));
 
     setSharedRolloverJarBalance(
       toNumber(getSettingValue(settings, "shared_rollover_jar_balance", "0"))
@@ -885,20 +864,6 @@ function isValidTransferRow(item: Transfer) {
       setIncomeRate(String(loadedIncomeSources[0]?.rate || 0));
     }
 
-    const loadedExpenseCategories = parseExpenseCategories(
-      getSettingValue(
-        settings,
-        "expense_categories",
-        JSON.stringify(defaultExpenseCategories)
-      )
-    );
-
-    setExpenseCategories(loadedExpenseCategories);
-
-    if (!loadedExpenseCategories.some((cat) => cat === expenseCategory)) {
-      setExpenseCategory(loadedExpenseCategories[0] || "Food");
-    }
-
     setDailyReminderEnabled(
       String(getSettingValue(settings, "daily_reminder_enabled", "false"))
         .toLowerCase() === "true"
@@ -919,7 +884,8 @@ function isValidTransferRow(item: Transfer) {
         settings,
         "liability_settings",
         JSON.stringify(liabilityModule.liabilitySettings)
-      )
+      ),
+      sheetData.LiabilityPayments
     );
 
     await liabilityModule.processDueBnplRepayments(
@@ -1035,6 +1001,20 @@ function isValidTransferRow(item: Transfer) {
     return () => window.clearTimeout(timeoutId);
   }, [isUnlocked]);
 
+  // Sync expenseCategories from finDefs when definitions load
+  useEffect(() => {
+    if (!finDefs.loaded || finDefs.categoryDefs.length === 0) return;
+    const names = finDefs.categoryDefs
+      .filter((c) => c.isActive && c.kind === "expense")
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((c) => c.name);
+    setExpenseCategories(names);
+    if (!names.includes(expenseCategory)) {
+      setExpenseCategory(names[0] || "Food");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finDefs.loaded, finDefs.categoryDefs]);
+
   const dashboardValues = calculateDashboardValues({
     incomes,
     expenses,
@@ -1050,6 +1030,9 @@ function isValidTransferRow(item: Transfer) {
     initialBankBalance,
     savingsBuckets,
     bucketListTrackers,
+    bucketDefinitions: finDefs.bucketDefs.length > 0 ? finDefs.bucketDefs : undefined,
+    trackerDefinitions: finDefs.trackerDefs.length > 0 ? finDefs.trackerDefs : undefined,
+    categoryTrackerLinks: finDefs.ctLinks,
     sharedRolloverJarBalance,
     monthlyResetDay,
   });
@@ -1074,13 +1057,10 @@ function isValidTransferRow(item: Transfer) {
       saveSetting("emergency_goal", emergencyGoal),
       saveSetting("debt_repayment_goal", debtRepaymentGoal),
       saveSetting("remittance_goal", remittanceGoal),
-      saveSetting("savings_buckets", JSON.stringify(savingsBuckets)),
-      saveSetting("bucket_list_trackers", JSON.stringify(bucketListTrackers)),
       saveSetting("shared_rollover_jar_balance", sharedRolloverJarBalance),
       saveSetting("monthly_reset_day", monthlyResetDay),
       saveSetting("currency", currency),
       saveSetting("income_sources", JSON.stringify(cleanIncomeSources)),
-      saveSetting("expense_categories", JSON.stringify(expenseCategories)),
       saveSetting(
         "daily_reminder_enabled",
         dailyReminderEnabled ? "true" : "false"
@@ -2039,28 +2019,23 @@ async function addTransfer() {
 
   async function addExpenseCategory() {
     const cleanName = newExpenseCategory.trim();
-
     if (!cleanName) return;
 
     const alreadyExists = expenseCategories.some(
       (category) => category.toLowerCase() === cleanName.toLowerCase()
     );
-
     if (alreadyExists) {
       toast("Category already exists.", "error");
       return;
     }
 
-    const nextCategories = [...expenseCategories, cleanName];
+    await finDefs.addCategoryDef({
+      name: cleanName,
+      kind: "expense",
+      isActive: true,
+      sortOrder: finDefs.categoryDefs.length,
+    });
 
-    const saved = await saveSetting(
-      "expense_categories",
-      JSON.stringify(nextCategories)
-    );
-
-    if (!saved) return;
-
-    setExpenseCategories(nextCategories);
     setExpenseCategory(cleanName);
     setNewExpenseCategory("");
   }
@@ -2193,7 +2168,7 @@ async function addTransfer() {
   }
 
 
-  return { authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, newSpousePasscode, setNewSpousePasscode, currentUser, userNameMe, setUserNameMe, userNameSpouse, setUserNameSpouse, activityLogs, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteFullLiability, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); localStorage.removeItem("finance_current_user"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); }, handleResetAllData, remittances, showRemittanceForm, setShowRemittanceForm, remittanceAudAmount, setRemittanceAudAmount, remittanceExchangeRate, setRemittanceExchangeRate, remittanceAccount, setRemittanceAccount, remittanceDate, setRemittanceDate, remittanceProvider, setRemittanceProvider, remittanceNotes, setRemittanceNotes, remittanceIsPreExisting, setRemittanceIsPreExisting, remittanceChargesAud, setRemittanceChargesAud, remittanceTaxAud, setRemittanceTaxAud, addRemittance, deleteRemittance, appNotifications, showNotificationPanel, setShowNotificationPanel, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications };
+  return { finDefs, authReady, loading, loadError, retryLoad: loadFromSheets, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, newSpousePasscode, setNewSpousePasscode, currentUser, userNameMe, setUserNameMe, userNameSpouse, setUserNameSpouse, activityLogs, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, deleteIncome, deleteExpense, deleteFullLiability, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked"); localStorage.removeItem("finance_locked_until"); localStorage.removeItem("finance_current_user"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); }, handleResetAllData, remittances, showRemittanceForm, setShowRemittanceForm, remittanceAudAmount, setRemittanceAudAmount, remittanceExchangeRate, setRemittanceExchangeRate, remittanceAccount, setRemittanceAccount, remittanceDate, setRemittanceDate, remittanceProvider, setRemittanceProvider, remittanceNotes, setRemittanceNotes, remittanceIsPreExisting, setRemittanceIsPreExisting, remittanceChargesAud, setRemittanceChargesAud, remittanceTaxAud, setRemittanceTaxAud, addRemittance, deleteRemittance, appNotifications, showNotificationPanel, setShowNotificationPanel, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;

@@ -307,6 +307,60 @@ export type RecentActivityType =
   | "settlement"
   | "liability_repayment";
 
+export type BucketDefinition = {
+  id: string;
+  name: string;
+  type: "protected" | "jar";
+  description?: string;
+  targetAmount: number | null;
+  isActive: boolean;
+  sortOrder: number;
+  icon?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TrackerDefinition = {
+  id: string;
+  name: string;
+  description?: string;
+  monthlyCap: number | null;
+  isActive: boolean;
+  sortOrder: number;
+  icon?: string;
+  color?: string;
+  recurringAllocation?: {
+    sourceAccountId: AccountBucket;
+    allocationAmount: number;
+    frequency: AllocationFrequency;
+    active: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CategoryDefinition = {
+  id: string;
+  name: string;
+  kind: "expense" | "income";
+  isActive: boolean;
+  sortOrder: number;
+  icon?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CategoryTrackerLink = {
+  id: string;
+  categoryId: string;
+  trackerId: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type RecentActivityItem = {
   id: string | number;
   type: RecentActivityType;

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import {
   ArrowDownToLine,
@@ -184,23 +185,27 @@ export function TrackerCard({
         <div className="mt-4 flex items-center justify-between gap-4 text-xs">
           <span className="text-neutral-500">Remaining this month</span>
 
-          <span
-            className={
-              tracker.remainingThisMonth < 0
-                ? "shrink-0 font-semibold text-red-300"
-                : "shrink-0 font-semibold text-white"
-            }
-          >
-            {currencySymbol}
-            {tracker.remainingThisMonth.toLocaleString()}
-          </span>
+          {tracker.monthlyCap === null || tracker.monthlyCap === undefined ? (
+            <span className="shrink-0 font-semibold text-neutral-500">—</span>
+          ) : (
+            <span
+              className={
+                tracker.remainingThisMonth < 0
+                  ? "shrink-0 font-semibold text-red-300"
+                  : "shrink-0 font-semibold text-white"
+              }
+            >
+              {currencySymbol}
+              {tracker.remainingThisMonth.toLocaleString()}
+            </span>
+          )}
         </div>
       </div>
 
       <button
         type="button"
         onClick={onHistory}
-        className="mt-auto flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl  px-3 text-sm font-semibold text-purple-50 transition hover:border-purple-200/20 hover:bg-purple-300/[0.12]"
+        className="mt-auto flex min-h-[58px] w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] px-3 text-[11px] text-neutral-300 transition hover:bg-purple-400/10 hover:text-purple-100"
       >
         <History size={15} />
         View activity
@@ -227,5 +232,37 @@ function SmallAction({
       <Icon size={15} />
       <span className="truncate">{label}</span>
     </button>
+  );
+}
+
+export function FlipBucketCard({
+  flipped,
+  front,
+  back,
+}: {
+  flipped: boolean;
+  front: React.ReactNode;
+  back: React.ReactNode;
+}) {
+  return (
+    <div className={`bucket-flip ${flipped ? "is-flipped" : ""}`}>
+      <div className="bucket-flip-inner">
+        <div
+          aria-hidden={flipped}
+          inert={flipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-front"
+        >
+          {front}
+        </div>
+
+        <div
+          aria-hidden={!flipped}
+          inert={!flipped ? true : undefined}
+          className="bucket-flip-face bucket-flip-back"
+        >
+          {back}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -268,6 +268,78 @@ export function safeParseRow<T>(
   return result.data;
 }
 
+// ── BucketDefinition ─────────────────────────────────────────────────────────
+
+export const BucketDefinitionSchema = z.object({
+  id: safeStr(),
+  name: safeStr(),
+  type: z.enum(["protected", "jar"]).catch("protected"),
+  description: safeStr().optional(),
+  targetAmount: z.number().nullable().catch(null),
+  isActive: safeBool(true),
+  sortOrder: safeNum(),
+  icon: safeStr().optional(),
+  color: safeStr().optional(),
+  createdAt: safeStr(),
+  updatedAt: safeStr(),
+});
+
+export type ParsedBucketDefinition = z.infer<typeof BucketDefinitionSchema>;
+
+// ── TrackerDefinition ─────────────────────────────────────────────────────────
+
+const RecurringAllocationSchema = z.object({
+  sourceAccountId: z.enum(["Bank", "Cash"]).catch("Bank"),
+  allocationAmount: safeNum(),
+  frequency: z.enum(["weekly", "biweekly", "monthly", "yearly"]).catch("monthly"),
+  active: safeBool(),
+}).optional().catch(undefined);
+
+export const TrackerDefinitionSchema = z.object({
+  id: safeStr(),
+  name: safeStr(),
+  description: safeStr().optional(),
+  monthlyCap: z.number().nullable().catch(null),
+  isActive: safeBool(true),
+  sortOrder: safeNum(),
+  icon: safeStr().optional(),
+  color: safeStr().optional(),
+  recurringAllocation: RecurringAllocationSchema,
+  createdAt: safeStr(),
+  updatedAt: safeStr(),
+});
+
+export type ParsedTrackerDefinition = z.infer<typeof TrackerDefinitionSchema>;
+
+// ── CategoryDefinition ────────────────────────────────────────────────────────
+
+export const CategoryDefinitionSchema = z.object({
+  id: safeStr(),
+  name: safeStr(),
+  kind: z.enum(["expense", "income"]).catch("expense"),
+  isActive: safeBool(true),
+  sortOrder: safeNum(),
+  icon: safeStr().optional(),
+  color: safeStr().optional(),
+  createdAt: safeStr(),
+  updatedAt: safeStr(),
+});
+
+export type ParsedCategoryDefinition = z.infer<typeof CategoryDefinitionSchema>;
+
+// ── CategoryTrackerLink ───────────────────────────────────────────────────────
+
+export const CategoryTrackerLinkSchema = z.object({
+  id: safeStr(),
+  categoryId: safeStr(),
+  trackerId: safeStr(),
+  isActive: safeBool(true),
+  createdAt: safeStr(),
+  updatedAt: safeStr(),
+});
+
+export type ParsedCategoryTrackerLink = z.infer<typeof CategoryTrackerLinkSchema>;
+
 /**
  * Parse an array of raw DB rows, dropping any that fail validation.
  */

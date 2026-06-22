@@ -7,8 +7,9 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { NotificationBell, NotificationPanel } from "@/components/notifications/NotificationPanel";
 import Statistics from "@/components/dashboard/Statistics";
-import { SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
+import { FlipBucketCard as FlipBucketCardBase, SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
+import { BucketsManagementView } from "@/components/buckets/BucketsManagementView";
 import {
   bucketMatches,
   expenseCategoryId,
@@ -139,14 +140,7 @@ export function DashboardLayout({ state }: Props) {
               setBucketHistory={setBucketHistory}
             />
           )}
-          {activeTab === "buckets" && (
-            <BucketsView
-              state={state}
-              bucketHistory={bucketHistory}
-              setBucketHistory={setBucketHistory}
-              onAllocate={openJarAllocation}
-            />
-          )}
+          {activeTab === "buckets" && <BucketsManagementView state={state} />}
           {activeTab === "liabilities" && <LiabilitiesView state={state} />}
           {activeTab === "activity" && (
             <ActivityView
@@ -335,7 +329,12 @@ function HomeView({
           icon={Wallet}
           label="Usable balance"
           value={state.usableBalance}
-          helper="After debt commitments"
+          helper={(() => {
+            const parts: string[] = [];
+            if (state.bnplOwed > 0) parts.push(`BNPL ${state.currencySymbol}${state.bnplOwed.toFixed(0)}`);
+            if (state.creditCardOwed > 0) parts.push(`CC ${state.currencySymbol}${state.creditCardOwed.toFixed(0)}`);
+            return parts.length > 0 ? `After ${parts.join(" + ")}` : "After debt commitments";
+          })()}
           currency={state.currencySymbol}
           tone="emerald"
         />
@@ -344,7 +343,10 @@ function HomeView({
           icon={Landmark}
           label="Net worth"
           value={state.netWorth}
-          helper="Assets minus outstanding debt"
+          helper={(() => {
+            const debt = state.totalLiabilities + state.activeBorrowed;
+            return `Money + ${state.currencySymbol}${state.activeLent.toFixed(0)} receivables − ${state.currencySymbol}${debt.toFixed(0)} debt`;
+          })()}
           currency={state.currencySymbol}
           tone="blue"
         />
@@ -729,37 +731,9 @@ function BucketsView({
   );
 }
 
-function FlipBucketCard({
-  flipped,
-  front,
-  back,
-}: {
-  flipped: boolean;
-  front: React.ReactNode;
-  back: React.ReactNode;
-}) {
-  return (
-    <div className={`bucket-flip ${flipped ? "is-flipped" : ""}`}>
-      <div className="bucket-flip-inner">
-        <div
-          aria-hidden={flipped}
-          inert={flipped ? true : undefined}
-          className="bucket-flip-face bucket-flip-front"
-        >
-          {front}
-        </div>
+export { FlipBucketCardBase as FlipBucketCard };
 
-        <div
-          aria-hidden={!flipped}
-          inert={!flipped ? true : undefined}
-          className="bucket-flip-face bucket-flip-back"
-        >
-          {back}
-        </div>
-      </div>
-    </div>
-  );
-}
+const FlipBucketCard = FlipBucketCardBase;
 
 function BucketHistoryBack({
   state,

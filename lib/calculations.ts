@@ -6,9 +6,10 @@
     getBucketLabel,
     normalizeCategoryId,
   } from "@/lib/buckets";
+  import { getLinkedCategoryIds } from "@/lib/definitionSelectors";
   import { buildPersonProfiles } from "@/lib/lending";
   import { expandExpensesForRange, getUpcomingRecurringExpenses } from "@/lib/recurring";
-  import type { Bucket, BucketListTracker, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, RepaymentSchedule, SavingsBucket, Transfer } from "@/lib/types";
+  import type { Bucket, BucketDefinition, BucketListTracker, CategoryTrackerLink, Expense, Income, LendingTransactionRecord, Liability, MoneyRecord, Person, RecentActivityItem, Remittance, RemittanceAccount, RepaymentSchedule, SavingsBucket, TrackerDefinition, Transfer } from "@/lib/types";
 
   export function toNumber(value: unknown) {
     const number = Number(value);
@@ -447,7 +448,7 @@
     };
   }
 
-  export function calculateDashboardValues({ incomes, expenses, transfers, remittances = [], people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; remittances?: Remittance[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
+  export function calculateDashboardValues({ incomes, expenses, transfers, remittances = [], people, lendingTransactions, lentRecords, borrowedRecords, liabilities = [], repaymentSchedules = [], initialCashBalance, initialBankBalance, savingsBuckets = defaultSavingsBuckets, bucketListTrackers = defaultBucketListTrackers, bucketDefinitions, trackerDefinitions, categoryTrackerLinks, sharedRolloverJarBalance = 0, monthlyResetDay }: { incomes: Income[]; expenses: Expense[]; transfers: Transfer[]; remittances?: Remittance[]; people: Person[]; lendingTransactions: LendingTransactionRecord[]; lentRecords: MoneyRecord[]; borrowedRecords: MoneyRecord[]; liabilities?: Liability[]; repaymentSchedules?: RepaymentSchedule[]; initialCashBalance: number; initialBankBalance: number; savingsBuckets?: SavingsBucket[]; bucketListTrackers?: BucketListTracker[]; bucketDefinitions?: BucketDefinition[]; trackerDefinitions?: TrackerDefinition[]; categoryTrackerLinks?: CategoryTrackerLink[]; sharedRolloverJarBalance?: number; monthlyResetDay: number; }) {
     const expenseRangeStart = new Date();
     expenseRangeStart.setFullYear(expenseRangeStart.getFullYear() - 3);
     const expenseRangeEnd = new Date();
@@ -550,15 +551,15 @@
       })
       .reduce((sum, item) => sum + item.amount, 0);
 
-    function bucketIn(bucket: Bucket | SavingsBucket) {
+    function bucketIn(bucket: Bucket | SavingsBucket | BucketDefinition) {
       return transfers
-        .filter((item) => isBucket(item.to_bucket, bucket))
+        .filter((item) => isBucket(item.to_bucket, bucket as Bucket | SavingsBucket))
         .reduce((sum, item) => sum + item.amount, 0);
     }
 
-    function bucketOut(bucket: Bucket | SavingsBucket) {
+    function bucketOut(bucket: Bucket | SavingsBucket | BucketDefinition) {
       return transfers
-        .filter((item) => isBucket(item.from_bucket, bucket))
+        .filter((item) => isBucket(item.from_bucket, bucket as Bucket | SavingsBucket))
         .reduce((sum, item) => sum + item.amount, 0);
     }
 
@@ -586,18 +587,24 @@
       remittanceFromBank -
       bucketOut("Bank") +
       bucketIn("Bank");
-    const savingsBucketBalances = savingsBuckets.map((bucket) => {
-      const fundUsage =
-        bucket.id === "savings_remittance" ? remittanceFromFundTotal : 0;
-      const currentBalance =
-        toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket) - fundUsage;
-
-      return {
-        ...bucket,
-        currentBalance,
-        progress: getProgress(currentBalance, bucket.targetAmount),
-      };
-    });
+    const savingsBucketBalances = bucketDefinitions
+      ? bucketDefinitions.filter((b) => b.isActive && b.type === "protected").sort((a, b) => a.sortOrder - b.sortOrder).map((bucket) => {
+          const fundUsage = bucket.id === "savings_remittance" ? remittanceFromFundTotal : 0;
+          const currentBalance = bucketIn(bucket) - bucketOut(bucket) - fundUsage;
+          return {
+            ...bucket,
+            active: bucket.isActive,
+            linkedStorageLabel: "Bank",
+            currentBalance,
+            targetAmount: bucket.targetAmount ?? 0,
+            progress: getProgress(currentBalance, bucket.targetAmount ?? 0),
+          };
+        })
+      : savingsBuckets.map((bucket) => {
+          const fundUsage = bucket.id === "savings_remittance" ? remittanceFromFundTotal : 0;
+          const currentBalance = toNumber(bucket.currentBalance) + bucketIn(bucket) - bucketOut(bucket) - fundUsage;
+          return { ...bucket, currentBalance, progress: getProgress(currentBalance, bucket.targetAmount) };
+        });
     const totalSavingsBuckets = savingsBucketBalances.reduce(
       (sum, bucket) => sum + bucket.currentBalance,
       0
@@ -633,60 +640,69 @@
     const remittanceBucket = savingsBucketBalances.find(
       (bucket) => bucket.id === "savings_remittance"
     );
-    const activeTrackers = bucketListTrackers.filter((tracker) => tracker.active);
-    function monthlyAllocationForTracker(tracker: BucketListTracker) {
-      const allocation = tracker.recurringAllocation;
-      if (!allocation?.active || allocation.allocationAmount <= 0) {
-        return tracker.monthlyBudget;
-      }
+    const activeTrackers = trackerDefinitions
+      ? trackerDefinitions.filter((t) => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
+      : bucketListTrackers.filter((t) => t.active);
 
-      if (allocation.frequency === "weekly") {
-        return allocation.allocationAmount * 52 / 12;
+    function getTrackerLinkedIds(tracker: TrackerDefinition | BucketListTracker): string[] {
+      if (categoryTrackerLinks && "isActive" in tracker && !("linkedCategoryIds" in tracker)) {
+        return getLinkedCategoryIds(tracker.id, categoryTrackerLinks);
       }
-      if (allocation.frequency === "biweekly") {
-        return allocation.allocationAmount * 26 / 12;
-      }
-      if (allocation.frequency === "yearly") {
-        return allocation.allocationAmount / 12;
-      }
+      if ("linkedCategoryIds" in tracker) return tracker.linkedCategoryIds;
+      if (categoryTrackerLinks) return getLinkedCategoryIds(tracker.id, categoryTrackerLinks);
+      return [];
+    }
+
+    function getTrackerMonthlyCap(tracker: TrackerDefinition | BucketListTracker): number | null {
+      if ("monthlyCap" in tracker) return tracker.monthlyCap;
+      return tracker.monthlyBudget > 0 ? tracker.monthlyBudget : null;
+    }
+
+    function monthlyAllocationForTracker(tracker: TrackerDefinition | BucketListTracker) {
+      const allocation = tracker.recurringAllocation;
+      const cap = getTrackerMonthlyCap(tracker);
+      if (!allocation?.active || allocation.allocationAmount <= 0) return cap ?? 0;
+      if (allocation.frequency === "weekly") return allocation.allocationAmount * 52 / 12;
+      if (allocation.frequency === "biweekly") return allocation.allocationAmount * 26 / 12;
+      if (allocation.frequency === "yearly") return allocation.allocationAmount / 12;
       return allocation.allocationAmount;
     }
+
     const totalMonthlyTrackerAllocation = activeTrackers.reduce(
       (sum, tracker) => sum + monthlyAllocationForTracker(tracker),
       0
     );
     const trackerSummaries = activeTrackers.map((tracker) => {
-      const linkedIds = new Set(
-        tracker.linkedCategoryIds.map(normalizeCategoryId)
-      );
+      const linkedCategoryIds = getTrackerLinkedIds(tracker);
+      const linkedIds = new Set(linkedCategoryIds.map(normalizeCategoryId));
       const trackerExpenses = thisMonthExpenses.filter((expense) =>
         linkedIds.has(expenseCategoryId(expense))
       );
-      const spentThisMonth = trackerExpenses.reduce(
-        (sum, expense) => sum + expense.amount,
-        0
-      );
+      const spentThisMonth = trackerExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const cap = getTrackerMonthlyCap(tracker);
 
       return {
         ...tracker,
+        active: "isActive" in tracker ? tracker.isActive : tracker.active,
+        linkedCategoryIds,
+        monthlyBudget: cap ?? 0,
+        monthlyCap: cap,
         spentThisMonth,
-        remainingThisMonth: tracker.monthlyBudget - spentThisMonth,
-        progress: getProgress(spentThisMonth, tracker.monthlyBudget),
+        remainingThisMonth: (cap ?? 0) - spentThisMonth,
+        progress: cap !== null && cap > 0 ? getProgress(spentThisMonth, cap) : 0,
         status:
-          tracker.monthlyBudget === 0
+          cap === null || cap === 0
             ? "On Track"
-            : spentThisMonth > tracker.monthlyBudget
+            : spentThisMonth > cap
               ? "Overspent"
-              : spentThisMonth >= tracker.monthlyBudget * 0.8
+              : spentThisMonth >= cap * 0.8
                 ? "Near Limit"
                 : "On Track",
         monthlyAllocation: monthlyAllocationForTracker(tracker),
       };
     });
     const trackerLinkedCategoryIds = new Set(
-      activeTrackers.flatMap((tracker) =>
-        tracker.linkedCategoryIds.map(normalizeCategoryId)
-      )
+      activeTrackers.flatMap((tracker) => getTrackerLinkedIds(tracker).map(normalizeCategoryId))
     );
     const today = new Date();
     const manualJarAllocations = transfers

@@ -174,20 +174,51 @@ export function useLiabilities() {
   function hydrateLiabilities(
     rawLiabilities: unknown[],
     rawSchedules: unknown[],
-    rawSettings: unknown
+    rawSettings: unknown,
+    rawPaymentHistory: unknown[] = []
   ) {
-    const parsedLiabilities = rawLiabilities
-      .filter((item): item is Record<string, unknown> =>
-        Boolean(item && typeof item === "object")
-      )
-      .map(parseLiability)
-      .filter((item) => item.id);
+    const rawLiabilityObjects = rawLiabilities.filter(
+      (item): item is Record<string, unknown> => Boolean(item && typeof item === "object")
+    );
     const parsedSchedules = rawSchedules
       .filter((item): item is Record<string, unknown> =>
         Boolean(item && typeof item === "object")
       )
       .map(parseSchedule)
       .filter((item) => item.id && item.liabilityId);
+
+    // Build paid amount per liability from both repayment schedules and payment history.
+    // Payment history (liability_payments) reduces outstanding balance but doesn't re-deduct
+    // from bank (that deduction is tracked via RepaymentSchedules in calculateDashboardValues).
+    const paidByLiability = new Map<string, number>();
+    const allPaymentSources = [
+      ...parsedSchedules,
+      ...rawPaymentHistory
+        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+        .map(parseSchedule)
+        .filter((item) => item.id && item.liabilityId),
+    ];
+    for (const s of allPaymentSources) {
+      if (s.status === "paid" && s.liabilityId) {
+        paidByLiability.set(s.liabilityId, (paidByLiability.get(s.liabilityId) || 0) + s.amount);
+      }
+    }
+
+    const parsedLiabilities = rawLiabilityObjects
+      .map(item => {
+        const liability = parseLiability(item);
+        // If the DB row has no explicit outstandingBalance, compute it from remainingAmount minus paid history.
+        // (BNPL rows updated by auto-processing already have outstandingBalance set in DB — don't override.)
+        if (item.outstandingBalance === undefined || item.outstandingBalance === null) {
+          const paid = paidByLiability.get(liability.id) || 0;
+          liability.outstandingBalance = Math.max(toNumber(item.remainingAmount) - paid, 0);
+          if (liability.outstandingBalance <= 0 && liability.status === "active") {
+            liability.status = "paid";
+          }
+        }
+        return liability;
+      })
+      .filter((item) => item.id);
 
     setLiabilities(parsedLiabilities);
     setRepaymentSchedules(parsedSchedules);

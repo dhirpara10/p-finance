@@ -443,6 +443,10 @@ export async function POST(request: Request) {
         "asset_vault",
         "asset_location_tags",
         "dreams_goals",
+        "bucket_definitions",
+        "tracker_definitions",
+        "category_definitions",
+        "category_tracker_links",
       ];
       for (const sheet of financeSheets) {
         const { error } = await supabase

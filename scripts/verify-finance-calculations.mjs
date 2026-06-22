@@ -73,8 +73,24 @@ const transfers = (grouped["transfers"] || []).map(r => ({
   to_bucket: normalizeBucketName(r.to_bucket ?? r.to ?? r.toAccount ?? ""),
 }));
 const lending = grouped["lending"] || grouped["LendingTransactions"] || grouped["lendingTransactions"] || [];
-const liabilities = grouped["liabilities"] || grouped["Liabilities"] || [];
-const payments = grouped["liability_payments"] || grouped["RepaymentSchedules"] || grouped["repaymentSchedules"] || [];
+// Merge both casing variants; deduplicate by id (first occurrence wins, capital-L has updated outstandingBalance)
+const liabilitiesRaw = (() => {
+  const all = [...(grouped["Liabilities"] || []), ...(grouped["liabilities"] || [])];
+  const seen = new Set();
+  return all.filter(item => { const id = item?.id; if (!id || seen.has(id)) return false; seen.add(id); return true; });
+})();
+// RepaymentSchedules = auto-generated BNPL schedules only (bank-deducting paid schedules)
+const payments = (() => {
+  const all = [...(grouped["RepaymentSchedules"] || []), ...(grouped["repaymentSchedules"] || [])];
+  const seen = new Set();
+  return all.filter(item => { const id = item?.id; if (!id || seen.has(id)) return false; seen.add(id); return true; });
+})();
+// Payment history = liability_payments — used only to reduce outstanding balance, NOT bank
+const paymentHistory = (() => {
+  const all = [...(grouped["liability_payments"] || []), ...(grouped["liabilityPayments"] || [])];
+  const seen = new Set();
+  return all.filter(item => { const id = item?.id; if (!id || seen.has(id)) return false; seen.add(id); return true; });
+})();
 const assets = grouped["asset_vault"] || [];
 const settings = grouped["settings"] || [];
 const goals = grouped["goals"] || grouped["dreams_goals"] || [];
@@ -190,22 +206,32 @@ const jarBalance = jarAllocationsTotal - jarWithdrawalsTotal;
 
 // ── Bank / Cash ───────────────────────────────────────────────────────────────
 
-const bankBalance = initialBank + bankIncome + borrowedToBank + settlementBankIn - lentFromBank - bankExpenses - bucketOutBank + bucketInBank;
-const cashBalance = initialCash + cashIncome + borrowedToCash + settlementCashIn - lentFromCash - cashExpenses - bucketOutCash + bucketInCash;
+// Paid repayments from bank — matches app's paidRepaymentsFromBank (RepaymentSchedules only, auto-BNPL)
+const paidRepaymentsFromBank = payments
+  .filter(p => p.status === "paid" && p.linkedRepaymentAccount !== "Cash")
+  .reduce((s, p) => s + num(p.amount), 0);
+const paidRepaymentsFromCash = payments
+  .filter(p => p.status === "paid" && p.linkedRepaymentAccount === "Cash")
+  .reduce((s, p) => s + num(p.amount), 0);
+const bankBalance = initialBank + bankIncome + borrowedToBank + settlementBankIn - lentFromBank - bankExpenses - paidRepaymentsFromBank - bucketOutBank + bucketInBank;
+const cashBalance = initialCash + cashIncome + borrowedToCash + settlementCashIn - lentFromCash - cashExpenses - paidRepaymentsFromCash - bucketOutCash + bucketInCash;
 
 // ── Liabilities ───────────────────────────────────────────────────────────────
 
 function outstandingFor(liability) {
-  const original = num(liability.originalAmount);
-  const remaining = num(liability.remainingAmount ?? liability.outstandingBalance ?? original);
-  // Apply any payments
-  const paid = payments
+  // If DB has explicit outstandingBalance (e.g. BNPL auto-processed), use it directly.
+  // Otherwise reduce remainingAmount by paid payment history.
+  if (liability.outstandingBalance !== undefined && liability.outstandingBalance !== null) {
+    return Math.max(num(liability.outstandingBalance), 0);
+  }
+  const remaining = num(liability.remainingAmount ?? liability.originalAmount);
+  const paid = [...payments, ...paymentHistory]
     .filter(p => str(p.liabilityId) === str(liability.id))
     .reduce((s, p) => s + num(p.amount), 0);
   return Math.max(remaining - paid, 0);
 }
 
-const activeLiabilities = liabilities.filter(l => l.status === "active");
+const activeLiabilities = liabilitiesRaw.filter(l => l.status === "active");
 const bnplOwed = activeLiabilities.filter(l => l.type === "bnpl").reduce((s, l) => s + outstandingFor(l), 0);
 const creditCardOwed = activeLiabilities.filter(l => l.type === "credit_card").reduce((s, l) => s + outstandingFor(l), 0);
 const loanOwed = activeLiabilities.filter(l => l.type === "loan").reduce((s, l) => s + outstandingFor(l), 0);
@@ -232,7 +258,8 @@ const trackerLinkedSpend = expenses
 // ── KPI ───────────────────────────────────────────────────────────────────────
 
 const availableCash = bankBalance + cashBalance;
-const usableBalance = availableCash - totalLiabilities;
+// App formula: usable = bank+cash - bnpl - cc (loan NOT subtracted from usable)
+const usableBalance = availableCash - bnplOwed - creditCardOwed;
 const totalMoney = availableCash + totalSavings + jarBalance;
 const netWorth = totalMoney + totalReceivables - totalBorrowed - totalLiabilities;
 const monthRemaining = monthlyIncome - monthlyExpenses;
@@ -244,7 +271,7 @@ const activityRows = [
   ...expenses.map(r => ({ key: `expense:${r.id}`, title: str(r.category), type: "expense", date: r.date })),
   ...transfers.map(r => ({ key: `transfer:${r.id}`, title: `${r.from_bucket} to ${r.to_bucket}`, type: "transfer", date: r.date })),
   ...lending.map(r => ({ key: `lending:${r.id}`, title: str(r.person || r.personName || r.personId || "Unknown"), type: r.type, date: r.date })),
-  ...liabilities.map(r => ({ key: `liability:${r.id}`, title: str(r.name), type: "liability", date: r.date || r.createdAt })),
+  ...liabilitiesRaw.map(r => ({ key: `liability:${r.id}`, title: str(r.name), type: "liability", date: r.date || r.createdAt })),
   ...payments.map(r => ({ key: `payment:${r.id}`, title: str(r.name || r.notes), type: "payment", date: r.date })),
 ];
 const undefinedTitles = activityRows.filter(r => !r.title || r.title === "undefined");
@@ -273,6 +300,7 @@ line("Cash expenses (immediate)", -cashExpenses);
 line("Lent from bank", -lentFromBank);
 line("Borrowed to bank", borrowedToBank);
 line("Settlement bank in", settlementBankIn);
+line("Paid repayments (bank)", -paidRepaymentsFromBank);
 line("Bucket out (bank)", -bucketOutBank);
 line("Bucket in (bank)", bucketInBank);
 console.log("  " + "─".repeat(40));
@@ -327,11 +355,22 @@ line("Total savings (buckets)", totalSavings);
 line("Jar balance", jarBalance);
 line("Receivables", totalReceivables);
 line("Personal borrowing", -totalBorrowed);
+line("BNPL owed", -bnplOwed);
+line("Credit card owed", -creditCardOwed);
+line("Loan owed", -loanOwed);
 line("Total liabilities", -totalLiabilities);
 console.log("  " + "─".repeat(40));
 line("Total money (cash+savings+jar)", totalMoney);
 line("Net worth", netWorth);
-line("Usable balance", usableBalance);
+console.log();
+console.log("💰 USABLE BALANCE BREAKDOWN");
+line("  Bank + Cash", availableCash);
+line("  − BNPL commitment", -bnplOwed);
+line("  − Credit card commitment", -creditCardOwed);
+console.log("  " + "─".repeat(40));
+line("  Usable balance", usableBalance);
+line("  − Loan commitment (safe-to-spend only)", -loanOwed);
+line("  Safe to spend", usableBalance - loanOwed);
 
 console.log("\n📋 ACTIVITY");
 console.log(`  Total rows:              ${activityRows.length}`);
@@ -339,8 +378,8 @@ console.log(`  Income rows:             ${income.length}`);
 console.log(`  Expense rows:            ${expenses.length}`);
 console.log(`  Transfer rows:           ${transfers.length}`);
 console.log(`  Lending rows:            ${lending.length}`);
-console.log(`  Liability rows:          ${liabilities.length}`);
-console.log(`  Payment rows:            ${payments.length}`);
+console.log(`  Liability rows:          ${liabilitiesRaw.length}`);
+console.log(`  Payment rows:            ${payments.length} (RepaymentSchedules) + ${paymentHistory.length} (liability_payments)`);
 console.log(`  Goal rows:               ${goals.length}`);
 console.log(`  Asset rows:              ${assets.length}`);
 if (undefinedTitles.length) {
