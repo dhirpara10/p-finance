@@ -1,44 +1,467 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { SelectField } from "@/components/forms/SelectField";
 import type { LendingTransaction, PersonProfile } from "@/lib/types";
+import {
+  X,
+  ChevronRight,
+  ArrowLeft,
+  Trash2,
+  CheckCircle2,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RefreshCw,
+  Users,
+} from "lucide-react";
 
-type LendingDetailsProps = { state: FinanceDashboardState; };
+// ─── sub-types ────────────────────────────────────────────────────────────────
 
-function getTransactionLabel(transaction: LendingTransaction) {
-  if (transaction.type === "lent") return "Lent";
-  if (transaction.type === "borrowed") return "Borrowed";
+type Props = { state: FinanceDashboardState };
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+function statusColor(netBalance: number) {
+  if (netBalance > 0) return { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
+  if (netBalance < 0) return { text: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" };
+  return { text: "text-neutral-500", bg: "bg-white/[0.04]", border: "border-white/[0.06]" };
+}
+
+function statusLabel(netBalance: number) {
+  if (netBalance > 0) return "You will get";
+  if (netBalance < 0) return "You owe";
+  return "Settled";
+}
+
+function txColor(type: LendingTransaction["type"]) {
+  if (type === "lent") return { text: "text-emerald-400", bg: "bg-emerald-500/10" };
+  if (type === "borrowed") return { text: "text-rose-400", bg: "bg-rose-500/10" };
+  return { text: "text-violet-400", bg: "bg-violet-500/10" };
+}
+
+function txLabel(type: LendingTransaction["type"]) {
+  if (type === "lent") return "Lent";
+  if (type === "borrowed") return "Borrowed";
   return "Settlement";
 }
 
-function getTransactionClass(transaction: LendingTransaction) {
-  if (transaction.type === "lent") return "text-green-400";
-  if (transaction.type === "borrowed") return "text-red-400";
-  return "text-blue-400";
+function TxIcon({ type }: { type: LendingTransaction["type"] }) {
+  if (type === "lent") return <ArrowUpRight size={13} />;
+  if (type === "borrowed") return <ArrowDownLeft size={13} />;
+  return <RefreshCw size={12} />;
 }
 
-function filterProfiles(
-  profiles: PersonProfile[],
-  detailsView: "lent" | "borrowed" | null
-) {
-  if (detailsView === "lent") {
-    return profiles.filter((profile) => profile.netBalance > 0);
-  }
+// ─── PersonCard ───────────────────────────────────────────────────────────────
 
-  if (detailsView === "borrowed") {
-    return profiles.filter((profile) => profile.netBalance < 0);
-  }
+function PersonCard({
+  profile,
+  sym,
+  onClick,
+}: {
+  profile: PersonProfile;
+  sym: string;
+  onClick: () => void;
+}) {
+  const col = statusColor(profile.netBalance);
+  const label = statusLabel(profile.netBalance);
+  const netAbs = Math.abs(profile.netBalance);
+  const txCount = profile.transactions.length;
+  const latest = profile.transactions[0]?.date ?? "";
 
-  return profiles;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-4 rounded-3xl border border-white/[0.07] bg-[#111214] px-5 py-4 text-left transition hover:border-white/[0.12] hover:bg-[#15171a] active:scale-[0.99]"
+    >
+      {/* Avatar */}
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-bold ${col.bg} ${col.text}`}>
+        {profile.name.charAt(0).toUpperCase()}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate">{profile.name}</p>
+        <p className="text-[11px] text-neutral-600 mt-0.5">
+          {txCount} transaction{txCount !== 1 ? "s" : ""}
+          {latest ? ` · ${latest}` : ""}
+        </p>
+      </div>
+
+      {/* Right side */}
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <p className={`text-sm font-bold tabular-nums ${col.text}`}>
+          {sym}{netAbs.toLocaleString()}
+        </p>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${col.bg} ${col.text} ${col.border}`}>
+          {label}
+        </span>
+      </div>
+
+      <ChevronRight size={16} className="text-neutral-700 shrink-0 -mr-1" />
+    </button>
+  );
 }
 
-export function LendingDetails({ state }: LendingDetailsProps) {
+// ─── SummaryStatCard ──────────────────────────────────────────────────────────
+
+function SummaryStatCard({ label, value, color, sym }: { label: string; value: number; color: string; sym: string }) {
+  return (
+    <div className="rounded-2xl border border-white/[0.05] bg-white/[0.03] px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">{label}</p>
+      <p className={`mt-1.5 text-base font-bold tabular-nums ${color}`}>
+        {sym}{value.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+// ─── LedgerTimeline ───────────────────────────────────────────────────────────
+
+function LedgerTimeline({
+  transactions,
+  sym,
+  onDelete,
+}: {
+  transactions: LendingTransaction[];
+  sym: string;
+  onDelete: (id: string | number) => void;
+}) {
+  if (transactions.length === 0) {
+    return (
+      <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-center">
+        <p className="text-sm text-neutral-600">No transactions yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {transactions.map((tx, i) => {
+        const col = txColor(tx.type);
+        const label = txLabel(tx.type);
+        const isFirst = i === 0;
+        const isLast = i === transactions.length - 1;
+
+        return (
+          <div
+            key={`${tx.type}-${tx.id}`}
+            className="group relative flex items-center gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 transition hover:bg-white/[0.04]"
+          >
+            {/* Timeline dot */}
+            <div className="relative flex shrink-0 flex-col items-center">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${col.bg} ${col.text}`}>
+                <TxIcon type={tx.type} />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold ${col.text}`}>{label}</span>
+                {tx.account && (
+                  <span className="rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
+                    {tx.account}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-neutral-600 mt-0.5">
+                {tx.date}
+                {tx.note ? ` · ${tx.note}` : ""}
+              </p>
+            </div>
+
+            {/* Amount */}
+            <p className={`text-sm font-bold tabular-nums ${col.text} shrink-0`}>
+              {sym}{tx.amount.toLocaleString()}
+            </p>
+
+            {/* Delete */}
+            {!tx.legacy && (
+              <button
+                type="button"
+                onClick={() => onDelete(tx.id)}
+                className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SettlementPanel ──────────────────────────────────────────────────────────
+
+function SettlementPanel({
+  netAbs,
+  sym,
+  settlementAmount,
+  setSettlementAmount,
+  settlementAccount,
+  setSettlementAccount,
+  settlementDate,
+  setSettlementDate,
+  settlementNotes,
+  setSettlementNotes,
+  onSave,
+  onCancel,
+}: {
+  netAbs: number;
+  sym: string;
+  settlementAmount: string;
+  setSettlementAmount: (v: string) => void;
+  settlementAccount: "Bank" | "Cash";
+  setSettlementAccount: (v: "Bank" | "Cash") => void;
+  settlementDate: string;
+  setSettlementDate: (v: string) => void;
+  settlementNotes: string;
+  setSettlementNotes: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [mode, setMode] = useState<"full" | "partial">("full");
+  const isFull = mode === "full";
+
+  useEffect(() => {
+    if (mode === "full") setSettlementAmount(String(netAbs));
+    else setSettlementAmount("");
+  }, [mode, netAbs]);
+
+  const parsedAmount = Number(settlementAmount);
+  const isValidAmount = parsedAmount > 0 && parsedAmount <= netAbs;
+
+  return (
+    <div className="mt-4 rounded-3xl border border-white/[0.08] bg-[#0e0f11] p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">Settlement</p>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[11px] text-neutral-600 hover:text-neutral-400 transition"
+        >
+          Cancel
+        </button>
+      </div>
+
+      {/* Full / Partial toggle */}
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-1">
+        {(["full", "partial"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`rounded-xl py-2.5 text-sm font-semibold capitalize transition ${
+              mode === m
+                ? "bg-white text-neutral-950 shadow"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {m === "full" ? `Full · ${sym}${netAbs.toLocaleString()}` : "Partial"}
+          </button>
+        ))}
+      </div>
+
+      {/* Amount input — only for partial */}
+      {!isFull && (
+        <div className="space-y-1">
+          <label className="text-[11px] text-neutral-600 font-medium">Amount</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder={`Max ${sym}${netAbs.toLocaleString()}`}
+            value={settlementAmount}
+            onChange={(e) => setSettlementAmount(e.target.value.replace(/[^\d.]/g, ""))}
+            className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-700 outline-none focus:border-white/[0.18] transition"
+          />
+          {settlementAmount && !isValidAmount && (
+            <p className="text-[11px] text-rose-400 px-1">
+              {parsedAmount <= 0 ? "Enter a valid amount" : `Cannot exceed ${sym}${netAbs.toLocaleString()}`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Account */}
+      <div className="space-y-1">
+        <label className="text-[11px] text-neutral-600 font-medium">Account</label>
+        <SelectField
+          aria-label="Settlement account"
+          value={settlementAccount}
+          onChange={(e) => setSettlementAccount(e.target.value as "Bank" | "Cash")}
+          options={[
+            { value: "Bank", label: "Bank" },
+            { value: "Cash", label: "Cash" },
+          ]}
+        />
+      </div>
+
+      {/* Date */}
+      <div className="space-y-1">
+        <label className="text-[11px] text-neutral-600 font-medium">Date</label>
+        <input
+          type="date"
+          value={settlementDate}
+          onChange={(e) => setSettlementDate(e.target.value)}
+          className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none focus:border-white/[0.18] transition"
+        />
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-1">
+        <label className="text-[11px] text-neutral-600 font-medium">Note (optional)</label>
+        <textarea
+          placeholder="Add a note…"
+          value={settlementNotes}
+          onChange={(e) => setSettlementNotes(e.target.value)}
+          rows={2}
+          className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-700 outline-none focus:border-white/[0.18] transition resize-none"
+        />
+      </div>
+
+      {/* Confirm */}
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={!isFull && !isValidAmount}
+        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-violet-600 py-3.5 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <CheckCircle2 size={16} />
+        Confirm Settlement
+      </button>
+    </div>
+  );
+}
+
+// ─── PersonLedgerView ─────────────────────────────────────────────────────────
+
+function PersonLedgerView({
+  profile,
+  sym,
+  isSettlementOpen,
+  settlementAmount,
+  setSettlementAmount,
+  settlementAccount,
+  setSettlementAccount,
+  settlementDate,
+  setSettlementDate,
+  settlementNotes,
+  setSettlementNotes,
+  onSettleClick,
+  onSaveSettlement,
+  onCancelSettlement,
+  onDelete,
+  onBack,
+}: {
+  profile: PersonProfile;
+  sym: string;
+  isSettlementOpen: boolean;
+  settlementAmount: string;
+  setSettlementAmount: (v: string) => void;
+  settlementAccount: "Bank" | "Cash";
+  setSettlementAccount: (v: "Bank" | "Cash") => void;
+  settlementDate: string;
+  setSettlementDate: (v: string) => void;
+  settlementNotes: string;
+  setSettlementNotes: (v: string) => void;
+  onSettleClick: () => void;
+  onSaveSettlement: () => void;
+  onCancelSettlement: () => void;
+  onDelete: (id: string | number) => void;
+  onBack: () => void;
+}) {
+  const netAbs = Math.abs(profile.netBalance);
+  const col = statusColor(profile.netBalance);
+  const label = statusLabel(profile.netBalance);
+
+  return (
+    <div className="space-y-5">
+      {/* Back + name header */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-neutral-400 transition hover:bg-white/[0.08] hover:text-white"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ${col.bg} ${col.text}`}>
+            {profile.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-bold text-white leading-tight truncate">{profile.name}</p>
+            {profile.phone && <p className="text-[11px] text-neutral-600">{profile.phone}</p>}
+          </div>
+        </div>
+        <span className={`inline-flex items-center shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold border ${col.bg} ${col.text} ${col.border}`}>
+          {label}
+        </span>
+      </div>
+
+      {/* Big net balance */}
+      <div className="rounded-3xl border border-white/[0.07] bg-[#111214] px-6 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Net balance</p>
+        <p className={`mt-2 text-4xl font-bold tracking-tight tabular-nums ${col.text}`}>
+          {sym}{netAbs.toLocaleString()}
+        </p>
+
+        {/* Stats row */}
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <SummaryStatCard label="Lent" value={profile.totalLent} color="text-emerald-400" sym={sym} />
+          <SummaryStatCard label="Borrowed" value={profile.totalBorrowed} color="text-rose-400" sym={sym} />
+          <SummaryStatCard label="Settled" value={profile.totalSettled} color="text-violet-400" sym={sym} />
+        </div>
+      </div>
+
+      {/* Settle Up button */}
+      {profile.netBalance !== 0 && !isSettlementOpen && (
+        <button
+          type="button"
+          onClick={onSettleClick}
+          className="w-full rounded-2xl bg-violet-600 py-3.5 text-sm font-bold text-white transition hover:bg-violet-500"
+        >
+          Settle Up
+        </button>
+      )}
+
+      {/* Settlement panel */}
+      {isSettlementOpen && (
+        <SettlementPanel
+          netAbs={netAbs}
+          sym={sym}
+          settlementAmount={settlementAmount}
+          setSettlementAmount={setSettlementAmount}
+          settlementAccount={settlementAccount}
+          setSettlementAccount={setSettlementAccount}
+          settlementDate={settlementDate}
+          setSettlementDate={setSettlementDate}
+          settlementNotes={settlementNotes}
+          setSettlementNotes={setSettlementNotes}
+          onSave={onSaveSettlement}
+          onCancel={onCancelSettlement}
+        />
+      )}
+
+      {/* Ledger */}
+      <div>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-600">Ledger</p>
+        <LedgerTimeline transactions={profile.transactions} sym={sym} onDelete={onDelete} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Root component ───────────────────────────────────────────────────────────
+
+export function LendingDetails({ state }: Props) {
   const {
     detailsView,
     setDetailsView,
     personProfiles,
-    settlementProfileId,
     settlementAmount,
     setSettlementAmount,
     settlementAccount,
@@ -50,217 +473,113 @@ export function LendingDetails({ state }: LendingDetailsProps) {
     openSettlement,
     saveSettlement,
     deleteLendingTransaction,
+    currencySymbol,
   } = state;
 
-  const profiles = filterProfiles(personProfiles, detailsView);
-  const settlementProfile = personProfiles.find(
-    (profile) => profile.id === settlementProfileId
-  );
+  const sym = currencySymbol ?? "₹";
+
+  // Local UI state
+  const [selectedPersonId, setSelectedPersonId] = useState<string | number | null>(null);
+  const [isSettlementOpen, setIsSettlementOpen] = useState(false);
+
+  // All profiles — show everyone, status pill shows direction
+  const allProfiles = personProfiles;
+  const selectedProfile = allProfiles.find((p) => String(p.id) === String(selectedPersonId));
+
+  function handleSelectPerson(id: string | number) {
+    setSelectedPersonId(id);
+    setIsSettlementOpen(false);
+  }
+
+  function handleBack() {
+    setSelectedPersonId(null);
+    setIsSettlementOpen(false);
+  }
+
+  function handleSettleClick() {
+    if (!selectedProfile) return;
+    openSettlement(selectedProfile.id, Math.abs(selectedProfile.netBalance));
+    setIsSettlementOpen(true);
+  }
+
+  async function handleSaveSettlement() {
+    await saveSettlement();
+    setIsSettlementOpen(false);
+  }
+
+  function handleCancelSettlement() {
+    setIsSettlementOpen(false);
+  }
+
+  const isLent = detailsView === "lent";
+  const title = isLent ? "Money I Lent" : "Money I Borrowed";
 
   return (
-    <div className="no-scrollbar fixed inset-0 z-50 overflow-y-auto bg-[#f0f2f5] px-4 py-6 text-neutral-900 dark:bg-neutral-950 dark:text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
-              {detailsView === "lent" ? "Money I Lent" : "Money I Borrowed"}
-            </h2>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              {detailsView === "lent"
-                ? "People who owe you money"
-                : "People you owe money to"}
-            </p>
-          </div>
+    <div className="no-scrollbar fixed inset-0 z-50 overflow-y-auto" style={{ background: "#08090a" }}>
+      <div className="relative mx-auto max-w-lg px-4 pb-16 pt-8">
 
+        {/* Header */}
+        <div className="mb-7 flex items-center justify-between">
+          <div>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isLent ? "text-emerald-500" : "text-rose-500"}`}>
+              {isLent ? "Receivables" : "Payables"}
+            </p>
+            <h1 className="text-[24px] font-bold tracking-tight text-white leading-none">
+              {selectedProfile ? selectedProfile.name : title}
+            </h1>
+          </div>
           <button
             type="button"
             onClick={() => setDetailsView(null)}
-            className="rounded-full bg-neutral-200 px-4 py-2 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-neutral-400 transition hover:bg-white/[0.09] hover:text-white"
           >
-            Close
+            <X size={15} />
           </button>
         </div>
 
-        <div className="space-y-3">
-          {profiles.length === 0 ? (
-            <p className="rounded-2xl bg-neutral-200 p-4 text-sm text-neutral-500 dark:bg-neutral-900">
-              No profiles yet.
-            </p>
-          ) : (
-            profiles.map((profile) => (
-              <div key={profile.id} className="rounded-3xl bg-neutral-200 p-5 dark:bg-neutral-900">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-semibold text-neutral-900 dark:text-white">{profile.name}</p>
-                    {profile.phone && (
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        Phone: {profile.phone}
-                      </p>
-                    )}
-                    <p className="text-xs text-neutral-500">
-                      Profile since {profile.createdAt || "Unknown"}
-                    </p>
-                  </div>
-
-                  <p
-                    className={
-                      profile.netBalance > 0
-                        ? "text-right text-sm font-semibold text-green-400"
-                        : profile.netBalance < 0
-                          ? "text-right text-sm font-semibold text-red-400"
-                          : "text-right text-sm font-semibold text-neutral-400"
-                    }
-                  >
-                    {profile.status}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
-                    <p className="text-neutral-600 dark:text-neutral-400">Total Lent</p>
-                    <p className="mt-1 font-semibold text-green-400">
-                      ${profile.totalLent.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
-                    <p className="text-neutral-600 dark:text-neutral-400">Total Borrowed</p>
-                    <p className="mt-1 font-semibold text-red-400">
-                      ${profile.totalBorrowed.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
-                    <p className="text-neutral-600 dark:text-neutral-400">Total Settled</p>
-                    <p className="mt-1 font-semibold text-blue-400">
-                      ${profile.totalSettled.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-neutral-300 p-3 dark:bg-neutral-800">
-                    <p className="text-neutral-600 dark:text-neutral-400">Net Balance</p>
-                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
-                      ${Math.abs(profile.netBalance).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSettlement(profile.id, Math.abs(profile.netBalance))
-                  }
-                  disabled={profile.netBalance === 0}
-                  className="mt-4 w-full rounded-2xl bg-blue-500 p-3 font-semibold text-black disabled:bg-neutral-300 disabled:text-neutral-500 dark:disabled:bg-neutral-800"
-                >
-                  Settle Up
-                </button>
-
-                {settlementProfile?.id === profile.id && (
-                  <div className="mt-4 space-y-3 rounded-2xl bg-neutral-300 p-4 dark:bg-neutral-800">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSettlementAmount(String(Math.abs(profile.netBalance)))
-                        }
-                        className="rounded-xl bg-neutral-200 p-3 text-sm font-semibold text-neutral-800 dark:bg-neutral-700 dark:text-white"
-                      >
-                        Full
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSettlementAmount("")}
-                        className="rounded-xl bg-neutral-200 p-3 text-sm font-semibold text-neutral-800 dark:bg-neutral-700 dark:text-white"
-                      >
-                        Partial
-                      </button>
-                    </div>
-
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Settlement amount"
-                      value={settlementAmount}
-                      onChange={(e) => setSettlementAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
-                    />
-
-                    <SelectField
-                      aria-label="Settlement account"
-                      value={settlementAccount}
-                      onChange={(event) =>
-                        setSettlementAccount(event.target.value as "Bank" | "Cash")
-                      }
-                      options={[
-                        { value: "Bank", label: "Bank" },
-                        { value: "Cash", label: "Cash" },
-                      ]}
-                    />
-
-                    <input
-                      type="date"
-                      value={settlementDate}
-                      onChange={(e) => setSettlementDate(e.target.value)}
-                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
-                    />
-
-                    <textarea
-                      placeholder="Note optional"
-                      value={settlementNotes}
-                      onChange={(e) => setSettlementNotes(e.target.value)}
-                      className="w-full rounded-2xl bg-neutral-100 p-4 outline-none text-neutral-900 dark:bg-neutral-900 dark:text-white"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={saveSettlement}
-                      className="w-full rounded-2xl bg-green-500 p-4 font-semibold text-black"
-                    >
-                      Save Settlement
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-5 space-y-2">
-                  {profile.transactions.map((transaction) => (
-                    <div
-                      key={`${transaction.type}-${transaction.id}`}
-                      className="rounded-2xl bg-neutral-300 p-3 text-sm dark:bg-neutral-800"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-neutral-900 dark:text-white">
-                            {getTransactionLabel(transaction)}
-                          </p>
-                          <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                            {transaction.date}
-                          </p>
-                        </div>
-                        <p className={getTransactionClass(transaction)}>
-                          ${transaction.amount.toLocaleString()}
-                        </p>
-                      </div>
-
-                      {transaction.note && (
-                        <p className="mt-2 text-neutral-700 dark:text-neutral-300">
-                          {transaction.note}
-                        </p>
-                      )}
-
-                      {!transaction.legacy && (
-                        <button
-                          type="button"
-                          onClick={() => deleteLendingTransaction(transaction.id)}
-                          className="mt-3 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-black"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+        {/* Person detail view */}
+        {selectedProfile ? (
+          <PersonLedgerView
+            profile={selectedProfile}
+            sym={sym}
+            isSettlementOpen={isSettlementOpen}
+            settlementAmount={settlementAmount}
+            setSettlementAmount={setSettlementAmount}
+            settlementAccount={settlementAccount}
+            setSettlementAccount={setSettlementAccount}
+            settlementDate={settlementDate}
+            setSettlementDate={setSettlementDate}
+            settlementNotes={settlementNotes}
+            setSettlementNotes={setSettlementNotes}
+            onSettleClick={handleSettleClick}
+            onSaveSettlement={handleSaveSettlement}
+            onCancelSettlement={handleCancelSettlement}
+            onDelete={deleteLendingTransaction}
+            onBack={handleBack}
+          />
+        ) : (
+          /* People list */
+          <>
+            {allProfiles.length === 0 ? (
+              <div className="rounded-3xl border border-white/[0.06] bg-white/[0.02] py-16 text-center">
+                <Users size={32} className="mx-auto mb-3 text-neutral-700" />
+                <p className="text-sm font-medium text-neutral-600">No people yet.</p>
+                <p className="mt-1 text-xs text-neutral-700">Add a lend or borrow to get started.</p>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              <div className="space-y-2">
+                {allProfiles.map((profile) => (
+                  <PersonCard
+                    key={profile.id}
+                    profile={profile}
+                    sym={sym}
+                    onClick={() => handleSelectPerson(profile.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
