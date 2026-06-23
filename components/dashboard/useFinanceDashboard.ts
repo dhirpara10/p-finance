@@ -1910,7 +1910,7 @@ async function addTransfer() {
           : item
       )
     );
-    await writeLog("updated", "lending_transaction", id, `Settlement ${currencySymbol}${payload.amount}`, before as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>);
+    await writeLog("updated", "lent", id, `Settlement ${currencySymbol}${payload.amount}`, before as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>);
     return true;
   }
 
