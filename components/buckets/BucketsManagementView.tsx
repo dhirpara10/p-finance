@@ -5,6 +5,7 @@ import { Archive, Edit2, Plus, Tag } from "lucide-react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
 import { FlipBucketCard, SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
+import { BucketHistoryBack } from "@/components/dashboard/DashboardLayout";
 import { BucketEditModal } from "./BucketEditModal";
 import { TrackerEditModal } from "./TrackerEditModal";
 import { CategoryEditModal } from "./CategoryEditModal";
@@ -163,7 +164,13 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
                     onHistory={() => toggleTrackerHistory(tracker.id)}
                   />
                 }
-                back={null}
+                back={
+                  <BucketHistoryBack
+                    state={state}
+                    tracker={tracker}
+                    onClose={() => setBucketHistory(null)}
+                  />
+                }
               />
               <div className="mt-2 flex gap-2 px-1">
                 <button

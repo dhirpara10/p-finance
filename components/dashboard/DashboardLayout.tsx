@@ -786,7 +786,7 @@ export { FlipBucketCardBase as FlipBucketCard };
 
 const FlipBucketCard = FlipBucketCardBase;
 
-function BucketHistoryBack({
+export function BucketHistoryBack({
   state,
   savings,
   tracker,
