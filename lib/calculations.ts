@@ -839,7 +839,7 @@ function getLendingSubtitle(item: LendingTransactionRecord) {
   const note = cleanText(item.note);
   if (note) return note;
 
-  if (item.type === "settlement") return "Repayment";
+  if (item.type === "settlement") return "Settlement";
   if (item.type === "borrowed") return "Borrowed money";
   if (item.type === "lent") return "Money lent";
 

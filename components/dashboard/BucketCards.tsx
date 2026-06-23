@@ -14,7 +14,7 @@ import {
   Shirt,
   ShoppingBag,
   Sparkles,
-  Vault,
+  Send,
   WalletCards,
 } from "lucide-react";
 
@@ -39,7 +39,7 @@ export function SavingsBucketCard({
   const Icon = bucket.id.includes("emergency")
     ? ShieldCheck
     : bucket.id.includes("remittance")
-      ? Vault
+      ? Send
       : LockKeyhole;
 
   return (
@@ -155,9 +155,15 @@ export function TrackerCard({
           </h3>
 
           <p className="mt-1 truncate text-xs capitalize text-purple-100/55">
-            {tracker.linkedCategoryIds
-              .map((id) => id.replace("category_", "").replaceAll("_", " "))
-              .join(", ") || "No categories linked"}
+            {(() => {
+              const cats = tracker.linkedCategoryIds.map((id) =>
+                id.replace("category_", "").replaceAll("_", " ")
+              );
+              const label = cats.join(", ");
+              // Hide subtitle if it's identical to the tracker name (single same-named category)
+              if (cats.length === 1 && label.toLowerCase() === tracker.name.toLowerCase()) return "";
+              return label || "No categories linked";
+            })()}
           </p>
         </div>
 
