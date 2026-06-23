@@ -120,17 +120,110 @@ function SummaryStatCard({ label, value, color, sym }: { label: string; value: n
 
 // ─── LedgerTimeline ───────────────────────────────────────────────────────────
 
+function InlineEditPanel({
+  tx,
+  sym,
+  onSave,
+  onCancel,
+}: {
+  tx: LendingTransaction;
+  sym: string;
+  onSave: (payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }) => void;
+  onCancel: () => void;
+}) {
+  const [amount, setAmount] = useState(String(tx.amount));
+  const [account, setAccount] = useState<"Bank" | "Cash">((tx.account as "Bank" | "Cash") ?? "Bank");
+  const [date, setDate] = useState(tx.date);
+  const [note, setNote] = useState(tx.note ?? "");
+
+  const parsedAmount = Number(amount);
+  const valid = parsedAmount > 0;
+
+  return (
+    <div className="mt-2 rounded-2xl border border-white/[0.08] bg-[#0e0f11] p-4 space-y-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-600">Edit {txLabel(tx.type)}</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <label className="text-[10px] text-neutral-600">Amount ({sym})</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+            className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none focus:border-white/[0.18] transition"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] text-neutral-600">Account</label>
+          <select
+            value={account}
+            onChange={(e) => setAccount(e.target.value as "Bank" | "Cash")}
+            className="w-full rounded-xl border border-white/[0.07] bg-[#0e0f11] px-3 py-2.5 text-sm text-white outline-none focus:border-white/[0.18] transition"
+          >
+            <option value="Bank">Bank</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-[10px] text-neutral-600">Date</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none focus:border-white/[0.18] transition"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-[10px] text-neutral-600">Note (optional)</label>
+        <input
+          type="text"
+          placeholder="Add a note…"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-neutral-700 outline-none focus:border-white/[0.18] transition"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-white/[0.07] py-2.5 text-xs font-semibold text-neutral-500 hover:text-neutral-300 transition"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave({ amount: parsedAmount, account, date, note })}
+          className="rounded-xl bg-violet-600 py-2.5 text-xs font-bold text-white hover:bg-violet-500 transition disabled:opacity-40"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LedgerTimeline({
   transactions,
   sym,
   onDelete,
-  onEdit,
+  onEditLent,
+  onEditSettlement,
 }: {
   transactions: LendingTransaction[];
   sym: string;
   onDelete: (id: string | number) => void;
-  onEdit: (tx: LendingTransaction) => void;
+  onEditLent: (tx: LendingTransaction) => void;
+  onEditSettlement: (id: string | number, payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }) => Promise<void>;
 }) {
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+
   if (transactions.length === 0) {
     return (
       <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-center">
@@ -141,65 +234,83 @@ function LedgerTimeline({
 
   return (
     <div className="space-y-1.5">
-      {transactions.map((tx, i) => {
+      {transactions.map((tx) => {
         const col = txColor(tx.type);
         const label = txLabel(tx.type);
-        const isFirst = i === 0;
-        const isLast = i === transactions.length - 1;
+        const isEditing = editingId === tx.id;
 
         return (
-          <div
-            key={`${tx.type}-${tx.id}`}
-            className="group relative flex items-center gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 transition hover:bg-white/[0.04]"
-          >
-            {/* Timeline dot */}
-            <div className="relative flex shrink-0 flex-col items-center">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${col.bg} ${col.text}`}>
+          <div key={`${tx.type}-${tx.id}`} className="rounded-2xl border border-white/[0.05] bg-white/[0.02] overflow-hidden">
+            <div className="group flex items-center gap-3 px-4 py-3 transition hover:bg-white/[0.03]">
+              {/* Icon */}
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${col.bg} ${col.text}`}>
                 <TxIcon type={tx.type} />
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold ${col.text}`}>{label}</span>
-                {tx.account && (
-                  <span className="rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
-                    {tx.account}
-                  </span>
-                )}
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold ${col.text}`}>{label}</span>
+                  {tx.account && (
+                    <span className="rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
+                      {tx.account}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-neutral-600 mt-0.5">
+                  {tx.date}{tx.note ? ` · ${tx.note}` : ""}
+                </p>
               </div>
-              <p className="text-[11px] text-neutral-600 mt-0.5">
-                {tx.date}
-                {tx.note ? ` · ${tx.note}` : ""}
+
+              {/* Amount */}
+              <p className={`text-sm font-bold tabular-nums ${col.text} shrink-0`}>
+                {sym}{tx.amount.toLocaleString()}
               </p>
+
+              {/* Edit button — all non-legacy */}
+              {!tx.legacy && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tx.type === "lent" || tx.type === "borrowed") {
+                      onEditLent(tx);
+                    } else {
+                      setEditingId(isEditing ? null : tx.id);
+                    }
+                  }}
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
+                    isEditing ? "bg-white/[0.10] text-white opacity-100" : "text-neutral-600 hover:bg-white/[0.08] hover:text-neutral-300"
+                  }`}
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+
+              {/* Delete button */}
+              {!tx.legacy && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(tx.id)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
 
-            {/* Amount */}
-            <p className={`text-sm font-bold tabular-nums ${col.text} shrink-0`}>
-              {sym}{tx.amount.toLocaleString()}
-            </p>
-
-            {/* Edit (lent/borrowed only) */}
-            {!tx.legacy && tx.type !== "settlement" && (
-              <button
-                type="button"
-                onClick={() => onEdit(tx)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-white/[0.08] hover:text-neutral-300 group-hover:opacity-100"
-              >
-                <Pencil size={12} />
-              </button>
-            )}
-
-            {/* Delete */}
-            {!tx.legacy && (
-              <button
-                type="button"
-                onClick={() => onDelete(tx.id)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
-              >
-                <Trash2 size={12} />
-              </button>
+            {/* Inline edit for settlement */}
+            {isEditing && tx.type === "settlement" && (
+              <div className="px-4 pb-4">
+                <InlineEditPanel
+                  tx={tx}
+                  sym={sym}
+                  onSave={async (payload) => {
+                    await onEditSettlement(tx.id, payload);
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              </div>
             )}
           </div>
         );
@@ -368,7 +479,8 @@ function PersonLedgerView({
   onSaveSettlement,
   onCancelSettlement,
   onDelete,
-  onEdit,
+  onEditLent,
+  onEditSettlement,
   onBack,
 }: {
   profile: PersonProfile;
@@ -386,7 +498,8 @@ function PersonLedgerView({
   onSaveSettlement: () => void;
   onCancelSettlement: () => void;
   onDelete: (id: string | number) => void;
-  onEdit: (tx: LendingTransaction) => void;
+  onEditLent: (tx: LendingTransaction) => void;
+  onEditSettlement: (id: string | number, payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }) => Promise<void>;
   onBack: () => void;
 }) {
   const netAbs = Math.abs(profile.netBalance);
@@ -465,7 +578,13 @@ function PersonLedgerView({
       {/* Ledger */}
       <div>
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-600">Ledger</p>
-        <LedgerTimeline transactions={profile.transactions} sym={sym} onDelete={onDelete} onEdit={onEdit} />
+        <LedgerTimeline
+          transactions={profile.transactions}
+          sym={sym}
+          onDelete={onDelete}
+          onEditLent={onEditLent}
+          onEditSettlement={onEditSettlement}
+        />
       </div>
     </div>
   );
@@ -489,6 +608,7 @@ export function LendingDetails({ state }: Props) {
     openSettlement,
     saveSettlement,
     deleteLendingTransaction,
+    updateLendingTransaction,
     startEdit,
     currencySymbol,
   } = state;
@@ -528,8 +648,7 @@ export function LendingDetails({ state }: Props) {
     setIsSettlementOpen(false);
   }
 
-  function handleEdit(tx: LendingTransaction) {
-    // startEdit expects a RecentActivityItem shape; it only reads .type and .id
+  function handleEditLent(tx: LendingTransaction) {
     const fakeItem: RecentActivityItem = {
       id: tx.id,
       type: tx.type as "lent" | "borrowed",
@@ -540,6 +659,13 @@ export function LendingDetails({ state }: Props) {
       source: "lendingTransaction",
     };
     startEdit(fakeItem);
+  }
+
+  async function handleEditSettlement(
+    id: string | number,
+    payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }
+  ) {
+    await updateLendingTransaction(id, payload);
   }
 
   const isLent = detailsView === "lent";
@@ -586,7 +712,8 @@ export function LendingDetails({ state }: Props) {
             onSaveSettlement={handleSaveSettlement}
             onCancelSettlement={handleCancelSettlement}
             onDelete={deleteLendingTransaction}
-            onEdit={handleEdit}
+            onEditLent={handleEditLent}
+            onEditSettlement={handleEditSettlement}
             onBack={handleBack}
           />
         ) : (
