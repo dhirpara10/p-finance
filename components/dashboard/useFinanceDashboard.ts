@@ -1893,6 +1893,7 @@ async function addTransfer() {
     id: string | number,
     payload: { amount: number; account: string; date: string; note: string }
   ) {
+    const before = lendingTransactions.find((item) => String(item.id) === String(id));
     const updated = await updateSheetRecord("lending_transactions", id, {
       amount: payload.amount,
       account: payload.account,
@@ -1901,6 +1902,7 @@ async function addTransfer() {
       updatedAt: new Date().toISOString(),
     } as unknown as Record<string, unknown>);
     if (!updated) return false;
+    const next = { ...before, amount: payload.amount, account: payload.account, date: payload.date, note: payload.note };
     setLendingTransactions((prev) =>
       prev.map((item) =>
         String(item.id) === String(id)
@@ -1908,6 +1910,7 @@ async function addTransfer() {
           : item
       )
     );
+    await writeLog("updated", "lending_transaction", id, `Settlement ${currencySymbol}${payload.amount}`, before as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>);
     return true;
   }
 

@@ -37,8 +37,6 @@ import {
   ScrollText,
   Search,
   Settings,
-  TrendingDown,
-  TrendingUp,
   Sparkles,
   SlidersHorizontal,
   Wallet,
@@ -403,15 +401,6 @@ function HomeView({
         />
 
         <BalanceCard
-          icon={state.remaining >= 0 ? TrendingUp : TrendingDown}
-          label="Month remaining"
-          value={state.remaining}
-          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in / ${state.currencySymbol}${(state.monthlyOut ?? state.monthlyExpenses).toLocaleString()} out`}
-          currency={state.currencySymbol}
-          tone={state.remaining >= 0 ? "neutral" : "warning"}
-        />
-
-        <BalanceCard
           icon={PiggyBank}
           label="Jar available"
           value={state.sharedRolloverJar.available}
@@ -419,6 +408,8 @@ function HomeView({
           currency={state.currencySymbol}
           tone="purple"
         />
+
+        <MonthlySummaryCard state={state} />
       </section>
 
       <QuickActions
@@ -593,6 +584,63 @@ function HomeView({
         />
       </section>
     </div>
+  );
+}
+
+function MonthlySummaryCard({ state }: { state: FinanceDashboardState }) {
+  const { currencySymbol, monthlyIncome, monthlyExpenses, savingsBucketBalances } = state;
+
+  const savingsRate =
+    monthlyIncome > 0
+      ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100)
+      : null;
+
+  const totalSavings = savingsBucketBalances.reduce((sum, b) => sum + b.currentBalance, 0);
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+  const items = [
+    {
+      label: "This Month Income",
+      value: `${currencySymbol}${fmt(monthlyIncome)}`,
+      color: "text-emerald-400",
+    },
+    {
+      label: "This Month Spent",
+      value: `${currencySymbol}${fmt(monthlyExpenses)}`,
+      color: "text-red-400",
+    },
+    {
+      label: "Savings Rate",
+      value: savingsRate !== null ? `${savingsRate}%` : "—",
+      color:
+        savingsRate === null
+          ? "text-neutral-400"
+          : savingsRate >= 20
+            ? "text-emerald-400"
+            : savingsRate >= 0
+              ? "text-amber-400"
+              : "text-red-400",
+    },
+    {
+      label: "Total Savings",
+      value: `${currencySymbol}${fmt(totalSavings)}`,
+      color: "text-sky-400",
+    },
+  ];
+
+  return (
+    <article className="flex min-h-[168px] w-[84vw] shrink-0 snap-start flex-col rounded-[26px] border border-black/[0.07] bg-gradient-to-br from-white/[0.04] to-[#111419] p-4 dark:border-white/[0.055] sm:w-auto sm:min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Monthly Summary</p>
+      <div className="mt-3 grid flex-1 grid-cols-2 gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex flex-col justify-center rounded-xl bg-white/[0.03] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-neutral-600">{item.label}</p>
+            <p className={`mt-1 text-base font-semibold tracking-tight ${item.color}`}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 

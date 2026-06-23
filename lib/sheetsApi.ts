@@ -112,6 +112,7 @@ function toDbRow(
   const result: Record<string, unknown> = { user_id: userId };
   for (const [k, v] of Object.entries(data)) {
     if (WRITE_SKIP.has(k)) continue;
+    if (v === undefined) continue;
     if (k === "id") {
       result["id"] = String(v);
       continue;
@@ -331,7 +332,7 @@ export async function createSheetRecord<T = unknown>(
       .upsert(row, { onConflict: "user_id,id" })
       .select()
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw new Error(`[${table}] upsert failed: ${error.message} (code: ${error.code})`);
     return (result ? normalizeRow(result as Record<string, unknown>) : row) as T;
   }
 
@@ -340,7 +341,7 @@ export async function createSheetRecord<T = unknown>(
     .insert(row)
     .select()
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(`[${table}] insert failed: ${error.message} (code: ${error.code})`);
   return (result ? normalizeRow(result as Record<string, unknown>) : row) as T;
 }
 
@@ -366,7 +367,7 @@ export async function updateSheetRecord<T = unknown>(
       .eq("id", cleanId)
       .select()
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw new Error(`[${table}] update failed: ${error.message} (code: ${error.code})`);
     return (result ? normalizeRow(result as Record<string, unknown>) : patch) as T;
   }
 
@@ -377,7 +378,7 @@ export async function updateSheetRecord<T = unknown>(
     .eq("id", cleanId)
     .select()
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(`[${table}] update failed: ${error.message} (code: ${error.code})`);
   return (result ? normalizeRow(result as Record<string, unknown>) : patch) as T;
 }
 
@@ -389,21 +390,12 @@ export async function deleteSheetRecord(sheet: string, id: string | number) {
   const userId = await getUserId();
   const cleanId = String(id);
 
-  if (DEFINITION_TABLES.has(table)) {
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq("user_id", userId)
-      .eq("id", cleanId);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq("user_id", userId)
-      .eq("id", cleanId);
-    if (error) throw error;
-  }
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", cleanId);
+  if (error) throw new Error(`[${table}] delete failed: ${error.message} (code: ${error.code})`);
 }
 
 /** Save/update a single setting key. */
