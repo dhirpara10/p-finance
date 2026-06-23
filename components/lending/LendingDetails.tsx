@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { SelectField } from "@/components/forms/SelectField";
-import type { LendingTransaction, PersonProfile } from "@/lib/types";
+import type { LendingTransaction, PersonProfile, RecentActivityItem } from "@/lib/types";
 import {
   X,
   ChevronRight,
   ArrowLeft,
   Trash2,
+  Pencil,
   CheckCircle2,
   ArrowUpRight,
   ArrowDownLeft,
@@ -123,10 +124,12 @@ function LedgerTimeline({
   transactions,
   sym,
   onDelete,
+  onEdit,
 }: {
   transactions: LendingTransaction[];
   sym: string;
   onDelete: (id: string | number) => void;
+  onEdit: (tx: LendingTransaction) => void;
 }) {
   if (transactions.length === 0) {
     return (
@@ -177,12 +180,23 @@ function LedgerTimeline({
               {sym}{tx.amount.toLocaleString()}
             </p>
 
+            {/* Edit (lent/borrowed only) */}
+            {!tx.legacy && tx.type !== "settlement" && (
+              <button
+                type="button"
+                onClick={() => onEdit(tx)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-white/[0.08] hover:text-neutral-300 group-hover:opacity-100"
+              >
+                <Pencil size={12} />
+              </button>
+            )}
+
             {/* Delete */}
             {!tx.legacy && (
               <button
                 type="button"
                 onClick={() => onDelete(tx.id)}
-                className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
               >
                 <Trash2 size={12} />
               </button>
@@ -354,6 +368,7 @@ function PersonLedgerView({
   onSaveSettlement,
   onCancelSettlement,
   onDelete,
+  onEdit,
   onBack,
 }: {
   profile: PersonProfile;
@@ -371,6 +386,7 @@ function PersonLedgerView({
   onSaveSettlement: () => void;
   onCancelSettlement: () => void;
   onDelete: (id: string | number) => void;
+  onEdit: (tx: LendingTransaction) => void;
   onBack: () => void;
 }) {
   const netAbs = Math.abs(profile.netBalance);
@@ -449,7 +465,7 @@ function PersonLedgerView({
       {/* Ledger */}
       <div>
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-600">Ledger</p>
-        <LedgerTimeline transactions={profile.transactions} sym={sym} onDelete={onDelete} />
+        <LedgerTimeline transactions={profile.transactions} sym={sym} onDelete={onDelete} onEdit={onEdit} />
       </div>
     </div>
   );
@@ -473,6 +489,7 @@ export function LendingDetails({ state }: Props) {
     openSettlement,
     saveSettlement,
     deleteLendingTransaction,
+    startEdit,
     currencySymbol,
   } = state;
 
@@ -509,6 +526,20 @@ export function LendingDetails({ state }: Props) {
 
   function handleCancelSettlement() {
     setIsSettlementOpen(false);
+  }
+
+  function handleEdit(tx: LendingTransaction) {
+    // startEdit expects a RecentActivityItem shape; it only reads .type and .id
+    const fakeItem: RecentActivityItem = {
+      id: tx.id,
+      type: tx.type as "lent" | "borrowed",
+      title: "",
+      subtitle: "",
+      amount: tx.amount,
+      date: tx.date,
+      source: "lendingTransaction",
+    };
+    startEdit(fakeItem);
   }
 
   const isLent = detailsView === "lent";
@@ -555,6 +586,7 @@ export function LendingDetails({ state }: Props) {
             onSaveSettlement={handleSaveSettlement}
             onCancelSettlement={handleCancelSettlement}
             onDelete={deleteLendingTransaction}
+            onEdit={handleEdit}
             onBack={handleBack}
           />
         ) : (
