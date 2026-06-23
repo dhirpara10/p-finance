@@ -202,14 +202,16 @@ export function TrackerCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onHistory}
-        className="mt-auto flex min-h-[58px] w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] px-3 text-[11px] text-neutral-300 transition hover:bg-purple-400/10 hover:text-purple-100"
-      >
-        <History size={15} />
-        View activity
-      </button>
+      <div className="mt-auto pt-4">
+        <button
+          type="button"
+          onClick={onHistory}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.04] py-3 text-[11px] font-medium text-neutral-400 transition hover:bg-purple-400/10 hover:text-purple-200 hover:border-purple-400/20"
+        >
+          <History size={14} />
+          View activity
+        </button>
+      </div>
     </article>
   );
 }
