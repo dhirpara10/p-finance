@@ -133,83 +133,88 @@ export function TrackerCard({
       : "No budget set";
 
   return (
-    <article className="tracker-card group flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-3xl border border-purple-400/15 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.24),rgba(24,14,34,0.96)_42%,rgba(12,12,15,0.98)_100%)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-300/25 to-fuchsia-400/10 text-purple-100 ring-1 ring-purple-200/15">
-          <Icon size={22} />
-        </span>
+    <article className="tracker-card group flex h-full min-h-[320px] w-full flex-col rounded-3xl border border-purple-400/15 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.24),rgba(24,14,34,0.96)_42%,rgba(12,12,15,0.98)_100%)] p-5 pb-7 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
 
-        <span
-          className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${statusClass}`}
-        >
-          {tracker.status}
-        </span>
-      </div>
+      {/* ── Card body: grows to fill available height ── */}
+      <div className="flex flex-1 flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-300/25 to-fuchsia-400/10 text-purple-100 ring-1 ring-purple-200/15">
+            <Icon size={22} />
+          </span>
 
-      <div className="mt-5 min-w-0">
-        <h3 className="truncate text-lg font-semibold tracking-tight text-white">
-          {tracker.name}
-        </h3>
+          <span
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${statusClass}`}
+          >
+            {tracker.status}
+          </span>
+        </div>
 
-        <p className="mt-1 truncate text-xs capitalize text-purple-100/55">
-          {tracker.linkedCategoryIds
-            .map((id) => id.replace("category_", "").replaceAll("_", " "))
-            .join(", ") || "No categories linked"}
-        </p>
-      </div>
+        <div className="mt-5 min-w-0">
+          <h3 className="truncate text-lg font-semibold tracking-tight text-white">
+            {tracker.name}
+          </h3>
 
-      <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
-        <div className="min-w-0">
-          <p className="text-xs text-neutral-500">Spent this month</p>
-
-          <p className="mt-1 text-2xl font-semibold tracking-tight text-white">
-            {currencySymbol}
-            {tracker.spentThisMonth.toLocaleString()}
+          <p className="mt-1 truncate text-xs capitalize text-purple-100/55">
+            {tracker.linkedCategoryIds
+              .map((id) => id.replace("category_", "").replaceAll("_", " "))
+              .join(", ") || "No categories linked"}
           </p>
         </div>
 
-        <div className="max-w-[120px] text-right">
-          <p className="text-xs font-medium text-neutral-300">{frequency}</p>
-          <p className="mt-0.5 text-[11px] text-neutral-600">allocation</p>
-        </div>
-      </div>
+        <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
+          <div className="min-w-0">
+            <p className="text-xs text-neutral-500">Spent this month</p>
 
-      <div className="mt-5">
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-400 to-pink-400"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-4 text-xs">
-          <span className="text-neutral-500">Remaining this month</span>
-
-          {tracker.monthlyCap === null || tracker.monthlyCap === undefined ? (
-            <span className="shrink-0 font-semibold text-neutral-500">—</span>
-          ) : (
-            <span
-              className={
-                tracker.remainingThisMonth < 0
-                  ? "shrink-0 font-semibold text-red-300"
-                  : "shrink-0 font-semibold text-white"
-              }
-            >
+            <p className="mt-1 text-2xl font-semibold tracking-tight text-white">
               {currencySymbol}
-              {tracker.remainingThisMonth.toLocaleString()}
-            </span>
-          )}
+              {tracker.spentThisMonth.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="max-w-[120px] text-right">
+            <p className="text-xs font-medium text-neutral-300">{frequency}</p>
+            <p className="mt-0.5 text-[11px] text-neutral-600">allocation</p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-400 to-pink-400"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-4 text-xs">
+            <span className="text-neutral-500">Remaining this month</span>
+
+            {tracker.monthlyCap === null || tracker.monthlyCap === undefined ? (
+              <span className="shrink-0 font-semibold text-neutral-500">—</span>
+            ) : (
+              <span
+                className={
+                  tracker.remainingThisMonth < 0
+                    ? "shrink-0 font-semibold text-red-300"
+                    : "shrink-0 font-semibold text-white"
+                }
+              >
+                {currencySymbol}
+                {tracker.remainingThisMonth.toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* ── Button: pinned to bottom with guaranteed spacing ── */}
       <div className="mt-auto pt-4">
         <button
           type="button"
           onClick={onHistory}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.04] py-3 text-[11px] font-medium text-neutral-400 transition hover:bg-purple-400/10 hover:text-purple-200 hover:border-purple-400/20"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/85 shadow-sm transition-all duration-200 hover:border-purple-400/40 hover:bg-white/[0.11] hover:text-white active:scale-[0.98]"
         >
-          <History size={14} />
-          View activity
+          <History size={16} className="shrink-0 text-white/70" />
+          <span>View activity</span>
         </button>
       </div>
     </article>

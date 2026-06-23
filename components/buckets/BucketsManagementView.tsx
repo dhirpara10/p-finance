@@ -108,7 +108,7 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
           action={<AddButton label="Add bucket" onClick={() => setEditingBucket("new")} />}
         />
 
-        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-3">
+        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-3">
           {activeBuckets.map((bucketDef) => {
             const bucketSummary = state.savingsBucketBalances.find((b) => b.id === bucketDef.id);
             if (!bucketSummary) return null;
@@ -152,7 +152,7 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
           action={<AddButton label="Add tracker" onClick={() => setEditingTracker("new")} />}
         />
 
-        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-3">
+        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-3">
           {state.trackerSummaries.map((tracker) => (
             <div key={tracker.id} className="min-w-[82vw] shrink-0 snap-start sm:min-w-[360px] md:min-w-0">
               <FlipBucketCard

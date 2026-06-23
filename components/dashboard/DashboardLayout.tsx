@@ -499,7 +499,7 @@ function HomeView({
           </button>
         </div>
 
-        <div className="no-scrollbar  flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.slice(0, 3).map((bucket) => (
             <FlipBucketCard
               key={bucket.id}
@@ -549,7 +549,7 @@ function HomeView({
           </button>
         </div>
 
-        <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.slice(0, 3).map((tracker) => (
             <FlipBucketCard
               key={tracker.id}
@@ -715,7 +715,7 @@ function BucketsView({
           subtitle="Real money held away from your usable balance"
         />
 
-        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {activeSavings.map((bucket) => (
             <FlipBucketCard
               key={bucket.id}
@@ -755,7 +755,7 @@ function BucketsView({
           subtitle="Virtual monthly plans powered by the shared jar"
         />
 
-        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <div className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
           {state.trackerSummaries.map((tracker) => (
             <FlipBucketCard
               key={tracker.id}

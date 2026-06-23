@@ -212,19 +212,26 @@ select option {
 .bucket-flip.is-flipped .bucket-flip-inner {
   transform: rotateY(180deg);
 }
-.bucket-flip-face {
+/* Front face: in-flow so it sets the container height naturally */
+.bucket-flip-face.bucket-flip-front {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+/* Back face: absolutely stacked behind the front */
+.bucket-flip-face.bucket-flip-back {
   position: absolute;
   inset: 0;
   width: 100%;
   min-height: 320px;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  transform: rotateY(180deg);
 }
 .bucket-flip-face > * {
   height: 100%;
-}
-.bucket-flip-back {
-  transform: rotateY(180deg);
 }
 
 @media (min-width: 640px) {
