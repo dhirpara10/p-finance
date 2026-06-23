@@ -480,8 +480,8 @@
       if (pm === "BNPL" || pm === "Afterpay" || pm === "StepPay" || pm === "CreditCard" || pm === "SharedJar") return false;
       return true;
     }
-    const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
-    const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && isImmediateDeduction(item) && new Date(item.date) <= new Date()).reduce((sum, item) => sum + item.amount, 0);
+    const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item)).reduce((sum, item) => sum + item.amount, 0);
+    const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && isImmediateDeduction(item)).reduce((sum, item) => sum + item.amount, 0);
     const lentFromBank = lendingTransactions
       .filter((item) => item.type === "lent" && item.affectsAccountBalance && item.account !== "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
@@ -630,7 +630,9 @@
     const thisMonthExpenses = effectiveExpenses.filter((item) => isCurrentMonth(item.date, monthlyResetDay));
     const spendThisMonth = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
     const spendTransferCount = thisMonthExpenses.length;
-    const remaining = monthlyIncome - monthlyExpenses;
+    const monthlyLent = lendingTransactions.filter((item) => item.type === "lent" && item.affectsAccountBalance && isCurrentMonth(item.date, monthlyResetDay)).reduce((sum, item) => sum + item.amount, 0);
+    const monthlyOut = monthlyExpenses + monthlyLent;
+    const remaining = monthlyIncome - monthlyOut;
     const emergencyBucket = savingsBucketBalances.find(
       (bucket) => bucket.id === "savings_emergency_fund"
     );
@@ -1139,6 +1141,8 @@ const recentActivity: RecentActivityItem[] = [
       monthlyIncome,
       monthlyHours,
       monthlyExpenses,
+      monthlyLent,
+      monthlyOut,
       remaining,
       spendThisMonth,
       spendTransferCount,

@@ -285,42 +285,44 @@ function DesktopNavigation({
   visibleTabs: typeof tabs;
   onCustomize: () => void;
 }) {
-  const colCount = visibleTabs.length + 1; // +1 for customize button
+  const colCount = visibleTabs.length;
   return (
-    <nav
-      className="mt-7 hidden rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] md:grid"
-      style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
-    >
-      {visibleTabs.map((tab) => {
-        const Icon = tab.icon;
-        const selected = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onSelect(tab.id)}
-            title={tab.label}
-            className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-medium transition lg:px-3 ${
-              selected
-                ? "bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-950"
-                : "text-neutral-500 hover:bg-black/[0.04] hover:text-neutral-700 dark:hover:bg-white/[0.04] dark:hover:text-neutral-200"
-            }`}
-          >
-            <Icon size={17} />
-            <span className="hidden lg:inline">{tab.label}</span>
-          </button>
-        );
-      })}
-      {/* Customize button */}
+    <div className="mt-7 hidden md:flex items-center gap-2">
+      <nav
+        className="flex-1 rounded-2xl border border-black/[0.07] bg-black/[0.03] p-1.5 dark:border-white/[0.05] dark:bg-white/[0.025] grid"
+        style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+      >
+        {visibleTabs.map((tab) => {
+          const Icon = tab.icon;
+          const selected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onSelect(tab.id)}
+              title={tab.label}
+              className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-medium transition lg:px-3 ${
+                selected
+                  ? "bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-950"
+                  : "text-neutral-500 hover:bg-black/[0.04] hover:text-neutral-700 dark:hover:bg-white/[0.04] dark:hover:text-neutral-200"
+              }`}
+            >
+              <Icon size={17} />
+              <span className="hidden lg:inline">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      {/* Customize button — small icon outside the tab bar */}
       <button
         type="button"
         onClick={onCustomize}
         title="Customize tabs"
-        className="flex items-center justify-center rounded-xl px-2 py-3 text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-600 dark:hover:bg-white/[0.04] dark:hover:text-neutral-300 transition"
+        className="shrink-0 flex items-center justify-center rounded-xl w-8 h-8 text-neutral-400 hover:bg-black/[0.06] hover:text-neutral-600 dark:hover:bg-white/[0.06] dark:hover:text-neutral-300 transition"
       >
-        <SlidersHorizontal size={15} />
+        <SlidersHorizontal size={14} />
       </button>
-    </nav>
+    </div>
   );
 }
 
@@ -404,7 +406,7 @@ function HomeView({
           icon={state.remaining >= 0 ? TrendingUp : TrendingDown}
           label="Month remaining"
           value={state.remaining}
-          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in / ${state.currencySymbol}${state.monthlyExpenses.toLocaleString()} out`}
+          helper={`${state.currencySymbol}${state.monthlyIncome.toLocaleString()} in / ${state.currencySymbol}${(state.monthlyOut ?? state.monthlyExpenses).toLocaleString()} out`}
           currency={state.currencySymbol}
           tone={state.remaining >= 0 ? "neutral" : "warning"}
         />

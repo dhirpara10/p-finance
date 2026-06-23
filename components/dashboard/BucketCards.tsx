@@ -83,7 +83,7 @@ export function SavingsBucketCard({
             style={{ width: `${progress}%` }}
           />
         ) : (
-          <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 opacity-40" style={{ width: "100%" }} />
+          <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 opacity-30" style={{ width: `${Math.min(100, progress)}%` }} />
         )}
       </div>
 
