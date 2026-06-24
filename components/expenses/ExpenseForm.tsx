@@ -78,6 +78,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
     expenseCategory, setExpenseCategory,
     expenseAccount, setExpenseAccount,
     expensePaymentMethod, setExpensePaymentMethod,
+    expenseCashPortion, setExpenseCashPortion,
     expenseDate, setExpenseDate,
     expenseNotes, setExpenseNotes,
     expenseIsRecurring, setExpenseIsRecurring,
@@ -92,6 +93,10 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
   const isLiabilityPayment = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay" || expensePaymentMethod === "CreditCard";
   const isBnpl = expensePaymentMethod === "Afterpay" || expensePaymentMethod === "StepPay";
   const isJarPayment = expensePaymentMethod === "SharedJar";
+  const isSplit = expensePaymentMethod === "Split";
+  const totalAmount = parseFloat(expenseAmount) || 0;
+  const cashAmt = parseFloat(expenseCashPortion) || 0;
+  const bankAmt = totalAmount - cashAmt;
 
   const savedChannels = state.liabilitySettings?.liabilityChannels;
   const channels = (savedChannels && savedChannels.length > 0) ? savedChannels : defaultLiabilityChannels;
@@ -164,11 +169,39 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
               { value: "SharedJar", label: "Shared Jar" },
               { value: "Bank", label: "Bank" },
               { value: "Cash", label: "Cash" },
+              { value: "Split", label: "Split (Cash + Bank)" },
               { value: "Afterpay", label: "Afterpay (4 × fortnightly)" },
               { value: "StepPay", label: "StepPay (4 × fortnightly, min $100)" },
               { value: "CreditCard", label: "Credit Card" },
             ]}
           />
+
+          {isSplit && totalAmount > 0 && (
+            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 space-y-3">
+              <p className="text-xs font-semibold text-blue-200">Split payment breakdown</p>
+              <FormField label={`Cash amount (max ${currencySymbol}${totalAmount.toFixed(2)})`}>
+                <CurrencyInput
+                  value={expenseCashPortion}
+                  onChange={(v) => {
+                    const capped = Math.min(parseFloat(v) || 0, totalAmount);
+                    setExpenseCashPortion(String(capped || v));
+                  }}
+                  symbol={currencySymbol}
+                  placeholder="0.00"
+                />
+              </FormField>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-xl bg-black/20 px-3 py-2">
+                  <p className="text-neutral-500">Cash</p>
+                  <p className="mt-0.5 font-semibold text-white">{currencySymbol}{cashAmt.toFixed(2)}</p>
+                </div>
+                <div className="rounded-xl bg-black/20 px-3 py-2">
+                  <p className="text-neutral-500">Bank</p>
+                  <p className="mt-0.5 font-semibold text-white">{currencySymbol}{Math.max(0, bankAmt).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isJarPayment && (
             <p className="rounded-2xl bg-emerald-500/8 border border-emerald-500/15 px-4 py-3 text-xs text-emerald-300">

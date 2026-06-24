@@ -103,7 +103,7 @@ export type ParsedIncome = z.infer<typeof IncomeSchema>;
 
 // ── Expense ───────────────────────────────────────────────────────────────────
 
-const ExpensePaymentMethod = z.enum(["Bank", "Cash", "SharedJar", "Afterpay", "StepPay", "CreditCard"]).catch("Bank");
+const ExpensePaymentMethod = z.enum(["Bank", "Cash", "Split", "SharedJar", "Afterpay", "StepPay", "CreditCard"]).catch("Bank");
 
 const ExpenseObjectSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
@@ -112,6 +112,7 @@ const ExpenseObjectSchema = z.object({
   categoryId: safeStr(),
   account: z.enum(["Bank", "Cash"]).catch("Bank"),
   paymentMethod: ExpensePaymentMethod.optional(),
+  cashPortion: z.number().optional().catch(undefined),
   liabilityId: z.string().optional().catch(undefined),
   date: safeDate(),
   notes: safeStr(),

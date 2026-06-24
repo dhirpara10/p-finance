@@ -75,7 +75,7 @@ export type IncomeSourceRate = {
   rate: number;
 };
 
-export type ExpensePaymentMethod = "Bank" | "Cash" | "SharedJar" | "Afterpay" | "StepPay" | "CreditCard";
+export type ExpensePaymentMethod = "Bank" | "Cash" | "Split" | "SharedJar" | "Afterpay" | "StepPay" | "CreditCard";
 
 export type LiabilityChannel = {
   id: string;
@@ -109,6 +109,7 @@ export type Expense = {
   categoryId: string;
   account: ExpenseAccount;
   paymentMethod?: ExpensePaymentMethod;
+  cashPortion?: number;
   liabilityId?: string;
   date: string;
   notes: string;

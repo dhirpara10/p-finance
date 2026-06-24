@@ -480,8 +480,14 @@
       if (pm === "BNPL" || pm === "Afterpay" || pm === "StepPay" || pm === "CreditCard" || pm === "SharedJar") return false;
       return true;
     }
-    const expenseFromBank = effectiveExpenses.filter((item) => isBankAccount(item.account) && isImmediateDeduction(item)).reduce((sum, item) => sum + item.amount, 0);
-    const expenseFromCash = effectiveExpenses.filter((item) => item.account === "Cash" && isImmediateDeduction(item)).reduce((sum, item) => sum + item.amount, 0);
+    const expenseFromBank = effectiveExpenses.filter((item) => isImmediateDeduction(item)).reduce((sum, item) => {
+      if (item.paymentMethod === "Split") return sum + item.amount - (item.cashPortion ?? 0);
+      return isBankAccount(item.account) ? sum + item.amount : sum;
+    }, 0);
+    const expenseFromCash = effectiveExpenses.filter((item) => isImmediateDeduction(item)).reduce((sum, item) => {
+      if (item.paymentMethod === "Split") return sum + (item.cashPortion ?? 0);
+      return item.account === "Cash" ? sum + item.amount : sum;
+    }, 0);
     const lentFromBank = lendingTransactions
       .filter((item) => item.type === "lent" && item.affectsAccountBalance && item.account !== "Cash")
       .reduce((sum, item) => sum + item.amount, 0);
