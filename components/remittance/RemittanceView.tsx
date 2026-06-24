@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Archive, Plane, Trash2, Plus, X } from "lucide-react";
+import { AlertCircle, Pencil, Trash2, Plus } from "lucide-react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { DateField } from "@/components/forms/DateField";
@@ -39,11 +39,15 @@ export function RemittanceView({ state }: Props) {
     setRemittanceNotes,
     remittanceIsPreExisting,
     setRemittanceIsPreExisting,
+    remittanceOverflowAccount,
+    setRemittanceOverflowAccount,
+    editingRemittanceId,
     addRemittance,
     deleteRemittance,
     closeAllForms,
     currencySymbol,
     savingsBucketBalances,
+    startEdit,
   } = state;
 
   const remittanceBucket = savingsBucketBalances.find((b) => b.id === "savings_remittance");
@@ -72,10 +76,9 @@ export function RemittanceView({ state }: Props) {
   );
 
   const audNum = parseFloat(remittanceAudAmount) || 0;
-  const fundInsufficient =
-    !remittanceIsPreExisting &&
-    remittanceAccount === "RemittanceFund" &&
-    audNum > fundBalance;
+  const isFundSource = remittanceAccount === "RemittanceFund" && !remittanceIsPreExisting;
+  const fundOverflow = isFundSource && audNum > fundBalance ? parseFloat((audNum - fundBalance).toFixed(2)) : 0;
+  const fundInsufficient = isFundSource && audNum > fundBalance;
 
   return (
     <div className="space-y-6">
@@ -147,14 +150,28 @@ export function RemittanceView({ state }: Props) {
                     {(r.chargesAud || r.taxAud) ? ` · Fees $${((r.chargesAud ?? 0) + (r.taxAud ?? 0)).toFixed(2)}` : ""}
                   </p>
                   {r.notes && <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-600">{r.notes}</p>}
+                  {r.overflowAmount && r.overflowAccount && (
+                    <p className="mt-0.5 text-[11px] text-amber-400/80">
+                      Fund {currencySymbol}{(r.audAmount - r.overflowAmount).toFixed(2)} + {r.overflowAccount} {currencySymbol}{r.overflowAmount.toFixed(2)}
+                    </p>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => deleteRemittance(r.id)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-neutral-500 hover:bg-red-500/10 hover:text-red-400 dark:text-neutral-600"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEdit({ type: "remittance", id: r.id, title: "Remittance", subtitle: r.account, amount: r.audAmount, date: r.date })}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-300 dark:text-neutral-600"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteRemittance(r.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-neutral-500 hover:bg-red-500/10 hover:text-red-400 dark:text-neutral-600"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -164,7 +181,7 @@ export function RemittanceView({ state }: Props) {
       {showRemittanceForm && (
         <ModalWrapper onClose={closeAllForms}>
           <ModalHeader
-            title="Add Remittance"
+            title={editingRemittanceId ? "Edit Remittance" : "Add Remittance"}
             subtitle="Record money sent home to India."
           />
           <ModalContent>
@@ -255,9 +272,27 @@ export function RemittanceView({ state }: Props) {
                     ))}
                   </div>
                   {fundInsufficient && (
-                    <div className="mt-2 flex items-center gap-2 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                      <AlertCircle size={13} />
-                      Fund balance ({currencySymbol}{fundBalance.toFixed(2)}) is less than the remittance amount.
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                        <AlertCircle size={13} />
+                        Fund only has {currencySymbol}{fundBalance.toFixed(2)} — remaining {currencySymbol}{fundOverflow.toFixed(2)} comes from:
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["Bank", "Cash"] as const).map((acc) => (
+                          <button
+                            key={acc}
+                            type="button"
+                            onClick={() => setRemittanceOverflowAccount(acc)}
+                            className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
+                              remittanceOverflowAccount === acc
+                                ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+                                : "border-black/[0.09] bg-black/[0.03] text-neutral-500 hover:text-neutral-200 dark:border-white/[0.07] dark:bg-white/[0.025]"
+                            }`}
+                          >
+                            {acc}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </FormField>
@@ -282,7 +317,7 @@ export function RemittanceView({ state }: Props) {
               </FormField>
             </ModalSection>
           </ModalContent>
-          <ModalFooter onCancel={closeAllForms} onSave={addRemittance} saveLabel="Save Remittance" tone="emerald" />
+          <ModalFooter onCancel={closeAllForms} onSave={addRemittance} saveLabel={editingRemittanceId ? "Update Remittance" : "Save Remittance"} tone="emerald" />
         </ModalWrapper>
       )}
     </div>

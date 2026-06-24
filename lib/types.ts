@@ -301,6 +301,8 @@ export type Remittance = {
   createdAt: string;
   fromFund?: boolean;
   preExisting?: boolean;
+  overflowAccount?: "Bank" | "Cash";
+  overflowAmount?: number;
   addedBy?: AppUser;
 };
 

@@ -571,13 +571,16 @@
 
     const remittanceFromBank = remittances
       .filter((r) => !r.preExisting && r.account === "Bank")
-      .reduce((sum, r) => sum + r.audAmount, 0);
+      .reduce((sum, r) => sum + r.audAmount, 0)
+      + remittances.filter((r) => !r.preExisting && r.overflowAccount === "Bank").reduce((sum, r) => sum + (r.overflowAmount ?? 0), 0);
     const remittanceFromCash = remittances
       .filter((r) => !r.preExisting && r.account === "Cash")
-      .reduce((sum, r) => sum + r.audAmount, 0);
+      .reduce((sum, r) => sum + r.audAmount, 0)
+      + remittances.filter((r) => !r.preExisting && r.overflowAccount === "Cash").reduce((sum, r) => sum + (r.overflowAmount ?? 0), 0);
+    // Fund only covers the non-overflow portion
     const remittanceFromFundTotal = remittances
       .filter((r) => !r.preExisting && (r.account === "RemittanceFund" || r.fromFund))
-      .reduce((sum, r) => sum + r.audAmount, 0);
+      .reduce((sum, r) => sum + r.audAmount - (r.overflowAmount ?? 0), 0);
     const totalRemittedAud = remittances.reduce((sum, r) => sum + r.audAmount, 0);
     const totalRemittedInr = remittances.reduce((sum, r) => sum + r.inrAmount, 0);
 

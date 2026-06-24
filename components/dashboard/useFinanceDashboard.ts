@@ -99,6 +99,8 @@ export function useFinanceDashboard() {
   const [remittanceIsPreExisting, setRemittanceIsPreExisting] = useState(false);
   const [remittanceChargesAud, setRemittanceChargesAud] = useState("");
   const [remittanceTaxAud, setRemittanceTaxAud] = useState("");
+  const [remittanceOverflowAccount, setRemittanceOverflowAccount] = useState<"Bank" | "Cash">("Bank");
+  const [editingRemittanceId, setEditingRemittanceId] = useState<string | number | null>(null);
 
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -289,6 +291,8 @@ export function useFinanceDashboard() {
     setRemittanceIsPreExisting(false);
     setRemittanceChargesAud("");
     setRemittanceTaxAud("");
+    setRemittanceOverflowAccount("Bank");
+    setEditingRemittanceId(null);
   }
 
   function resetSettlementForm() {
@@ -1822,27 +1826,48 @@ async function addTransfer() {
     const inr = parseFloat((aud * rate).toFixed(2));
     const charges = toNumber(remittanceChargesAud) || undefined;
     const tax = toNumber(remittanceTaxAud) || undefined;
+
+    // Calculate overflow: fund balance may not cover the full amount
+    const fundBucket = dashboardValues.savingsBucketBalances.find((b) => b.id === "savings_remittance");
+    const fundBalance = fundBucket?.currentBalance ?? 0;
+    const isFundSource = remittanceAccount === "RemittanceFund" && !remittanceIsPreExisting;
+    const overflowAmount = isFundSource && aud > fundBalance ? parseFloat((aud - fundBalance).toFixed(2)) : undefined;
+    const overflowAccount = overflowAmount ? remittanceOverflowAccount : undefined;
+
+    setLoadingMessage(editingRemittanceId ? "Updating remittance..." : "Saving remittance...");
+
+    if (editingRemittanceId) {
+      const before = remittances.find((r) => String(r.id) === String(editingRemittanceId));
+      const patch = {
+        audAmount: aud, exchangeRate: rate, inrAmount: inr,
+        account: remittanceAccount, date: remittanceDate,
+        provider: remittanceProvider.trim(), chargesAud: charges, taxAud: tax,
+        notes: remittanceNotes.trim(), fromFund: isFundSource,
+        overflowAccount, overflowAmount, updatedAt: new Date().toISOString(),
+      };
+      const updated = await updateSheetRecord("remittances", editingRemittanceId, patch as unknown as Record<string, unknown>);
+      if (!updated) { setLoadingMessage(null); return; }
+      setRemittances(remittances.map((r) => String(r.id) === String(editingRemittanceId) ? { ...r, ...patch } : r));
+      await writeLog("updated", "remittance", editingRemittanceId, `${currencySymbolFor(currency)}${aud} at ${rate}`, before as unknown as Record<string, unknown>, { ...before, ...patch } as unknown as Record<string, unknown>);
+      setLoadingMessage(null);
+      closeAllForms();
+      return;
+    }
+
     const id = Date.now();
     const record: Remittance = {
-      id,
-      audAmount: aud,
-      exchangeRate: rate,
-      inrAmount: inr,
-      account: remittanceAccount,
-      date: remittanceDate,
-      provider: remittanceProvider.trim(),
-      chargesAud: charges,
-      taxAud: tax,
-      notes: remittanceNotes.trim(),
-      createdAt: new Date().toISOString(),
-      fromFund: remittanceAccount === "RemittanceFund" && !remittanceIsPreExisting,
-      preExisting: remittanceIsPreExisting,
-      addedBy: currentUser,
+      id, audAmount: aud, exchangeRate: rate, inrAmount: inr,
+      account: remittanceAccount, date: remittanceDate,
+      provider: remittanceProvider.trim(), chargesAud: charges, taxAud: tax,
+      notes: remittanceNotes.trim(), createdAt: new Date().toISOString(),
+      fromFund: isFundSource, preExisting: remittanceIsPreExisting,
+      overflowAccount, overflowAmount, addedBy: currentUser,
     };
     const saved = await createSheetRecord<Remittance>("remittances", record as unknown as Record<string, unknown>);
-    if (!saved) return;
+    if (!saved) { setLoadingMessage(null); return; }
     setRemittances([...remittances, record]);
     await writeLog("created", "remittance", record.id, `${currencySymbolFor(currency)}${aud} at ${rate}`);
+    setLoadingMessage(null);
     closeAllForms();
   }
 
@@ -2120,6 +2145,23 @@ async function addTransfer() {
       setSelectedPersonId(String(record.personId || ""));
       setShowBorrowedForm(true);
     }
+
+    if (item.type === "remittance") {
+      const record = remittances.find((x) => String(x.id) === String(item.id));
+      if (!record) return;
+      setEditingRemittanceId(record.id);
+      setRemittanceAudAmount(String(record.audAmount));
+      setRemittanceExchangeRate(String(record.exchangeRate));
+      setRemittanceAccount(record.account);
+      setRemittanceDate(record.date);
+      setRemittanceProvider(record.provider || "");
+      setRemittanceChargesAud(record.chargesAud ? String(record.chargesAud) : "");
+      setRemittanceTaxAud(record.taxAud ? String(record.taxAud) : "");
+      setRemittanceNotes(record.notes || "");
+      setRemittanceIsPreExisting(record.preExisting ?? false);
+      setRemittanceOverflowAccount(record.overflowAccount ?? "Bank");
+      setShowRemittanceForm(true);
+    }
   }
 
   function unlockApp() {
@@ -2294,7 +2336,7 @@ async function addTransfer() {
     window.location.replace("/auth");
   }
 
-  return { finDefs, authReady, loading, loadingMessage, loadError, retryLoad: loadFromSheets, signOut, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, newSpousePasscode, setNewSpousePasscode, currentUser, userNameMe, setUserNameMe, userNameSpouse, setUserNameSpouse, activityLogs, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseCashPortion, setExpenseCashPortion, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, updateLendingTransaction, deleteIncome, deleteExpense, deleteFullLiability, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked_at"); localStorage.removeItem("finance_locked_until"); localStorage.removeItem("finance_current_user"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); }, handleResetAllData, remittances, showRemittanceForm, setShowRemittanceForm, remittanceAudAmount, setRemittanceAudAmount, remittanceExchangeRate, setRemittanceExchangeRate, remittanceAccount, setRemittanceAccount, remittanceDate, setRemittanceDate, remittanceProvider, setRemittanceProvider, remittanceNotes, setRemittanceNotes, remittanceIsPreExisting, setRemittanceIsPreExisting, remittanceChargesAud, setRemittanceChargesAud, remittanceTaxAud, setRemittanceTaxAud, addRemittance, deleteRemittance, appNotifications, showNotificationPanel, setShowNotificationPanel, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications };
+  return { finDefs, authReady, loading, loadingMessage, loadError, retryLoad: loadFromSheets, signOut, isUnlocked, passcodeInput, setPasscodeInput, passcodeError, setPasscodeError, newPasscode, setNewPasscode, newSpousePasscode, setNewSpousePasscode, currentUser, userNameMe, setUserNameMe, userNameSpouse, setUserNameSpouse, activityLogs, incomes, expenses, transfers, people, lendingTransactions, lentRecords, borrowedRecords, showIncomeForm, setShowIncomeForm, showExpenseForm, setShowExpenseForm, showTransferForm, setShowTransferForm, showLentForm, setShowLentForm, showBorrowedForm, setShowBorrowedForm, settingsPage, settingsPageHistory, navigateToSettingsPage, goBackSettingsPage, closeSettings, settingsBucketHistory, setSettingsBucketHistory, detailsView, setDetailsView, editingItem, initialCashBalance, setInitialCashBalance, initialBankBalance, setInitialBankBalance, savingsBuckets, setSavingsBuckets, bucketListTrackers, setBucketListTrackers, updateBucketListTrackerCategoryLinks, sharedRolloverJarBalance, setSharedRolloverJarBalance, monthlyResetDay, setMonthlyResetDay, currency, setCurrency, dailyReminderEnabled, setDailyReminderEnabled, dailyReminderTime, setDailyReminderTime, dailyReminderTone, setDailyReminderTone, incomeSources, setIncomeSources, updateIncomeSource, addIncomeSourceSetting, removeIncomeSourceSetting, incomeType, incomeSource, incomeRate, setIncomeRate, incomeHours, setIncomeHours, incomeAmount, setIncomeAmount, incomeCashReceived, setIncomeCashReceived, incomeDate, setIncomeDate, incomeNotes, setIncomeNotes, expenseAmount, setExpenseAmount, expenseCategory, setExpenseCategory, expenseAccount, setExpenseAccount, expensePaymentMethod, setExpensePaymentMethod, expenseCashPortion, setExpenseCashPortion, expenseDate, setExpenseDate, expenseNotes, setExpenseNotes, expenseIsRecurring, setExpenseIsRecurring, expenseRecurringFrequency, setExpenseRecurringFrequency, expenseRecurringEndDate, setExpenseRecurringEndDate, expenseCategories, setExpenseCategories, newExpenseCategory, setNewExpenseCategory, statisticsMode, setStatisticsMode, statisticsPeriod, setStatisticsPeriod, statisticsStartDate, setStatisticsStartDate, statisticsEndDate, setStatisticsEndDate, timeGrouping, setTimeGrouping, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyStatus, setMoneyStatus, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, settlementProfileId, settlementAmount, setSettlementAmount, settlementAccount, setSettlementAccount, settlementDate, setSettlementDate, settlementNotes, setSettlementNotes, ...liabilityModule, ...dashboardValues, currencySymbol: currencySymbolFor(currency), toNumber, closeAllForms, handleIncomeTypeChange, handleIncomeSourceChange, saveSettings, addIncome, addExpense, addTransfer, addLent, addBorrowed, openSettlement, saveSettlement, deleteSettlement, deleteLendingTransaction, updateLendingTransaction, deleteIncome, deleteExpense, deleteFullLiability, updateRecurringExpenseStatus, deleteTransfer, deleteLent, deleteBorrowed, startEdit, unlockApp, addExpenseCategory, lockApp() { localStorage.removeItem("finance_unlocked_at"); localStorage.removeItem("finance_locked_until"); localStorage.removeItem("finance_current_user"); setIsUnlocked(false); setPasscodeInput(""); setPasscodeError(""); setSettingsBucketHistory(null); closeSettings(); }, handleResetAllData, remittances, showRemittanceForm, setShowRemittanceForm, remittanceAudAmount, setRemittanceAudAmount, remittanceExchangeRate, setRemittanceExchangeRate, remittanceAccount, setRemittanceAccount, remittanceDate, setRemittanceDate, remittanceProvider, setRemittanceProvider, remittanceNotes, setRemittanceNotes, remittanceIsPreExisting, setRemittanceIsPreExisting, remittanceChargesAud, setRemittanceChargesAud, remittanceTaxAud, setRemittanceTaxAud, remittanceOverflowAccount, setRemittanceOverflowAccount, editingRemittanceId, addRemittance, deleteRemittance, appNotifications, showNotificationPanel, setShowNotificationPanel, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications };
 }
 
 export type FinanceDashboardState = ReturnType<typeof useFinanceDashboard>;
