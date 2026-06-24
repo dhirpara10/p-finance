@@ -27,7 +27,10 @@ function today() {
 async function getUserId(supabase: ReturnType<typeof getSupabaseAdmin>): Promise<string> {
   // Use env override if set
   if (process.env.QUICK_ADD_USER_ID) return process.env.QUICK_ADD_USER_ID;
-  // Otherwise find the first (only) user via admin API
+  // Find user by scanning user_settings table (guaranteed to have a row per user)
+  const { data: settingsRows } = await supabase.from("user_settings").select("user_id").limit(5);
+  if (settingsRows?.[0]?.user_id) return settingsRows[0].user_id;
+  // Fall back to auth admin
   const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
   if (error || !data?.users?.[0]) throw new Error("Cannot resolve user ID");
   return data.users[0].id;
@@ -85,6 +88,7 @@ export async function GET(req: Request) {
     transferSources,
     people,
     _debug: {
+      resolvedUserId: userId,
       categoryDefsCount: categoryRes.data?.length ?? 0,
       bucketDefsCount: bucketRes.data?.length ?? 0,
       peopleCount: peopleRes.data?.length ?? 0,
