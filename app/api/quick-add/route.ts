@@ -24,73 +24,42 @@ function today() {
   return new Date().toISOString().split("T")[0];
 }
 
+async function getUserId(supabase: ReturnType<typeof getSupabaseAdmin>): Promise<string> {
+  // Use env override if set
+  if (process.env.QUICK_ADD_USER_ID) return process.env.QUICK_ADD_USER_ID;
+  // Otherwise find the first (only) user via admin API
+  const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
+  if (error || !data?.users?.[0]) throw new Error("Cannot resolve user ID");
+  return data.users[0].id;
+}
+
 // ─── GET /api/quick-add  (meta: categories, buckets, people) ─────────────────
 export async function GET(req: Request) {
   if (!checkAuth(req)) return unauthorized();
 
   const supabase = getSupabaseAdmin();
+  const userId = await getUserId(supabase);
 
-  const [settingsRes, lendingPeopleRes, bucketDefsRes, categoryDefsRes] = await Promise.all([
-    supabase.from("app_rows").select("*").eq("sheet", "settings"),
-    supabase.from("app_rows").select("*").eq("sheet", "people"),
-    supabase.from("app_rows").select("*").eq("sheet", "bucket_definitions"),
-    supabase.from("app_rows").select("*").eq("sheet", "category_definitions"),
+  const [categoryRes, bucketRes, peopleRes] = await Promise.all([
+    supabase.from("category_definitions").select("*").eq("user_id", userId).eq("is_active", true).eq("kind", "expense").order("sort_order"),
+    supabase.from("bucket_definitions").select("*").eq("user_id", userId).eq("is_active", true).order("sort_order"),
+    supabase.from("people").select("*").eq("user_id", userId).order("name"),
   ]);
 
-  // Parse settings for expense_categories and savings_buckets (fallback)
-  const settings: Record<string, unknown> = {};
-  for (const row of settingsRes.data ?? []) {
-    const d = row.data as unknown[];
-    if (Array.isArray(d) && d.length >= 2) settings[String(d[0])] = d[1];
-  }
+  const categories = (categoryRes.data ?? []).map((r) => r.name as string);
 
-  // Categories: prefer new category_definitions sheet, fall back to settings
-  let categories: string[] = [];
-  if ((categoryDefsRes.data ?? []).length > 0) {
-    categories = (categoryDefsRes.data ?? [])
-      .map((r) => {
-        const d = r.data as Record<string, unknown>;
-        return d;
-      })
-      .filter((d) => d.kind === "expense" && d.isActive !== false)
-      .sort((a, b) => Number(a.sortOrder ?? 99) - Number(b.sortOrder ?? 99))
-      .map((d) => String(d.name));
-  } else {
-    const raw = settings["expense_categories"];
-    if (Array.isArray(raw)) categories = raw.map((c: unknown) => String((c as Record<string,unknown>)?.name ?? c));
-  }
+  const buckets = (bucketRes.data ?? []).map((r) => ({ id: r.id as string, name: r.name as string }));
 
-  // Buckets: prefer bucket_definitions, fall back to settings
-  let buckets: Array<{ id: string; name: string }> = [];
-  if ((bucketDefsRes.data ?? []).length > 0) {
-    buckets = (bucketDefsRes.data ?? [])
-      .map((r) => r.data as Record<string, unknown>)
-      .filter((d) => d.isActive !== false)
-      .sort((a, b) => Number(a.sortOrder ?? 99) - Number(b.sortOrder ?? 99))
-      .map((d) => ({ id: String(d.id), name: String(d.name) }));
-  } else {
-    const raw = settings["savings_buckets"];
-    if (Array.isArray(raw)) {
-      buckets = raw.map((b: unknown) => {
-        const bucket = b as Record<string, unknown>;
-        return { id: String(bucket.id), name: String(bucket.name) };
-      });
-    }
-  }
-  // Add standard accounts
   const transferSources = [
     { id: "Bank", name: "Bank" },
     { id: "Cash", name: "Cash" },
     ...buckets,
   ];
 
-  // People (for lending)
-  const people = (lendingPeopleRes.data ?? [])
-    .map((r) => {
-      const d = r.data as Record<string, unknown>;
-      return { id: String(d.id ?? r.id), name: String(d.name) };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const people = (peopleRes.data ?? []).map((r) => ({
+    id: String(r.id),
+    name: String((r as Record<string, unknown>).name ?? ""),
+  }));
 
   return Response.json({ categories, transferSources, people });
 }
@@ -106,11 +75,15 @@ export async function POST(req: Request) {
     return bad("Invalid JSON");
   }
 
-  const type = String(body.type ?? "");
   const supabase = getSupabaseAdmin();
+  const userId = await getUserId(supabase);
+
+  const type = String(body.type ?? "");
   const id = makeId();
   const date = String(body.date || today());
-  const notes = body.notes ? `${body.notes} [Shortcut]` : "[Shortcut]";
+  const notes = body.notes && String(body.notes).toLowerCase() !== "skip"
+    ? `${body.notes} [Shortcut]`
+    : "[Shortcut]";
 
   if (type === "expense") {
     const amount = Number(body.amount);
@@ -120,21 +93,22 @@ export async function POST(req: Request) {
 
     const row = {
       id,
+      user_id: userId,
       amount,
       category,
-      categoryId: `category_${category.toLowerCase().replace(/\s+/g, "_")}`,
+      category_id: `category_${category.toLowerCase().replace(/\s+/g, "_")}`,
       account,
-      paymentMethod: account,
+      payment_method: account,
       date,
       notes,
-      isRecurring: false,
-      addedBy: "me",
-      createdAt: new Date().toISOString(),
+      is_recurring: false,
+      added_by: "me",
+      created_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("app_rows").insert({ id: String(id), sheet: "expenses", data: row });
+    const { error } = await supabase.from("expenses").insert(row);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    await writeLog(supabase, "created", "expense", id, `${category} $${amount}`);
-    return Response.json({ ok: true, id });
+    await writeLog(supabase, userId, "created", "expense", id, `${category} $${amount} [Shortcut]`);
+    return Response.json({ ok: true, id, message: `Expense saved: ${category} $${amount}` });
   }
 
   if (type === "income") {
@@ -142,24 +116,24 @@ export async function POST(req: Request) {
     const source = String(body.source ?? "");
     if (!amount || !source) return bad("amount and source required");
 
-    const cashReceived = Number(body.cashReceived ?? 0);
     const row = {
       id,
+      user_id: userId,
       income_type: "Fixed Amount",
       source,
       rate: amount,
       hours: 1,
       amount,
-      cash_received: cashReceived,
+      cash_received: Number(body.cashReceived ?? 0),
       date,
       notes,
-      addedBy: "me",
-      createdAt: new Date().toISOString(),
+      added_by: "me",
+      created_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("app_rows").insert({ id: String(id), sheet: "income", data: row });
+    const { error } = await supabase.from("income").insert(row);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    await writeLog(supabase, "created", "income", id, `${source} $${amount}`);
-    return Response.json({ ok: true, id });
+    await writeLog(supabase, userId, "created", "income", id, `${source} $${amount} [Shortcut]`);
+    return Response.json({ ok: true, id, message: `Income saved: ${source} $${amount}` });
   }
 
   if (type === "transfer") {
@@ -168,11 +142,11 @@ export async function POST(req: Request) {
     const to_bucket = String(body.to_bucket ?? "");
     if (!amount || !from_bucket || !to_bucket) return bad("amount, from_bucket, to_bucket required");
 
-    const row = { id, from_bucket, to_bucket, amount, date, notes, addedBy: "me" };
-    const { error } = await supabase.from("app_rows").insert({ id: String(id), sheet: "transfers", data: row });
+    const row = { id, user_id: userId, from_bucket, to_bucket, amount, date, notes, added_by: "me" };
+    const { error } = await supabase.from("transfers").insert(row);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    await writeLog(supabase, "created", "transfer", id, `${from_bucket} → ${to_bucket} $${amount}`);
-    return Response.json({ ok: true, id });
+    await writeLog(supabase, userId, "created", "transfer", id, `${from_bucket} → ${to_bucket} $${amount} [Shortcut]`);
+    return Response.json({ ok: true, id, message: `Transfer saved: ${from_bucket} → ${to_bucket} $${amount}` });
   }
 
   if (type === "lent" || type === "borrowed") {
@@ -182,37 +156,44 @@ export async function POST(req: Request) {
     if (!amount || !personName) return bad("amount and personName required");
 
     // Find or create person
-    const { data: existingPeople } = await supabase.from("app_rows").select("*").eq("sheet", "people");
+    const { data: existingPeople } = await supabase.from("people").select("id, name").eq("user_id", userId);
     let personId: string | null = null;
     for (const p of existingPeople ?? []) {
-      const d = p.data as Record<string, unknown>;
-      if (String(d.name).toLowerCase() === personName.toLowerCase()) {
-        personId = String(d.id ?? p.id);
+      if (String(p.name).toLowerCase() === personName.toLowerCase()) {
+        personId = String(p.id);
         break;
       }
     }
     if (!personId) {
       personId = String(makeId());
-      const personRow = { id: personId, name: personName, phone: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-      await supabase.from("app_rows").insert({ id: personId, sheet: "people", data: personRow });
+      await supabase.from("people").insert({
+        id: personId,
+        user_id: userId,
+        name: personName,
+        phone: "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     }
 
     const row = {
       id,
-      personId,
+      user_id: userId,
+      person_id: personId,
       type,
       amount,
       account,
-      affectsAccountBalance: true,
+      affects_account_balance: true,
       date,
       note: notes,
-      addedBy: "me",
-      createdAt: new Date().toISOString(),
+      added_by: "me",
+      created_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("app_rows").insert({ id: String(id), sheet: "lending_transactions", data: row });
+    const { error } = await supabase.from("lending_transactions").insert(row);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    await writeLog(supabase, "created", type, id, `${type === "lent" ? "Lent" : "Borrowed"} $${amount} ${type === "lent" ? "to" : "from"} ${personName}`);
-    return Response.json({ ok: true, id });
+    const label = type === "lent" ? `Lent $${amount} to ${personName}` : `Borrowed $${amount} from ${personName}`;
+    await writeLog(supabase, userId, "created", type, id, `${label} [Shortcut]`);
+    return Response.json({ ok: true, id, message: `${label} saved` });
   }
 
   return bad(`Unknown type: ${type}`);
@@ -220,20 +201,21 @@ export async function POST(req: Request) {
 
 async function writeLog(
   supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
   action: "created" | "updated" | "deleted",
   entityType: string,
   entityId: string | number,
   description: string
 ) {
-  const log = {
+  await supabase.from("app_logs").insert({
     id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    user_id: userId,
     user: "me",
-    userName: "You (Shortcut)",
+    user_name: "You (Shortcut)",
     action,
-    entityType,
-    entityId: String(entityId),
+    entity_type: entityType,
+    entity_id: String(entityId),
     description,
     timestamp: new Date().toISOString(),
-  };
-  await supabase.from("app_rows").insert({ id: log.id, sheet: "activity_logs", data: log });
+  });
 }
