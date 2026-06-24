@@ -51,7 +51,7 @@ export function TransferForm({ state }: TransferFormProps) {
           <FormField label="Amount">
             <CurrencyInput value={transferAmount} onChange={setTransferAmount} symbol={currencySymbol} placeholder="0.00" />
           </FormField>
-          <DateField label="Date" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} />
+          <DateField label="Date" value={transferDate} max={new Date().toISOString().split("T")[0]} onChange={(event) => setTransferDate(event.target.value)} />
           <FormField label="Notes">
             <textarea value={transferNotes} onChange={(event) => setTransferNotes(event.target.value)} className={formTokens.input} />
           </FormField>

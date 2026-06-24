@@ -50,7 +50,7 @@ export function IncomeForm({ state }: IncomeFormProps) {
             <SummaryField label="Calculated Amount" value={`$${calculatedAmount.toLocaleString()}`} />
             <SummaryField label="Bank Portion" value={`$${bankPortion.toLocaleString()}`} />
           </InputGroup>
-          <DateField label="Date" value={incomeDate} onChange={(event) => setIncomeDate(event.target.value)} />
+          <DateField label="Date" value={incomeDate} max={new Date().toISOString().split("T")[0]} onChange={(event) => setIncomeDate(event.target.value)} />
           <FormField label="Notes">
             <textarea value={incomeNotes} onChange={(event) => setIncomeNotes(event.target.value)} className={formTokens.input} />
           </FormField>

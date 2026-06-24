@@ -188,7 +188,7 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
             </p>
           )}
 
-          <DateField label="Date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
+          <DateField label="Date" value={expenseDate} max={new Date().toISOString().split("T")[0]} onChange={(event) => setExpenseDate(event.target.value)} />
           <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <span className="flex items-center gap-3">
               <RefreshCw size={18} className="text-purple-300" />

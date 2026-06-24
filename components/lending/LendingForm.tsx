@@ -103,7 +103,7 @@ export function LendingForm({ state }: LendingFormProps) {
               </span>
             </label>
           )}
-          <DateField label="Date" value={moneyDate} onChange={(event) => setMoneyDate(event.target.value)} />
+          <DateField label="Date" value={moneyDate} max={new Date().toISOString().split("T")[0]} onChange={(event) => setMoneyDate(event.target.value)} />
           <FormField label="Notes">
             <textarea value={moneyNotes} onChange={(event) => setMoneyNotes(event.target.value)} className={formTokens.input} />
           </FormField>

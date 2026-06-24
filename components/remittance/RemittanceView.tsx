@@ -263,7 +263,7 @@ export function RemittanceView({ state }: Props) {
                 </FormField>
               )}
 
-              <DateField label="Date" value={remittanceDate} onChange={(e) => setRemittanceDate(e.target.value)} />
+              <DateField label="Date" value={remittanceDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setRemittanceDate(e.target.value)} />
               <FormField label="Provider / method (optional)">
                 <input
                   type="text"
