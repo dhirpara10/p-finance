@@ -69,7 +69,7 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
     const before = (log.beforeValue ?? {}) as Record<string, unknown>;
     const after = (log.afterValue ?? {}) as Record<string, unknown>;
     const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).filter(
-      (k) => !["id", "user_id", "created_at", "updated_at", "type", "categoryId", "addedBy"].includes(k)
+      (k) => !["id", "user_id", "created_at", "updated_at", "createdAt", "updatedAt", "type", "categoryId", "addedBy"].includes(k)
     );
     return allKeys.filter((k) => formatVal(before[k]) !== formatVal(after[k]));
   }, [log, hasDiff]);
