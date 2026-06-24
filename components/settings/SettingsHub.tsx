@@ -16,6 +16,7 @@ const pages = [
   ["recurring", "Recurring Expenses", "Upcoming rules, pause, edit, or cancel"],
   ["liabilities", "Liabilities", "BNPL, cards, loans, and repayment defaults"],
   ["appearance", "Appearance", "Theme preferences"],
+  ["shortcut", "iOS Shortcut", "Quick-add via Siri — generate your personal token"],
 ] as const;
 
 export function SettingsHub({ state }: SettingsHubProps) {

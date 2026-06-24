@@ -1,7 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
-const TOKEN = process.env.QUICK_ADD_TOKEN;
-
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -10,10 +8,9 @@ function bad(msg: string) {
   return Response.json({ error: msg }, { status: 400 });
 }
 
-function checkAuth(req: Request) {
+function extractToken(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
-  const token = auth.replace(/^Bearer\s+/i, "").trim();
-  return TOKEN && token === TOKEN;
+  return auth.replace(/^Bearer\s+/i, "").trim();
 }
 
 function makeId() {
@@ -24,24 +21,24 @@ function today() {
   return new Date().toISOString().split("T")[0];
 }
 
-async function getUserId(supabase: ReturnType<typeof getSupabaseAdmin>): Promise<string> {
-  // Use env override if set
-  if (process.env.QUICK_ADD_USER_ID) return process.env.QUICK_ADD_USER_ID;
-  // Find user by scanning user_settings table (guaranteed to have a row per user)
-  const { data: settingsRows } = await supabase.from("user_settings").select("user_id").limit(5);
-  if (settingsRows?.[0]?.user_id) return settingsRows[0].user_id;
-  // Fall back to auth admin
-  const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
-  if (error || !data?.users?.[0]) throw new Error("Cannot resolve user ID");
-  return data.users[0].id;
+async function getUserIdFromToken(supabase: ReturnType<typeof getSupabaseAdmin>, token: string): Promise<string | null> {
+  if (!token) return null;
+  // Find user whose shortcut_token setting matches
+  const { data } = await supabase
+    .from("user_settings")
+    .select("user_id, settings");
+  for (const row of data ?? []) {
+    const s = row.settings as Record<string, unknown> | null;
+    if (s?.shortcut_token === token) return row.user_id as string;
+  }
+  return null;
 }
 
 // ─── GET /api/quick-add  (meta: categories, buckets, people) ─────────────────
 export async function GET(req: Request) {
-  if (!checkAuth(req)) return unauthorized();
-
   const supabase = getSupabaseAdmin();
-  const userId = await getUserId(supabase);
+  const userId = await getUserIdFromToken(supabase, extractToken(req));
+  if (!userId) return unauthorized();
 
   const [categoryRes, bucketRes, peopleRes, settingsRes] = await Promise.all([
     supabase.from("category_definitions").select("*").eq("user_id", userId).neq("is_active", false).eq("kind", "expense").order("sort_order"),
@@ -88,7 +85,9 @@ export async function GET(req: Request) {
 
 // ─── POST /api/quick-add  (save transaction) ─────────────────────────────────
 export async function POST(req: Request) {
-  if (!checkAuth(req)) return unauthorized();
+  const supabase = getSupabaseAdmin();
+  const userId = await getUserIdFromToken(supabase, extractToken(req));
+  if (!userId) return unauthorized();
 
   let body: Record<string, unknown>;
   try {
@@ -96,9 +95,6 @@ export async function POST(req: Request) {
   } catch {
     return bad("Invalid JSON");
   }
-
-  const supabase = getSupabaseAdmin();
-  const userId = await getUserId(supabase);
 
   const type = String(body.type ?? "");
   const id = makeId();
