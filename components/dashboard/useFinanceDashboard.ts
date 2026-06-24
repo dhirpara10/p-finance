@@ -1557,6 +1557,10 @@ async function addTransfer() {
     return;
   }
 
+  const beforeTransfer = editingItem?.type === "transfer"
+    ? transfers.find((t) => String(t.id) === String(editingItem.id))
+    : undefined;
+
   const newTransfer: Transfer = {
     id: editingItem?.type === "transfer" ? editingItem.id : Date.now(),
     from_bucket: fromBucket,
@@ -1584,6 +1588,9 @@ async function addTransfer() {
         String(item.id) === String(newTransfer.id) ? newTransfer : item
       )
     );
+    const fromLabel = getBucketLabel(fromBucket);
+    const toLabel = getBucketLabel(toBucket);
+    await writeLog("updated", "transfer", newTransfer.id, `${fromLabel} → ${toLabel} ${currencySymbolFor(currency)}${amount}`, beforeTransfer as unknown as Record<string, unknown>, newTransfer as unknown as Record<string, unknown>);
   } else {
     setTransfers([newTransfer, ...transfers]);
   }

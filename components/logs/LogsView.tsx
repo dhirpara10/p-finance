@@ -47,6 +47,21 @@ const FIELD_LABELS: Record<string, string> = {
   incomeHours: "Hours",
   affectsAccountBalance: "Affects balance",
   affects_balance: "Affects balance",
+  from_bucket: "From",
+  to_bucket: "To",
+  trackerId: "Tracker",
+  audAmount: "AUD amount",
+  inrAmount: "INR amount",
+  exchangeRate: "Exchange rate",
+  chargesAud: "Charges (AUD)",
+  taxAud: "Tax (AUD)",
+  provider: "Provider",
+  preExisting: "Pre-existing",
+  fromFund: "From fund",
+  overflowAccount: "Overflow account",
+  overflowAmount: "Overflow amount",
+  personName: "Person",
+  cashPortion: "Cash portion",
 };
 
 function formatVal(v: unknown): string {
@@ -58,14 +73,14 @@ function formatVal(v: unknown): string {
 function DiffRow({ field, before, after }: { field: string; before: unknown; after: unknown }) {
   const bStr = formatVal(before);
   const aStr = formatVal(after);
-  if (bStr === aStr) return null;
+  const changed = bStr !== aStr;
   return (
-    <tr className="border-t border-white/[0.04]">
-      <td className="py-1.5 pr-4 text-xs text-neutral-500 whitespace-nowrap">
+    <tr className={`border-t border-white/[0.04] ${changed ? "bg-white/[0.015]" : ""}`}>
+      <td className={`py-1.5 pr-4 text-xs whitespace-nowrap ${changed ? "text-neutral-300 font-medium" : "text-neutral-500"}`}>
         {FIELD_LABELS[field] ?? field}
       </td>
-      <td className="py-1.5 pr-4 text-xs text-red-400 line-through opacity-70">{bStr}</td>
-      <td className="py-1.5 text-xs text-emerald-400">{aStr}</td>
+      <td className={`py-1.5 pr-4 text-xs ${changed ? "text-red-400 line-through opacity-70" : "text-neutral-500"}`}>{bStr}</td>
+      <td className={`py-1.5 text-xs ${changed ? "text-emerald-400" : "text-neutral-500"}`}>{aStr}</td>
     </tr>
   );
 }
@@ -74,15 +89,18 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
   const [open, setOpen] = useState(false);
   const hasDiff = log.action === "updated" && (log.beforeValue || log.afterValue);
 
-  const diffFields = useMemo(() => {
-    if (!hasDiff) return [];
+  const EXCLUDED = new Set(["id", "user_id", "created_at", "updated_at", "createdAt", "updatedAt", "type", "categoryId", "addedBy", "personId"]);
+
+  const { allFields, diffFields } = useMemo(() => {
+    if (!hasDiff) return { allFields: [], diffFields: [] };
     const before = (log.beforeValue ?? {}) as Record<string, unknown>;
     const after = (log.afterValue ?? {}) as Record<string, unknown>;
     const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).filter(
-      (k) => !["id", "user_id", "created_at", "updated_at", "createdAt", "updatedAt", "type", "categoryId", "addedBy"].includes(k)
+      (k) => !EXCLUDED.has(k)
     );
-    return allKeys.filter((k) => formatVal(before[k]) !== formatVal(after[k]));
-  }, [log, hasDiff]);
+    const changed = allKeys.filter((k) => formatVal(before[k]) !== formatVal(after[k]));
+    return { allFields: allKeys, diffFields: changed };
+  }, [log, hasDiff]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const date = new Date(log.timestamp);
   const dateStr = date.toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" });
@@ -123,7 +141,7 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
         </div>
 
         {/* Expand toggle for updated rows */}
-        {hasDiff && diffFields.length > 0 && (
+        {hasDiff && allFields.length > 0 && (
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -135,9 +153,9 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
       </div>
 
       {/* Before / after diff */}
-      {open && hasDiff && diffFields.length > 0 && (
+      {open && hasDiff && allFields.length > 0 && (
         <div className="border-t border-white/[0.05] px-4 pb-3 pt-2">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-neutral-600">Changes</p>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-neutral-600">All fields — highlighted rows changed</p>
           <table className="w-full">
             <thead>
               <tr>
@@ -147,7 +165,7 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
               </tr>
             </thead>
             <tbody>
-              {diffFields.map((field) => (
+              {allFields.map((field) => (
                 <DiffRow
                   key={field}
                   field={field}
