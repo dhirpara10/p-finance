@@ -17,23 +17,26 @@ type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
   const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers, currencySymbol } = state;
-  const accountAndSavingsOptions = [
+  const allSourceOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
     ...savingsBuckets.filter((bucket) => bucket.active).map((bucket) => ({ value: bucket.id, label: bucket.name })),
   ];
-  const destinationOptions = [
-    ...accountAndSavingsOptions,
+  const allDestinationOptions = [
+    ...allSourceOptions,
     { value: "shared_rollover_jar", label: "Shared Rollover Jar" },
   ];
+  // Exclude the currently selected "To" from "From" options and vice versa
+  const fromOptions = allSourceOptions.filter((opt) => opt.value !== toBucket);
+  const toOptions = allDestinationOptions.filter((opt) => opt.value !== fromBucket);
 
   return (
     <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "transfer" ? "Edit Transfer" : "Transfer Funds"} subtitle="Move money between accounts and savings buckets." />
       <ModalContent>
         <ModalSection>
-          <SelectField label="From" value={fromBucket} onChange={(event) => setFromBucket(event.target.value as Bucket)} options={accountAndSavingsOptions} />
-          <SelectField label="To" value={toBucket} onChange={(event) => setToBucket(event.target.value as Bucket)} options={destinationOptions} />
+          <SelectField label="From" value={fromBucket} onChange={(event) => setFromBucket(event.target.value as Bucket)} options={fromOptions} />
+          <SelectField label="To" value={toBucket} onChange={(event) => setToBucket(event.target.value as Bucket)} options={toOptions} />
           {toBucket === "shared_rollover_jar" && (
             <SelectField
               label="Tracker context optional"
