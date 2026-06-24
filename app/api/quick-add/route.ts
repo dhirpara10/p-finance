@@ -228,12 +228,12 @@ async function writeLog(
   await supabase.from("app_logs").insert({
     id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     user_id: userId,
-    user: "me",
+    user_label: "me",
     user_name: "You (Shortcut)",
     action,
     entity_type: entityType,
     entity_id: String(entityId),
     description,
-    timestamp: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   });
 }

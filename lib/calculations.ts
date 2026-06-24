@@ -952,6 +952,7 @@ const recentActivity: RecentActivityItem[] = [
     createdAt: (item as any).createdAt,
     updatedAt: (item as any).updatedAt,
     addedBy: item.addedBy,
+    fromShortcut: String((item as any).notes ?? "").includes("[Shortcut]"),
   })),
 
   ...validExpenses.filter((item) => !item.liabilityId).map((item, index) => {
@@ -997,6 +998,7 @@ const recentActivity: RecentActivityItem[] = [
       updatedAt: (item as any).updatedAt,
       paymentProgress,
       addedBy: item.addedBy,
+      fromShortcut: String((item as any).notes ?? "").includes("[Shortcut]"),
     };
   }),
 
@@ -1019,6 +1021,7 @@ const recentActivity: RecentActivityItem[] = [
       createdAt: (item as any).createdAt,
       updatedAt: (item as any).updatedAt,
       addedBy: item.addedBy,
+      fromShortcut: String(item.notes ?? "").includes("[Shortcut]"),
     };
   }),
 
@@ -1032,7 +1035,6 @@ const recentActivity: RecentActivityItem[] = [
       || cleanText(item.personId as string)
       || "Unknown";
 
-    // Lent and settlement-out are outflows (negative); borrowed and settlement-in are inflows (positive)
     const isOutflow = item.type === "lent";
     const signedAmount = isOutflow ? -Number(item.amount) : Number(item.amount);
 
@@ -1053,6 +1055,7 @@ const recentActivity: RecentActivityItem[] = [
       updatedAt: (item as any).updatedAt,
       source: "lendingTransaction" as const,
       addedBy: (item as any).addedBy,
+      fromShortcut: String((item as any).note ?? "").includes("[Shortcut]"),
     };
   }),
 
