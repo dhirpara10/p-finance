@@ -80,7 +80,19 @@ export async function GET(req: Request) {
     name: String((r as Record<string, unknown>).name ?? ""),
   }));
 
-  return Response.json({ categories, transferSources, people });
+  return Response.json({
+    categories,
+    transferSources,
+    people,
+    _debug: {
+      categoryDefsCount: categoryRes.data?.length ?? 0,
+      bucketDefsCount: bucketRes.data?.length ?? 0,
+      peopleCount: peopleRes.data?.length ?? 0,
+      settingsKeys: userSettings ? Object.keys(userSettings) : [],
+      categoryDefsError: categoryRes.error?.message,
+      bucketDefsError: bucketRes.error?.message,
+    },
+  });
 }
 
 // ─── POST /api/quick-add  (save transaction) ─────────────────────────────────
