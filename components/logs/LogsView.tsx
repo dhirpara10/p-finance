@@ -28,15 +28,25 @@ const FIELD_LABELS: Record<string, string> = {
   source: "Source",
   date: "Date",
   notes: "Notes",
+  note: "Note",
   income_type: "Type",
+  incomeType: "Type",
   cash_received: "Cash Received",
+  cashReceived: "Cash Received",
+  incomeCashReceived: "Cash Received",
   category: "Category",
   account: "Account",
-  payment_method: "Payment Method",
+  paymentMethod: "Payment method",
+  payment_method: "Payment method",
   is_recurring: "Recurring",
+  isRecurring: "Recurring",
   added_by: "Added By",
   rate: "Rate",
+  incomeRate: "Rate",
   hours: "Hours",
+  incomeHours: "Hours",
+  affectsAccountBalance: "Affects balance",
+  affects_balance: "Affects balance",
 };
 
 function formatVal(v: unknown): string {
@@ -92,7 +102,19 @@ function LogRow({ log }: { log: FinanceDashboardState["activityLogs"][number] })
         </span>
 
         {/* Description */}
-        <span className="flex-1 truncate text-sm text-neutral-200">{log.description}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-sm text-neutral-200">{log.description}</span>
+          {hasDiff && diffFields.length > 0 && (
+            <span className="truncate text-[11px] text-neutral-500">
+              {diffFields.map((f) => {
+                const before = (log.beforeValue as Record<string, unknown>)?.[f];
+                const after = (log.afterValue as Record<string, unknown>)?.[f];
+                const label = FIELD_LABELS[f] ?? f;
+                return `${label}: ${formatVal(before)} → ${formatVal(after)}`;
+              }).join(" · ")}
+            </span>
+          )}
+        </div>
 
         {/* Who + when */}
         <div className="shrink-0 text-right">

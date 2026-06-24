@@ -1729,6 +1729,7 @@ async function addTransfer() {
   try {
     // ── Update path ──────────────────────────────────────────────────────────
     if (editingItem && (editingItem.type === "lent" || editingItem.type === "borrowed")) {
+      const before = lendingTransactions.find((t) => String(t.id) === String(editingItem.id));
       const updatePayload = {
         amount: Number(amount),
         account: moneyAccount === "Cash" ? "Cash" : "Bank",
@@ -1742,11 +1743,14 @@ async function addTransfer() {
         editingItem.id,
         updatePayload as unknown as Record<string, unknown>
       );
+      const after = { ...before, ...updatePayload };
       await writeLog(
         "updated",
         type === "lent" ? "lent" : "borrowed",
         String(editingItem.id),
-        `${type === "lent" ? "Lent" : "Borrowed"} ${currencySymbolFor(currency)}${amount} (edited)`,
+        `${type === "lent" ? "Lent" : "Borrowed"} ${currencySymbolFor(currency)}${amount}`,
+        before as unknown as Record<string, unknown>,
+        after as unknown as Record<string, unknown>,
       );
       await loadFromSheets();
       resetMoneyForm();
