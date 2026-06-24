@@ -16,11 +16,11 @@ import { formTokens } from "@/lib/designTokens";
 type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
-  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBuckets, bucketListTrackers, currencySymbol } = state;
+  const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBucketBalances, bucketListTrackers, currencySymbol } = state;
   const allSourceOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
-    ...savingsBuckets.filter((bucket) => bucket.active).map((bucket) => ({ value: bucket.id, label: bucket.name })),
+    ...savingsBucketBalances.map((bucket) => ({ value: bucket.id, label: bucket.name })),
   ];
   const allDestinationOptions = [
     ...allSourceOptions,
