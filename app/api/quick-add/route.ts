@@ -47,19 +47,21 @@ export async function GET(req: Request) {
     supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
   ]);
 
-  // Categories — prefer category_definitions table, fall back to user_settings JSON
+  const userSettings = (settingsRes.data as Record<string, unknown> | null)?.settings as Record<string, unknown> | undefined;
+
+  // Categories — prefer category_definitions table, fall back to user_settings.settings JSON
   let categories = (categoryRes.data ?? []).map((r) => r.name as string);
-  if (categories.length === 0 && settingsRes.data) {
-    const raw = (settingsRes.data as Record<string, unknown>).expense_categories;
+  if (categories.length === 0 && userSettings) {
+    const raw = userSettings.expense_categories;
     if (Array.isArray(raw)) {
       categories = raw.map((c: unknown) => String((c as Record<string, unknown>)?.name ?? c)).filter(Boolean);
     }
   }
 
-  // Buckets — prefer bucket_definitions table, fall back to user_settings JSON
+  // Buckets — prefer bucket_definitions table, fall back to user_settings.settings JSON
   let buckets = (bucketRes.data ?? []).map((r) => ({ id: r.id as string, name: r.name as string }));
-  if (buckets.length === 0 && settingsRes.data) {
-    const raw = (settingsRes.data as Record<string, unknown>).savings_buckets;
+  if (buckets.length === 0 && userSettings) {
+    const raw = userSettings.savings_buckets;
     if (Array.isArray(raw)) {
       buckets = (raw as Record<string, unknown>[])
         .filter((b) => b.active !== false)
