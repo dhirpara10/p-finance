@@ -13,6 +13,7 @@ import { LiabilityForm } from "@/components/liabilities/LiabilityForm";
 import { RepaymentForm } from "@/components/liabilities/RepaymentForm";
 import { Toaster } from "@/components/ui/Toaster";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StatusPill } from "@/components/ui/StatusPill";
 
 export default function Home() {
   const dashboard = useFinanceDashboard();
@@ -39,6 +40,7 @@ export default function Home() {
       {dashboard.detailsView && <LendingDetails state={dashboard} />}
       {dashboard.showLiabilityForm && <LiabilityForm state={dashboard} />}
       {dashboard.editingSchedule && <RepaymentForm state={dashboard} />}
+      <StatusPill message={dashboard.loadingMessage} />
       <Toaster />
       <ConfirmDialog />
     </>
