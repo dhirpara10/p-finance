@@ -40,15 +40,32 @@ export async function GET(req: Request) {
   const supabase = getSupabaseAdmin();
   const userId = await getUserId(supabase);
 
-  const [categoryRes, bucketRes, peopleRes] = await Promise.all([
-    supabase.from("category_definitions").select("*").eq("user_id", userId).eq("is_active", true).eq("kind", "expense").order("sort_order"),
-    supabase.from("bucket_definitions").select("*").eq("user_id", userId).eq("is_active", true).order("sort_order"),
+  const [categoryRes, bucketRes, peopleRes, settingsRes] = await Promise.all([
+    supabase.from("category_definitions").select("*").eq("user_id", userId).neq("is_active", false).eq("kind", "expense").order("sort_order"),
+    supabase.from("bucket_definitions").select("*").eq("user_id", userId).neq("is_active", false).order("sort_order"),
     supabase.from("people").select("*").eq("user_id", userId).order("name"),
+    supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const categories = (categoryRes.data ?? []).map((r) => r.name as string);
+  // Categories — prefer category_definitions table, fall back to user_settings JSON
+  let categories = (categoryRes.data ?? []).map((r) => r.name as string);
+  if (categories.length === 0 && settingsRes.data) {
+    const raw = (settingsRes.data as Record<string, unknown>).expense_categories;
+    if (Array.isArray(raw)) {
+      categories = raw.map((c: unknown) => String((c as Record<string, unknown>)?.name ?? c)).filter(Boolean);
+    }
+  }
 
-  const buckets = (bucketRes.data ?? []).map((r) => ({ id: r.id as string, name: r.name as string }));
+  // Buckets — prefer bucket_definitions table, fall back to user_settings JSON
+  let buckets = (bucketRes.data ?? []).map((r) => ({ id: r.id as string, name: r.name as string }));
+  if (buckets.length === 0 && settingsRes.data) {
+    const raw = (settingsRes.data as Record<string, unknown>).savings_buckets;
+    if (Array.isArray(raw)) {
+      buckets = (raw as Record<string, unknown>[])
+        .filter((b) => b.active !== false)
+        .map((b) => ({ id: String(b.id), name: String(b.name) }));
+    }
+  }
 
   const transferSources = [
     { id: "Bank", name: "Bank" },
