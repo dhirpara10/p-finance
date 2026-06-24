@@ -751,7 +751,8 @@ function isValidTransferRow(item: Transfer) {
   }
 
   async function loadFromSheets() {
-  const isFirstLoad = !hasLoadedData.current;
+  const sessionLoaded = typeof sessionStorage !== "undefined" && sessionStorage.getItem("finance_session_loaded") === "1";
+  const isFirstLoad = !hasLoadedData.current && !sessionLoaded;
   if (isFirstLoad) {
     setLoading(true);
   } else {
@@ -974,6 +975,7 @@ function isValidTransferRow(item: Transfer) {
     });
 
     hasLoadedData.current = true;
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem("finance_session_loaded", "1");
   } catch (error: any) {
     setLoadError(error.message || "Failed to load data from Google Sheets.");
   } finally {
