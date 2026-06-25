@@ -214,6 +214,7 @@ const LendingTransactionObjectSchema = z.object({
   note: safeStr(),
   createdAt: safeStr(),
   addedBy: appUser(),
+  commitmentDate: z.string().nullable().optional().transform((v) => v ?? undefined),
 });
 
 export const LendingTransactionSchema = z.preprocess(normalizeLendingRow, LendingTransactionObjectSchema);
