@@ -197,6 +197,7 @@ export function buildPersonProfiles({
       date: record.date,
       note: record.note || undefined,
       createdAt: record.createdAt,
+      commitmentDate: record.commitmentDate || undefined,
     });
   });
 
