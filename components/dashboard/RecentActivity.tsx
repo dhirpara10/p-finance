@@ -259,11 +259,6 @@ export function RecentActivity({
                         </span>
                       )}
 
-                      {item.fromShortcut && (
-                        <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[9px] font-semibold text-violet-300 ring-1 ring-violet-400/20">
-                          Shortcut
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>

@@ -380,5 +380,4 @@ export type RecentActivityItem = {
   isRecurring?: boolean;
   paymentProgress?: string;
   addedBy?: AppUser;
-  fromShortcut?: boolean;
 };

@@ -54,7 +54,6 @@ import { SettingsIncomeSourcesPage } from "@/components/settings/SettingsIncomeS
 import { SettingsNotificationsPage } from "@/components/settings/SettingsNotificationsPage";
 import { SettingsRecurringExpensesPage } from "@/components/settings/SettingsRecurringExpensesPage";
 import { SettingsSecurityPage } from "@/components/settings/SettingsSecurityPage";
-import { SettingsShortcutPage } from "@/components/settings/SettingsShortcutPage";
 import { SettingsLiabilitiesPage } from "@/components/settings/SettingsLiabilitiesPage";
 import { SelectField } from "@/components/forms/SelectField";
 import { LiabilitiesView } from "@/components/liabilities/LiabilitiesView";
@@ -1107,7 +1106,6 @@ function SettingsRouter({ state }: Props) {
   if (state.settingsPage === "recurring") return <SettingsRecurringExpensesPage state={state} />;
   if (state.settingsPage === "liabilities") return <SettingsLiabilitiesPage state={state} />;
   if (state.settingsPage === "appearance") return <SettingsAppearancePage state={state} />;
-  if (state.settingsPage === "shortcut") return <SettingsShortcutPage state={state} />;
   if (state.settingsPage === "bucket-history") return <SettingsBucketHistoryPage state={state} />;
   return <SettingsHub state={state} />;
 }
