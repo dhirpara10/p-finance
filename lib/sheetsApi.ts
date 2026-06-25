@@ -25,6 +25,7 @@ export type AddLendingTransactionPayload = {
   affectsAccountBalance?: boolean;
   date: string;
   note?: string;
+  commitmentDate?: string;
 };
 
 // ─── Row normalizers ──────────────────────────────────────────────────────────
@@ -459,6 +460,7 @@ export async function addLendingTransaction(transaction: AddLendingTransactionPa
     affects_balance: Boolean(transaction.affectsAccountBalance),
     date: transaction.date,
     note: transaction.note?.trim() || "",
+    commitment_date: transaction.commitmentDate || null,
     created_at: new Date().toISOString(),
   };
 

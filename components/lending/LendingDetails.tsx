@@ -15,6 +15,8 @@ import {
   ArrowDownLeft,
   RefreshCw,
   Users,
+  CalendarClock,
+  CalendarCheck,
 } from "lucide-react";
 
 // ─── sub-types ────────────────────────────────────────────────────────────────
@@ -118,6 +120,20 @@ function SummaryStatCard({ label, value, color, sym }: { label: string; value: n
   );
 }
 
+// ─── Commitment helpers ────────────────────────────────────────────────────────
+
+function commitmentCountdown(dateStr: string): { days: number; label: string; color: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dateStr + "T00:00:00");
+  const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return { days: 0, label: "Due today", color: "text-rose-400 border-rose-500/30 bg-rose-500/10" };
+  if (diff < 0) return { days: diff, label: `Overdue by ${Math.abs(diff)}d`, color: "text-rose-400 border-rose-500/30 bg-rose-500/10" };
+  if (diff <= 3) return { days: diff, label: `${diff}d left`, color: "text-rose-400 border-rose-500/30 bg-rose-500/10" };
+  if (diff <= 7) return { days: diff, label: `${diff}d left`, color: "text-amber-400 border-amber-500/30 bg-amber-500/10" };
+  return { days: diff, label: `${diff}d left`, color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" };
+}
+
 // ─── LedgerTimeline ───────────────────────────────────────────────────────────
 
 function InlineEditPanel({
@@ -215,14 +231,18 @@ function LedgerTimeline({
   onDelete,
   onEditLent,
   onEditSettlement,
+  onExtendCommitment,
 }: {
   transactions: LendingTransaction[];
   sym: string;
   onDelete: (id: string | number) => void;
   onEditLent: (tx: LendingTransaction) => void;
   onEditSettlement: (id: string | number, payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }) => Promise<void>;
+  onExtendCommitment: (id: string | number, newDate: string) => Promise<boolean>;
 }) {
   const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [extendingId, setExtendingId] = useState<string | number | null>(null);
+  const [extendDate, setExtendDate] = useState("");
 
   if (transactions.length === 0) {
     return (
@@ -249,13 +269,22 @@ function LedgerTimeline({
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs font-semibold ${col.text}`}>{label}</span>
                   {tx.account && (
                     <span className="rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
                       {tx.account}
                     </span>
                   )}
+                  {tx.commitmentDate && (tx.type === "lent" || tx.type === "borrowed") && (() => {
+                    const cd = commitmentCountdown(tx.commitmentDate);
+                    return (
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${cd.color}`}>
+                        <CalendarClock size={8} />
+                        {cd.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="text-[11px] text-neutral-600 mt-0.5">
                   {tx.date}{tx.note ? ` · ${tx.note}` : ""}
@@ -266,6 +295,27 @@ function LedgerTimeline({
               <p className={`text-sm font-bold tabular-nums ${col.text} shrink-0`}>
                 {sym}{tx.amount.toLocaleString()}
               </p>
+
+              {/* Extend commitment button — lent/borrowed with commitment date */}
+              {!tx.legacy && (tx.type === "lent" || tx.type === "borrowed") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (extendingId === tx.id) {
+                      setExtendingId(null);
+                    } else {
+                      setExtendingId(tx.id);
+                      setExtendDate(tx.commitmentDate ?? "");
+                    }
+                  }}
+                  title="Set / extend commitment date"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
+                    extendingId === tx.id ? "bg-amber-500/20 text-amber-300 opacity-100" : "text-neutral-600 hover:bg-amber-500/10 hover:text-amber-400"
+                  }`}
+                >
+                  <CalendarCheck size={12} />
+                </button>
+              )}
 
               {/* Edit button — all non-legacy */}
               {!tx.legacy && (
@@ -310,6 +360,61 @@ function LedgerTimeline({
                   }}
                   onCancel={() => setEditingId(null)}
                 />
+              </div>
+            )}
+
+            {/* Inline extend commitment */}
+            {extendingId === tx.id && (tx.type === "lent" || tx.type === "borrowed") && (
+              <div className="border-t border-white/[0.05] px-4 py-3 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/70">
+                  {tx.commitmentDate ? "Extend commitment date" : "Set commitment date"}
+                </p>
+                {/* Quick presets */}
+                <div className="flex gap-2 flex-wrap">
+                  {[7, 14, 30, 60, 90].map((d) => {
+                    const preset = (() => { const t = new Date(); t.setDate(t.getDate() + d); return t.toISOString().split("T")[0]; })();
+                    return (
+                      <button key={d} type="button" onClick={() => setExtendDate(preset)}
+                        className={`rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                          extendDate === preset
+                            ? "border-amber-400/40 bg-amber-500/15 text-amber-300"
+                            : "border-white/[0.07] bg-white/[0.03] text-neutral-500 hover:text-neutral-200"
+                        }`}>
+                        +{d}d
+                      </button>
+                    );
+                  })}
+                  {extendDate && (
+                    <button type="button" onClick={() => setExtendDate("")}
+                      className="rounded-xl px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:text-rose-400">
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  value={extendDate}
+                  min={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setExtendDate(e.target.value)}
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setExtendingId(null)}
+                    className="flex-1 rounded-xl border border-white/[0.07] py-2 text-xs font-semibold text-neutral-500 hover:text-white">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!extendDate}
+                    onClick={async () => {
+                      const ok = await onExtendCommitment(tx.id, extendDate);
+                      if (ok) setExtendingId(null);
+                    }}
+                    className="flex-1 rounded-xl bg-amber-500 py-2 text-xs font-bold text-black disabled:opacity-40 hover:bg-amber-400 transition"
+                  >
+                    {tx.commitmentDate ? "Extend" : "Set"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -481,6 +586,7 @@ function PersonLedgerView({
   onDelete,
   onEditLent,
   onEditSettlement,
+  onExtendCommitment,
   onBack,
 }: {
   profile: PersonProfile;
@@ -500,6 +606,7 @@ function PersonLedgerView({
   onDelete: (id: string | number) => void;
   onEditLent: (tx: LendingTransaction) => void;
   onEditSettlement: (id: string | number, payload: { amount: number; account: "Bank" | "Cash"; date: string; note: string }) => Promise<void>;
+  onExtendCommitment: (id: string | number, newDate: string) => Promise<boolean>;
   onBack: () => void;
 }) {
   const netAbs = Math.abs(profile.netBalance);
@@ -584,6 +691,7 @@ function PersonLedgerView({
           onDelete={onDelete}
           onEditLent={onEditLent}
           onEditSettlement={onEditSettlement}
+          onExtendCommitment={onExtendCommitment}
         />
       </div>
     </div>
@@ -609,6 +717,7 @@ export function LendingDetails({ state }: Props) {
     saveSettlement,
     deleteLendingTransaction,
     updateLendingTransaction,
+    updateCommitmentDate,
     startEdit,
     currencySymbol,
   } = state;
@@ -714,6 +823,7 @@ export function LendingDetails({ state }: Props) {
             onDelete={deleteLendingTransaction}
             onEditLent={handleEditLent}
             onEditSettlement={handleEditSettlement}
+            onExtendCommitment={updateCommitmentDate}
             onBack={handleBack}
           />
         ) : (

@@ -165,6 +165,7 @@ export type LendingTransactionRecord = {
   date: string;
   note: string;
   createdAt: string;
+  commitmentDate?: string;
 };
 
 export type LendingTransaction = {
@@ -179,6 +180,7 @@ export type LendingTransaction = {
   createdAt?: string;
   legacy?: boolean;
   addedBy?: AppUser;
+  commitmentDate?: string;
 };
 
 export type Liability = {

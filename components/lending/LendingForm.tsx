@@ -16,7 +16,15 @@ import { formTokens } from "@/lib/designTokens";
 type LendingFormProps = { state: FinanceDashboardState };
 
 export function LendingForm({ state }: LendingFormProps) {
-  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, closeAllForms, addLent, addBorrowed, currencySymbol } = state;
+  const { showLentForm, editingItem, people, lendingPersonMode, setLendingPersonMode, selectedPersonId, setSelectedPersonId, personSearch, setPersonSearch, moneyName, setMoneyName, moneyAmount, setMoneyAmount, moneyDate, setMoneyDate, moneyPhone, setMoneyPhone, moneyNotes, setMoneyNotes, moneyCommitmentDate, setMoneyCommitmentDate, moneyAccount, setMoneyAccount, borrowedAffectsAccountBalance, setBorrowedAffectsAccountBalance, lentAffectsAccountBalance, setLentAffectsAccountBalance, closeAllForms, addLent, addBorrowed, currencySymbol } = state;
+
+  const today = new Date().toISOString().split("T")[0];
+
+  function setCommitmentDays(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setMoneyCommitmentDate(d.toISOString().split("T")[0]);
+  }
   const searchQuery = normalizePersonName(personSearch);
   const filteredPeople = people.filter((person) => searchQuery && (normalizePersonName(person.name).includes(searchQuery) || normalizePersonName(person.phone || "").includes(searchQuery)));
   const selectedPerson = people.find((person) => String(person.id) === String(selectedPersonId));
@@ -104,6 +112,44 @@ export function LendingForm({ state }: LendingFormProps) {
             </label>
           )}
           <DateField label="Date" value={moneyDate} max={new Date().toISOString().split("T")[0]} onChange={(event) => setMoneyDate(event.target.value)} />
+
+          {/* Commitment date */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Commitment date <span className="text-neutral-500 font-normal">(optional)</span>
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {[7, 14, 30, 60, 90].map((d) => (
+                <button key={d} type="button" onClick={() => setCommitmentDays(d)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition border ${
+                    moneyCommitmentDate && (() => { const t = new Date(); t.setDate(t.getDate() + d); return t.toISOString().split("T")[0] === moneyCommitmentDate; })()
+                      ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+                      : "border-white/[0.07] bg-white/[0.03] text-neutral-400 hover:text-neutral-200"
+                  }`}>
+                  {d}d
+                </button>
+              ))}
+              {moneyCommitmentDate && (
+                <button type="button" onClick={() => setMoneyCommitmentDate("")}
+                  className="rounded-xl px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:text-red-400">
+                  Clear
+                </button>
+              )}
+            </div>
+            <input
+              type="date"
+              value={moneyCommitmentDate}
+              min={today}
+              onChange={(e) => setMoneyCommitmentDate(e.target.value)}
+              className={formTokens.input}
+            />
+            {moneyCommitmentDate && (
+              <p className="text-xs text-amber-400/80">
+                Due {new Date(moneyCommitmentDate + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            )}
+          </div>
+
           <FormField label="Notes">
             <textarea value={moneyNotes} onChange={(event) => setMoneyNotes(event.target.value)} className={formTokens.input} />
           </FormField>
