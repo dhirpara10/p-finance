@@ -726,13 +726,14 @@
           isCurrentMonth(transfer.date, monthlyResetDay)
       )
       .reduce((sum, transfer) => sum + transfer.amount, 0);
+    // Reclaims (jar_cash_leftover → Bank) physically remove money from the jar stored balance
     const manualJarWithdrawals = transfers
-      .filter((transfer) => transfer.from_bucket === "shared_rollover_jar")
+      .filter((transfer) => transfer.from_bucket === "shared_rollover_jar" || transfer.from_bucket === "jar_cash_leftover")
       .reduce((sum, transfer) => sum + transfer.amount, 0);
     const monthlyJarWithdrawals = transfers
       .filter(
         (transfer) =>
-          transfer.from_bucket === "shared_rollover_jar" &&
+          (transfer.from_bucket === "shared_rollover_jar" || transfer.from_bucket === "jar_cash_leftover") &&
           isCurrentMonth(transfer.date, monthlyResetDay)
       )
       .reduce((sum, transfer) => sum + transfer.amount, 0);
@@ -742,16 +743,34 @@
       accountBalance + totalSavingsBuckets + sharedJarStoredBalance;
     const netWorth =
       totalMoney + activeLent - activeBorrowed - totalLiabilities;
-    const totalTrackedSpending = effectiveExpenses
+    // Split tracked spending: bank-paid counts against jar, cash-paid generates a carry balance
+    const bankTrackedSpending = effectiveExpenses
       .filter(
         (expense) =>
           new Date(expense.date) <= today &&
-          trackerLinkedCategoryIds.has(expenseCategoryId(expense))
+          trackerLinkedCategoryIds.has(expenseCategoryId(expense)) &&
+          expense.account !== "Cash"
       )
       .reduce((sum, expense) => sum + expense.amount, 0);
+    const cashTrackedSpending = effectiveExpenses
+      .filter(
+        (expense) =>
+          new Date(expense.date) <= today &&
+          trackerLinkedCategoryIds.has(expenseCategoryId(expense)) &&
+          expense.account === "Cash"
+      )
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    // Carry reclaims: user transfers jar_cash_leftover → Bank to recover freed jar money
+    const jarCashCarryReclaimed = transfers
+      .filter((t) => t.from_bucket === "jar_cash_leftover")
+      .reduce((sum, t) => sum + t.amount, 0);
+    const jarCashCarryBalance = cashTrackedSpending - jarCashCarryReclaimed;
+    // Jar consumed = only bank-paid tracked spending; reclaims are already in manualJarWithdrawals
+    const jarConsumed = bankTrackedSpending;
     const sharedJarSpentThisMonth = thisMonthExpenses
       .filter((expense) =>
-        trackerLinkedCategoryIds.has(expenseCategoryId(expense))
+        trackerLinkedCategoryIds.has(expenseCategoryId(expense)) &&
+        expense.account !== "Cash"
       )
       .reduce((sum, expense) => sum + expense.amount, 0);
     const sharedJarMonthlyResult =
@@ -768,16 +787,17 @@
       manualAllocations: manualJarAllocations,
       manualWithdrawals: manualJarWithdrawals,
       storedBalance: sharedJarStoredBalance,
+      cashCarry: jarCashCarryBalance,
       carried:
         sharedRolloverJarBalance +
         manualJarAllocations -
         manualJarWithdrawals -
-        totalTrackedSpending -
+        jarConsumed -
         sharedJarMonthlyResult,
       available:
         sharedRolloverJarBalance +
         manualJarAllocations -
-        totalTrackedSpending -
+        jarConsumed -
         manualJarWithdrawals,
     };
     const financialAnalytics = buildFinancialAnalytics({

@@ -135,6 +135,12 @@ export function DashboardLayout({ state }: Props) {
     state.setShowTransferForm(true);
   }
 
+  function openJarCashReclaim() {
+    state.setFromBucket("jar_cash_leftover" as any);
+    state.setToBucket("Bank");
+    state.setShowTransferForm(true);
+  }
+
   return (
     <main className="page-bottom-clearance min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)] md:pb-8">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
@@ -151,6 +157,7 @@ export function DashboardLayout({ state }: Props) {
               onLent={openLent}
               onBorrowed={openBorrowed}
               onAllocate={openJarAllocation}
+              onCashReclaim={openJarCashReclaim}
               onBuckets={() => selectTab("buckets")}
               onActivity={() => selectTab("activity")}
               showAllActivity={showAllActivity}
@@ -332,6 +339,7 @@ function HomeView({
   onLent,
   onBorrowed,
   onAllocate,
+  onCashReclaim,
   onBuckets,
   onActivity,
   showAllActivity,
@@ -346,6 +354,7 @@ function HomeView({
   onLent: () => void;
   onBorrowed: () => void;
   onAllocate: () => void;
+  onCashReclaim: () => void;
   onBuckets: () => void;
   onActivity: () => void;
   showAllActivity: boolean;
@@ -422,7 +431,7 @@ function HomeView({
 
       <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
-          <SharedJarCard state={state} onAllocate={onAllocate} />
+          <SharedJarCard state={state} onAllocate={onAllocate} onTransfer={onCashReclaim} />
         </div>
 
         <div className="surface-card rounded-[28px] border border-black/[0.07] p-5 dark:border-white/[0.055]">
@@ -722,11 +731,13 @@ function BucketsView({
   bucketHistory,
   setBucketHistory,
   onAllocate,
+  onCashReclaim,
 }: {
   state: FinanceDashboardState;
   bucketHistory: BucketHistory;
   setBucketHistory: (value: BucketHistory) => void;
   onAllocate: () => void;
+  onCashReclaim: () => void;
 }) {
   const activeSavings = state.savingsBucketBalances.filter((bucket) => bucket.active);
 
@@ -754,7 +765,7 @@ function BucketsView({
       />
 
       <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth sm:mx-0 sm:block sm:overflow-visible sm:px-0">
-        <SharedJarCard state={state} onAllocate={onAllocate} />
+        <SharedJarCard state={state} onAllocate={onAllocate} onTransfer={onCashReclaim} />
       </div>
 
       <section>

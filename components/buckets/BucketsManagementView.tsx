@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, Edit2, Plus, Tag } from "lucide-react";
+import { Archive, Edit2, Plus, Tag, Trash2 } from "lucide-react";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import { SharedJarCard } from "@/components/dashboard/SharedJarCard";
 import { FlipBucketCard, SavingsBucketCard, TrackerCard } from "@/components/dashboard/BucketCards";
@@ -77,9 +77,40 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
     toast(`${cat.name} archived.`);
   }
 
+  function isUserCreated(id: string) {
+    return /\d{10,}/.test(id);
+  }
+
+  async function deleteBucket(bucket: BucketDefinition) {
+    const ok = await showConfirm(`Permanently delete "${bucket.name}"? This cannot be undone.`);
+    if (!ok) return;
+    await finDefs.deleteBucketDef(bucket.id);
+    toast(`${bucket.name} deleted.`);
+  }
+
+  async function deleteTracker(tracker: TrackerDefinition) {
+    const ok = await showConfirm(`Permanently delete "${tracker.name}"? This cannot be undone.`);
+    if (!ok) return;
+    await finDefs.deleteTrackerDef(tracker.id);
+    toast(`${tracker.name} deleted.`);
+  }
+
+  async function deleteCategory(cat: CategoryDefinition) {
+    const ok = await showConfirm(`Permanently delete "${cat.name}"? This cannot be undone.`);
+    if (!ok) return;
+    await finDefs.deleteCategoryDef(cat.id);
+    toast(`${cat.name} deleted.`);
+  }
+
   const activeBuckets = finDefs.bucketDefs.filter((b) => b.isActive && b.type === "protected");
   const activeTrackers = finDefs.trackerDefs.filter((t) => t.isActive);
-  const activeCategories = finDefs.categoryDefs.filter((c) => c.isActive && c.kind === "expense");
+  const activeCategories = finDefs.categoryDefs
+    .filter((c) => c.isActive && c.kind === "expense")
+    .sort((a, b) => {
+      if (a.name.toLowerCase() === "other") return 1;
+      if (b.name.toLowerCase() === "other") return -1;
+      return 0;
+    });
 
   return (
     <div className="space-y-10 pb-10">
@@ -95,6 +126,11 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
           onAllocate={() => {
             state.setFromBucket("Bank");
             state.setToBucket("shared_rollover_jar");
+            state.setShowTransferForm(true);
+          }}
+          onTransfer={() => {
+            state.setFromBucket("jar_cash_leftover" as any);
+            state.setToBucket("Bank");
             state.setShowTransferForm(true);
           }}
         />
@@ -134,6 +170,11 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
                   <button onClick={() => archiveBucket(bucketDef)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] py-1.5 text-xs text-neutral-500 hover:border-rose-400/20 hover:text-rose-400">
                     <Archive size={12} /> Archive
                   </button>
+                  {isUserCreated(bucketDef.id) && (
+                    <button onClick={() => deleteBucket(bucketDef)} className="flex items-center justify-center gap-1 rounded-xl border border-white/[0.08] px-2.5 py-1.5 text-xs text-neutral-500 hover:border-red-500/30 hover:text-red-400">
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -185,6 +226,14 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
                 >
                   <Archive size={12} /> Archive
                 </button>
+                {isUserCreated(tracker.id) && (
+                  <button
+                    onClick={() => { const def = finDefs.trackerDefs.find((t) => t.id === tracker.id); if (def) deleteTracker(def); }}
+                    className="flex items-center justify-center gap-1 rounded-xl border border-white/[0.08] px-2.5 py-1.5 text-xs text-neutral-500 hover:border-red-500/30 hover:text-red-400"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -231,6 +280,11 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
                   <button onClick={() => archiveCategory(cat)} className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 hover:text-rose-400">
                     <Archive size={13} />
                   </button>
+                  {isUserCreated(cat.id) && (
+                    <button onClick={() => deleteCategory(cat)} className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 hover:text-red-400">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             );

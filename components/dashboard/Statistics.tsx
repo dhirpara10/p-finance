@@ -78,7 +78,7 @@ function ChartFrame({ height, children, empty }: { height: string; children: Rea
     );
   }
   return (
-    <div className={`min-h-px min-w-0 w-full ${height}`}>
+    <div className={`min-w-0 w-full ${height}`}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         {children as never}
       </ResponsiveContainer>

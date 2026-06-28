@@ -1538,9 +1538,11 @@ async function addTransfer() {
       ? dashboardValues.bankBalance
       : fromBucket === "Cash"
         ? dashboardValues.cashBalance
-        : dashboardValues.savingsBucketBalances.find(
-            (bucket) => bucket.id === fromBucket
-          )?.currentBalance;
+        : fromBucket === "jar_cash_leftover"
+          ? dashboardValues.sharedRolloverJar.cashCarry
+          : dashboardValues.savingsBucketBalances.find(
+              (bucket) => bucket.id === fromBucket
+            )?.currentBalance;
 
   const availableBalance =
     Number(sourceBalance || 0) +

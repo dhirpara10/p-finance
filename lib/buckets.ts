@@ -179,6 +179,7 @@ export function getBucketLabel(value: unknown, savingsBuckets = defaultSavingsBu
   const id = normalizeBucketId(value);
   if (id === "Bank" || id === "Cash") return id;
   if (id === "shared_rollover_jar") return "Shared Rollover Jar";
+  if (id === "jar_cash_leftover") return "Jar Cash Carry";
   return savingsBuckets.find((bucket) => bucket.id === id)?.name || String(value);
 }
 

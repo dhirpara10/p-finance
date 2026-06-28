@@ -17,9 +17,11 @@ type TransferFormProps = { state: FinanceDashboardState };
 
 export function TransferForm({ state }: TransferFormProps) {
   const { editingItem, fromBucket, setFromBucket, toBucket, setToBucket, transferAmount, setTransferAmount, transferDate, setTransferDate, transferNotes, setTransferNotes, transferTrackerId, setTransferTrackerId, closeAllForms, addTransfer, savingsBucketBalances, bucketListTrackers, currencySymbol } = state;
+  const cashCarry = state.sharedRolloverJar?.cashCarry ?? 0;
   const allSourceOptions = [
     { value: "Bank", label: "Bank" },
     { value: "Cash", label: "Cash" },
+    ...(cashCarry > 0 ? [{ value: "jar_cash_leftover", label: `Jar Cash Carry (${state.currencySymbol}${cashCarry.toLocaleString(undefined, { maximumFractionDigits: 2 })})` }] : []),
     ...savingsBucketBalances.map((bucket) => ({ value: bucket.id, label: bucket.name })),
   ];
   const allDestinationOptions = [

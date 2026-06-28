@@ -258,6 +258,27 @@ export function useFinanceDefinitions() {
     await updateCategoryDef(id, { isActive: false });
   }
 
+  async function deleteBucketDef(id: string) {
+    await deleteSheetRecord("bucket_definitions", id);
+    setBucketDefs((prev) => prev.filter((b) => b.id !== id));
+  }
+
+  async function deleteTrackerDef(id: string) {
+    const links = ctLinks.filter((l) => l.trackerId === id);
+    await Promise.all(links.map((l) => deleteSheetRecord("category_tracker_links", l.id)));
+    setCtLinks((prev) => prev.filter((l) => l.trackerId !== id));
+    await deleteSheetRecord("tracker_definitions", id);
+    setTrackerDefs((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  async function deleteCategoryDef(id: string) {
+    const links = ctLinks.filter((l) => l.categoryId === id);
+    await Promise.all(links.map((l) => deleteSheetRecord("category_tracker_links", l.id)));
+    setCtLinks((prev) => prev.filter((l) => l.categoryId !== id));
+    await deleteSheetRecord("category_definitions", id);
+    setCategoryDefs((prev) => prev.filter((c) => c.id !== id));
+  }
+
   return {
     bucketDefs,
     trackerDefs,
@@ -268,13 +289,16 @@ export function useFinanceDefinitions() {
     addBucketDef,
     updateBucketDef,
     archiveBucketDef,
+    deleteBucketDef,
     addTrackerDef,
     updateTrackerDef,
     archiveTrackerDef,
+    deleteTrackerDef,
     setTrackerLinks,
     addCategoryDef,
     updateCategoryDef,
     archiveCategoryDef,
+    deleteCategoryDef,
   };
 }
 

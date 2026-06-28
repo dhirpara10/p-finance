@@ -139,7 +139,13 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
     expenseCategories.includes(expenseCategory)
       ? expenseCategories
       : [expenseCategory, ...expenseCategories]
-  ).map((category) => ({ value: category, label: category }));
+  )
+    .sort((a, b) => {
+      if (a.toLowerCase() === "other") return 1;
+      if (b.toLowerCase() === "other") return -1;
+      return 0;
+    })
+    .map((category) => ({ value: category, label: category }));
 
   return (
     <ModalWrapper onClose={closeAllForms}>

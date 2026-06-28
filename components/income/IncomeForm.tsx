@@ -14,6 +14,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
 import type { IncomeType } from "@/lib/types";
 import { formTokens } from "@/lib/designTokens";
+import { useState } from "react";
 
 type IncomeFormProps = { state: FinanceDashboardState };
 
@@ -22,13 +23,47 @@ export function IncomeForm({ state }: IncomeFormProps) {
   const calculatedAmount = incomeType === "Hourly" ? toNumber(incomeRate) * toNumber(incomeHours) : toNumber(incomeAmount);
   const bankPortion = Math.max(0, calculatedAmount - toNumber(incomeCashReceived));
 
+  const presetSourceNames = [...incomeSources.map((s) => s.name), "Business", "Refund", "Gift", "Other"];
+  const startsAsCustom = incomeSource !== "" && !presetSourceNames.includes(incomeSource);
+  const [showCustom, setShowCustom] = useState(startsAsCustom);
+  const [customSourceText, setCustomSourceText] = useState(startsAsCustom ? incomeSource : "");
+  const dropdownValue = showCustom ? "Other" : incomeSource;
+
   return (
     <ModalWrapper onClose={closeAllForms}>
       <ModalHeader title={editingItem?.type === "income" ? "Edit Income" : "Add Income"} subtitle="Record pay, cash received, and bank portion." />
       <ModalContent>
         <ModalSection>
           <SelectField label="Income type" value={incomeType} onChange={(event) => handleIncomeTypeChange(event.target.value as IncomeType)} options={[{ value: "Hourly", label: "Hourly" }, { value: "Fixed Amount", label: "Fixed Amount" }]} />
-          <SelectField label="Source" value={incomeSource} onChange={(event) => handleIncomeSourceChange(event.target.value)} options={[...incomeSources.map((source) => ({ value: source.name, label: source.name })), { value: "Business", label: "Business" }, { value: "Refund", label: "Refund" }, { value: "Gift", label: "Gift" }, { value: "Other", label: "Other" }]} />
+          <SelectField
+            label="Source"
+            value={dropdownValue}
+            onChange={(event) => {
+              const val = event.target.value;
+              if (val === "Other") {
+                setShowCustom(true);
+                handleIncomeSourceChange(customSourceText || "Other");
+              } else {
+                setShowCustom(false);
+                handleIncomeSourceChange(val);
+              }
+            }}
+            options={[...incomeSources.map((source) => ({ value: source.name, label: source.name })), { value: "Business", label: "Business" }, { value: "Refund", label: "Refund" }, { value: "Gift", label: "Gift" }, { value: "Other", label: "Other" }]}
+          />
+          {showCustom && (
+            <FormField label="Custom source name">
+              <input
+                autoFocus
+                value={customSourceText}
+                placeholder="e.g. Freelance, Investment…"
+                onChange={(e) => {
+                  setCustomSourceText(e.target.value);
+                  handleIncomeSourceChange(e.target.value || "Other");
+                }}
+                className={formTokens.input}
+              />
+            </FormField>
+          )}
           {incomeType === "Hourly" ? (
             <InputGroup>
               <FormField label="Rate">

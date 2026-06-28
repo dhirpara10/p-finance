@@ -1,19 +1,22 @@
 "use client";
 
 import type { FinanceDashboardState } from "@/components/dashboard/useFinanceDashboard";
-import { ArrowDown, ArrowUp, PiggyBank, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, PiggyBank, Sparkles, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function SharedJarCard({
   state,
   compact = false,
   onAllocate,
+  onTransfer,
 }: {
   state: FinanceDashboardState;
   compact?: boolean;
   onAllocate?: () => void;
+  onTransfer?: () => void;
 }) {
   const { currencySymbol, sharedRolloverJar } = state;
+  const cashCarry = sharedRolloverJar.cashCarry ?? 0;
   const allocation = Math.max(sharedRolloverJar.monthlyAllocation, 1);
   const spendingRatio = Math.min(
     100,
@@ -114,11 +117,36 @@ export function SharedJarCard({
           </div>
         </div>
       </div>
+      {cashCarry > 0 && (
+        <div className="mt-5 flex items-center justify-between rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <Wallet size={15} className="shrink-0 text-amber-300" />
+            <div>
+              <p className="text-xs font-semibold text-amber-200">Cash Carry</p>
+              <p className="text-[11px] text-amber-300/70">Paid from cash — jar money freed up</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-amber-200">
+              {currencySymbol}{cashCarry.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+            {onTransfer && (
+              <button
+                type="button"
+                onClick={onTransfer}
+                className="rounded-lg border border-amber-400/30 bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-400/30"
+              >
+                Reclaim
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {onAllocate && (
         <button
           type="button"
           onClick={onAllocate}
-          className="mt-5 w-full rounded-xl border border-purple-400/20 bg-purple-400/10 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-purple-400/20 hover:border-purple-400/30"
+          className="mt-3 w-full rounded-xl border border-purple-400/20 bg-purple-400/10 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-purple-400/20 hover:border-purple-400/30"
         >
           + Add allocation
         </button>

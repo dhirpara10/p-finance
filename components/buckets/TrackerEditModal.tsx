@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { ColorPicker } from "./ColorPicker";
 import { IconPicker } from "./IconPicker";
 import { getLinkedCategoryIds } from "@/lib/definitionSelectors";
@@ -28,8 +28,25 @@ export function TrackerEditModal({ tracker, nextSortOrder, finDefs, categoryDefs
     tracker ? getLinkedCategoryIds(tracker.id, ctLinks) : []
   );
   const [saving, setSaving] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
 
   const activeCategories = categoryDefs.filter((c) => c.isActive && c.kind === "expense").sort((a, b) => a.sortOrder - b.sortOrder);
+
+  async function handleAddCategory() {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    setAddingCat(true);
+    try {
+      const newCat = await finDefs.addCategoryDef({
+        name: trimmed, kind: "expense", icon: "Tag", isActive: true, sortOrder: categoryDefs.length,
+      });
+      setSelectedCategoryIds((prev) => [...prev, newCat.id]);
+      setNewCatName("");
+    } finally {
+      setAddingCat(false);
+    }
+  }
 
   function toggleCategory(catId: string) {
     setSelectedCategoryIds((prev) =>
@@ -123,6 +140,23 @@ export function TrackerEditModal({ tracker, nextSortOrder, finDefs, categoryDefs
                   </label>
                 );
               })}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                placeholder="New category name…"
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400/40 placeholder:text-neutral-600"
+              />
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                disabled={addingCat || !newCatName.trim()}
+                className="flex items-center gap-1 rounded-xl border border-purple-400/20 bg-purple-500/15 px-3 py-2 text-xs font-medium text-purple-200 disabled:opacity-40 hover:bg-purple-500/25"
+              >
+                <Plus size={13} /> Add
+              </button>
             </div>
           </div>
 
