@@ -32,29 +32,25 @@ function compareTransactionIds(a: string | number, b: string | number) {
 }
 
 function getBalance(transactions: LendingTransaction[]) {
-  const totalLent = transactions
-    .filter((transaction) => transaction.type === "lent")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const chronological = [...transactions].sort(
+    (a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime() ||
+      compareTransactionIds(a.id, b.id)
+  );
 
-  const totalBorrowed = transactions
-    .filter((transaction) => transaction.type === "borrowed")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-  const totalSettled = transactions
-    .filter((transaction) => transaction.type === "settlement")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-  const grossBalance = totalLent - totalBorrowed;
-
-  if (grossBalance > 0) {
-    return grossBalance - totalSettled;
+  let balance = 0;
+  for (const tx of chronological) {
+    if (tx.type === "lent") {
+      balance += tx.amount;
+    } else if (tx.type === "borrowed") {
+      balance -= tx.amount;
+    } else if (tx.type === "settlement") {
+      if (balance > 0) balance = Math.max(0, balance - tx.amount);
+      else if (balance < 0) balance = Math.min(0, balance + tx.amount);
+    }
   }
 
-  if (grossBalance < 0) {
-    return grossBalance + totalSettled;
-  }
-
-  return 0;
+  return balance;
 }
 
 function getStatus(balance: number) {
