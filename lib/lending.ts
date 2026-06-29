@@ -32,11 +32,14 @@ function compareTransactionIds(a: string | number, b: string | number) {
 }
 
 function getBalance(transactions: LendingTransaction[]) {
-  const chronological = [...transactions].sort(
-    (a, b) =>
-      new Date(a.date).getTime() - new Date(b.date).getTime() ||
-      compareTransactionIds(a.id, b.id)
-  );
+  const chronological = [...transactions].sort((a, b) => {
+    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (createdA !== createdB) return createdA - createdB;
+    return compareTransactionIds(a.id, b.id);
+  });
 
   let balance = 0;
   for (const tx of chronological) {
