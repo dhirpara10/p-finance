@@ -14,7 +14,7 @@ import type { ExpenseAccount, ExpensePaymentMethod, LiabilityChannel } from "@/l
 import { defaultLiabilityChannels } from "@/lib/liabilities";
 import { formTokens } from "@/lib/designTokens";
 import { categoryIdFromName, normalizeCategoryId } from "@/lib/buckets";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Wallet } from "lucide-react";
 
 function BnplRepaymentPreview({ channel, amount, purchaseDate }: { channel: LiabilityChannel; amount: number; purchaseDate: string }) {
   if (!amount || amount <= 0) return null;
@@ -181,6 +181,21 @@ export function ExpenseForm({ state }: ExpenseFormProps) {
               { value: "CreditCard", label: "Credit Card" },
             ]}
           />
+
+          {expensePaymentMethod === "Cash" && isTrackerLinked && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-3">
+              <Wallet size={14} className="mt-0.5 shrink-0 text-amber-300" />
+              <p className="text-xs text-amber-200">
+                Cash paid on a jar-tracked category builds a <span className="font-semibold">cash carry</span> balance — the jar money is freed up. Use the <span className="font-semibold">Reclaim</span> button on the Shared Jar card in Buckets when ready.
+              </p>
+            </div>
+          )}
+
+          {expensePaymentMethod === "Cash" && !isTrackerLinked && bucketListTrackers.some((t) => t.active) && (
+            <p className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-xs text-neutral-500">
+              Cash carry only works when this category is linked to a tracker. Go to Buckets → edit a tracker to link it.
+            </p>
+          )}
 
           {isSplit && totalAmount > 0 && (
             <div className="rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 space-y-3">
