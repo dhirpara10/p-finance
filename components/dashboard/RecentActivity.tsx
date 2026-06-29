@@ -23,11 +23,14 @@ type RecentActivityProps = {
 
 type ActivityItem = FinanceDashboardState["recentActivity"][number] & {
   account?: string;
+  paymentMethod?: string;
 };
 
 function getActivityAccount(item: ActivityItem) {
   const account = String(item.account || "").trim();
+  const paymentMethod = String(item.paymentMethod || "").trim();
 
+  if (paymentMethod === "Split") return "";
   if (account.includes("$") || account.includes("•")) return account;
   if (account === "Afterpay" || account === "StepPay" || account === "Credit Card") return account;
   if (account === "Cash") return "Cash";
@@ -46,6 +49,7 @@ function getAccountBadgeClass(account: string) {
   if (account.includes("$") || account.includes("•")) {
     return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20";
   }
+  if (account === "Split") return "bg-violet-500/15 text-violet-300 ring-1 ring-violet-400/20";
   if (account === "Cash") return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/20";
   if (account === "Bank") return "bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/20";
   if (account === "Fund") return "bg-blue-500/15 text-blue-300 ring-1 ring-blue-400/20";
@@ -212,9 +216,7 @@ export function RecentActivity({
 
                       {account && (
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${getAccountBadgeClass(
-                            account
-                          )}`}
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${getAccountBadgeClass(account)}`}
                         >
                           {account}
                         </span>

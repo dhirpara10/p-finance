@@ -243,6 +243,13 @@ select option {
   .bucket-flip {
     width: 100%;
     min-width: 0;
+    height: 100%;
+  }
+  .bucket-flip-inner {
+    height: 100%;
+  }
+  .bucket-flip-face.bucket-flip-front {
+    height: 100%;
   }
 }
 

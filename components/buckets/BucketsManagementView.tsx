@@ -161,7 +161,13 @@ export function BucketsManagementView({ state }: { state: FinanceDashboardState 
                       onHistory={() => toggleSavingsHistory(bucketDef.id)}
                     />
                   }
-                  back={null}
+                  back={
+                    <BucketHistoryBack
+                      state={state}
+                      savings={bucketSummary}
+                      onClose={() => setBucketHistory(null)}
+                    />
+                  }
                 />
                 <div className="mt-2 flex gap-2 px-1">
                   <button onClick={() => setEditingBucket(bucketDef)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] py-1.5 text-xs text-neutral-500 hover:border-white/15 hover:text-neutral-200">

@@ -154,7 +154,7 @@ export function TrackerCard({
             {tracker.name}
           </h3>
 
-          <p className="mt-1 truncate text-xs capitalize text-purple-100/55">
+          <p className="mt-1 line-clamp-1 text-xs capitalize text-purple-100/55">
             {(() => {
               const cats = tracker.linkedCategoryIds.map((id) =>
                 id.replace("category_", "").replaceAll("_", " ")

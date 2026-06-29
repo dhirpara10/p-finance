@@ -267,85 +267,84 @@ function LedgerTimeline({
                 <TxIcon type={tx.type} />
               </div>
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-xs font-semibold ${col.text}`}>{label}</span>
+              {/* Left: details — grows, clips, never pushes right side */}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                  <span className={`shrink-0 text-xs font-semibold ${col.text}`}>{label}</span>
                   {tx.account && (
-                    <span className="rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
+                    <span className="shrink-0 rounded-full border border-white/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-neutral-600 uppercase tracking-wide">
                       {tx.account}
                     </span>
                   )}
                   {tx.commitmentDate && (tx.type === "lent" || tx.type === "borrowed") && (() => {
                     const cd = commitmentCountdown(tx.commitmentDate);
                     return (
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${cd.color}`}>
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${cd.color}`}>
                         <CalendarClock size={8} />
                         {cd.label}
                       </span>
                     );
                   })()}
                 </div>
-                <p className="text-[11px] text-neutral-600 mt-0.5">
+                <p className="mt-0.5 truncate text-[11px] text-neutral-600">
                   {tx.date}{tx.note ? ` · ${tx.note}` : ""}
                 </p>
               </div>
 
-              {/* Amount */}
-              <p className={`text-sm font-bold tabular-nums ${col.text} shrink-0`}>
-                {sym}{tx.amount.toLocaleString()}
-              </p>
+              {/* Right: amount + actions — always pinned to the right, never wraps */}
+              <div className="flex shrink-0 items-center gap-1">
+                <p className={`min-w-[60px] text-right text-sm font-bold tabular-nums ${col.text}`}>
+                  {sym}{tx.amount.toLocaleString()}
+                </p>
 
-              {/* Extend commitment button — lent/borrowed with commitment date */}
-              {!tx.legacy && (tx.type === "lent" || tx.type === "borrowed") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (extendingId === tx.id) {
-                      setExtendingId(null);
-                    } else {
-                      setExtendingId(tx.id);
-                      setExtendDate(tx.commitmentDate ?? "");
-                    }
-                  }}
-                  title="Set / extend commitment date"
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
-                    extendingId === tx.id ? "bg-amber-500/20 text-amber-300 opacity-100" : "text-neutral-600 hover:bg-amber-500/10 hover:text-amber-400"
-                  }`}
-                >
-                  <CalendarCheck size={12} />
-                </button>
-              )}
+                {!tx.legacy && (tx.type === "lent" || tx.type === "borrowed") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (extendingId === tx.id) {
+                        setExtendingId(null);
+                      } else {
+                        setExtendingId(tx.id);
+                        setExtendDate(tx.commitmentDate ?? "");
+                      }
+                    }}
+                    title="Set / extend commitment date"
+                    className={`flex h-7 w-7 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
+                      extendingId === tx.id ? "bg-amber-500/20 text-amber-300 opacity-100" : "text-neutral-600 hover:bg-amber-500/10 hover:text-amber-400"
+                    }`}
+                  >
+                    <CalendarCheck size={12} />
+                  </button>
+                )}
 
-              {/* Edit button — all non-legacy */}
-              {!tx.legacy && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (tx.type === "lent" || tx.type === "borrowed") {
-                      onEditLent(tx);
-                    } else {
-                      setEditingId(isEditing ? null : tx.id);
-                    }
-                  }}
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
-                    isEditing ? "bg-white/[0.10] text-white opacity-100" : "text-neutral-600 hover:bg-white/[0.08] hover:text-neutral-300"
-                  }`}
-                >
-                  <Pencil size={12} />
-                </button>
-              )}
+                {!tx.legacy && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tx.type === "lent" || tx.type === "borrowed") {
+                        onEditLent(tx);
+                      } else {
+                        setEditingId(isEditing ? null : tx.id);
+                      }
+                    }}
+                    className={`flex h-7 w-7 items-center justify-center rounded-xl transition opacity-0 group-hover:opacity-100 ${
+                      isEditing ? "bg-white/[0.10] text-white opacity-100" : "text-neutral-600 hover:bg-white/[0.08] hover:text-neutral-300"
+                    }`}
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
 
-              {/* Delete button */}
-              {!tx.legacy && (
-                <button
-                  type="button"
-                  onClick={() => onDelete(tx.id)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
+                {!tx.legacy && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(tx.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-xl text-neutral-700 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Inline edit for settlement */}

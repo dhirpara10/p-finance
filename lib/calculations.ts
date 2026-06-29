@@ -978,10 +978,13 @@ const recentActivity: RecentActivityItem[] = [
     const pm = item.paymentMethod;
     const isBnpl = pm === "Afterpay" || pm === "StepPay";
     const isCard = pm === "CreditCard";
+    const cashPortion = Number(item.cashPortion) || 0;
+    const bankPortion = Number(item.amount) - cashPortion;
     const accountLabel =
       pm === "Afterpay" ? "Afterpay"
       : pm === "StepPay" ? "StepPay"
       : pm === "CreditCard" ? "Credit Card"
+      : pm === "Split" ? `${formatMoneyLabel(cashPortion)} Cash • ${formatMoneyLabel(bankPortion)} Bank`
       : item.account === "Cash" ? "Cash"
       : "Bank";
 

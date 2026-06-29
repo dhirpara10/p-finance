@@ -47,11 +47,11 @@ function getBalance(transactions: LendingTransaction[]) {
   const grossBalance = totalLent - totalBorrowed;
 
   if (grossBalance > 0) {
-    return Math.max(0, grossBalance - totalSettled);
+    return grossBalance - totalSettled;
   }
 
   if (grossBalance < 0) {
-    return Math.min(0, grossBalance + totalSettled);
+    return grossBalance + totalSettled;
   }
 
   return 0;
